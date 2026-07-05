@@ -34,8 +34,19 @@ function findCol(header, ...keywords) {
   return -1;
 }
 
-const colSum = (rows, idx) =>
-  idx < 0 ? null : rows.reduce((a, r) => a + (Number(r[idx]) || 0), 0);
+// Row 2 (index 1) carries the unit for each column, e.g. "[Wh]" or "[kWh]".
+// Exports vary between Wh and kWh, so scale to kWh using that row rather
+// than assuming a fixed unit.
+function unitScale(unitsRow, idx) {
+  if (idx < 0) return 1;
+  const u = String(unitsRow?.[idx] ?? '').toLowerCase();
+  if (u.includes('kwh')) return 1;
+  if (u.includes('wh')) return 0.001;
+  return 1;
+}
+
+const colSum = (rows, idx, scale = 1) =>
+  idx < 0 ? null : rows.reduce((a, r) => a + (Number(r[idx]) || 0), 0) * scale;
 
 // Returns { solarProductionKwh, ownConsumptionKwh, gridExportKwh,
 //           gridImportFroniusKwh, totalConsumptionKwh, days }
@@ -45,17 +56,18 @@ export async function parseFronius(file) {
   const buf = await file.arrayBuffer();
   const rows = sheetRows(new Uint8Array(buf));
   const header = rows[0] ?? [];
+  const unitsRow = rows[1] ?? [];
   const data = dataRows(rows);
 
   const production = findCol(header, 'production');
   const consumption = findCol(header, 'consumption');
-  const feedIn = findCol(header, 'feed');       // grid export / feed-in
-  const fromGrid = findCol(header, 'from', 'grid'); // grid import
+  const feedIn = findCol(header, 'to', 'grid');     // grid export / feed-in ("Energy to grid")
+  const fromGrid = findCol(header, 'from', 'grid'); // grid import ("Energy from grid")
 
-  const solar = colSum(data, production);
-  const cons = colSum(data, consumption);
-  const exp = colSum(data, feedIn);
-  const imp = colSum(data, fromGrid);
+  const solar = colSum(data, production, unitScale(unitsRow, production));
+  const cons = colSum(data, consumption, unitScale(unitsRow, consumption));
+  const exp = colSum(data, feedIn, unitScale(unitsRow, feedIn));
+  const imp = colSum(data, fromGrid, unitScale(unitsRow, fromGrid));
 
   return {
     solarProductionKwh: solar,
