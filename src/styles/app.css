@@ -89,6 +89,7 @@ header.top h1 {
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; max-width: 100%; }
 .panel h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
 .panel h3 { margin: .25rem 0 .5rem; font-size: .95rem; color: var(--muted); }
+.tile-sub-note { font-size: .75rem; font-weight: 400; color: var(--muted); opacity: .85; margin-left: .3rem; }
 
 /* Collapsible dashboard panels - collapsed by default */
 .collapsible { padding: 0; overflow: hidden; }
@@ -227,7 +228,12 @@ table.digest th:first-child, table.digest td:first-child { text-align: left; }
    fixed columns forcing long component names to overlap neighboring cells. */
 table.digest.payback-table { table-layout: auto; }
 .payback-table td, .payback-table th { white-space: nowrap; }
-.pending { color: var(--accent); font-style: italic; }
+/* Ingest preview: red/yellow/green severity per field, so an actual
+   cross-validation problem stands out from the wall of numbers instead of
+   reading the same as everything else. */
+.digest-ok { color: var(--green); }
+.digest-warn { color: var(--accent); font-style: italic; }
+.digest-err { color: var(--red); font-weight: 700; }
 .chart-wrap { position: relative; height: 300px; max-width: 100%; }
 
 /* EV Charging Split: one shared legend on top instead of a legend per chart,

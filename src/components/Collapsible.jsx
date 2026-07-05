@@ -14,6 +14,8 @@ import React, { useEffect, useRef, useState } from 'react';
 export default function Collapsible({ title, icon, open, onToggle, children }) {
   const [mounted, setMounted] = useState(open);
   const wrapRef = useRef(null);
+  const headerRef = useRef(null);
+  const scrollOnOpenRef = useRef(false);
 
   // Opening: mount fresh content, then measure it and transition into place.
   useEffect(() => {
@@ -44,14 +46,32 @@ export default function Collapsible({ title, icon, open, onToggle, children }) {
       wrapRef.current.style.maxHeight = '';
     } else {
       wrapRef.current.style.maxHeight = 'none'; // let content resize freely (charts, filter changes) once open
+      // Only now does the page actually have room to scroll into - doing this
+      // on click (before the tile has grown) computes against a page that's
+      // still its old, shorter height, so the browser sees nowhere to go and
+      // silently no-ops.
+      if (scrollOnOpenRef.current) {
+        scrollOnOpenRef.current = false;
+        headerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
+  };
+
+  // Opening a specific tile by clicking its own header brings that tile's
+  // title to the top of the screen - a deliberate "focus on this" moment.
+  // Bulk "Expand all" doesn't go through this handler (it drives `open` via
+  // props directly), so it doesn't fight over scroll position for 4 panels.
+  const handleHeaderClick = () => {
+    if (!open) scrollOnOpenRef.current = true;
+    onToggle();
   };
 
   return (
     <div className="panel collapsible">
       <button
         className="collapsible-header"
-        onClick={onToggle}
+        ref={headerRef}
+        onClick={handleHeaderClick}
         aria-expanded={open}
       >
         <h2>

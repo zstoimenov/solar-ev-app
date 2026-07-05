@@ -18,6 +18,21 @@ const empty = { fronius: null, wattpilot: null, synergy: null };
 // month straight from the filename so the user doesn't have to type it.
 const MONTH_FROM_FILENAME = /(\d{4})[_-](\d{2})(?!\d)/;
 
+// Red/yellow/green severity per preview field, so a genuine problem
+// (cross-val breach) stands out from a merely-pending value (Synergy not
+// billed yet) instead of both looking like "just another number".
+function rowStatus(key, value) {
+  if (typeof value === 'number' && Number.isNaN(value)) return 'err'; // e.g. a missing config/tariff field
+  if ((key === 'crossValImport' || key === 'crossValExport') && value === 'Fail') return 'err';
+  if (key === 'flags' && typeof value === 'string' && /breach/i.test(value)) return 'err';
+  if (value == null) return 'warn';
+  if ((key === 'crossValImport' || key === 'crossValExport') && value === 'Pending') return 'warn';
+  if (key === 'partialMonth' && value === true) return 'warn';
+  return 'ok';
+}
+
+const SEVERITY_RANK = { err: 2, warn: 1, ok: 0 };
+
 export default function IngestWizard({ state, onChange, onIngested }) {
   const [files, setFiles] = useState(empty);
   const [manual, setManual] = useState({
@@ -145,19 +160,28 @@ export default function IngestWizard({ state, onChange, onIngested }) {
         <button className="primary" onClick={buildPreview}>Build preview</button>
       </div>
 
-      {preview && (
+      {preview && (() => {
+        const rows = Object.entries(preview.digest).map(([k, v]) => [k, v, rowStatus(k, v)]);
+        const overall = rows.reduce((worst, [, , s]) => (SEVERITY_RANK[s] > SEVERITY_RANK[worst] ? s : worst), 'ok');
+        const overallText = {
+          err: 'Cross-validation issue found - review the red field(s) before committing.',
+          warn: 'Looks OK, with some pending/partial field(s) below (yellow) - review before committing.',
+          ok: 'All checks passed - nothing flagged.'
+        }[overall];
+        return (
         <div className="field-section">
           <div className={`banner ${preview.replaced ? 'warn' : 'ok'}`}>
             {preview.replaced ? 'Will REPLACE existing month' : 'Will APPEND new month'}{' '}
             <strong>{preview.digest.month}</strong>. Review before committing.
           </div>
+          <div className={`banner ${overall}`}>{overallText}</div>
           <div className="grid cols-2">
             <div>
               <h3>New month</h3>
               <div className="table-scroll">
                 <table className="digest"><tbody>
-                  {Object.entries(preview.digest).map(([k, v]) => (
-                    <tr key={k}><td>{k}</td><td className={v == null ? 'pending' : ''}>{v == null ? 'null' : String(v)}</td></tr>
+                  {rows.map(([k, v, status]) => (
+                    <tr key={k}><td>{k}</td><td className={`digest-${status}`}>{v == null ? 'null' : String(v)}</td></tr>
                   ))}
                 </tbody></table>
               </div>
@@ -172,7 +196,12 @@ export default function IngestWizard({ state, onChange, onIngested }) {
                   <tr><td>Layer 1 saving</td><td>{preview.next.cumulativeTotals.financial.layer1SavingAud}</td></tr>
                   <tr><td>Layer 2 saving</td><td>{preview.next.cumulativeTotals.financial.layer2SavingAud}</td></tr>
                   <tr><td>Combined 1+2</td><td>{preview.next.cumulativeTotals.financial.combinedLayer12SavingAud}</td></tr>
-                  <tr><td>Cross-val flags</td><td>{preview.next.cumulativeTotals.crossValFlags.join(', ') || 'none'}</td></tr>
+                  <tr>
+                    <td>Cross-val flags</td>
+                    <td className={preview.next.cumulativeTotals.crossValFlags.length ? 'digest-err' : 'digest-ok'}>
+                      {preview.next.cumulativeTotals.crossValFlags.join(', ') || 'none'}
+                    </td>
+                  </tr>
                 </tbody></table>
               </div>
             </div>
@@ -182,7 +211,8 @@ export default function IngestWizard({ state, onChange, onIngested }) {
             <button className="ghost" onClick={() => setPreview(null)}>Discard preview</button>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
