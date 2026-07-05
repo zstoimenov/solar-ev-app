@@ -13,6 +13,16 @@ const COLORS = {
   pv: '#facc15', battery: '#34d399', homeGrid: '#f87171', work: '#60a5fa', trip: '#a78bfa'
 };
 
+// Both charts below share this exact category/color mapping, so one legend
+// at the top of the tile covers both instead of repeating per chart.
+const LEGEND_ITEMS = [
+  { label: 'PV', color: COLORS.pv },
+  { label: 'Battery', color: COLORS.battery },
+  { label: 'The grid', color: COLORS.homeGrid },
+  { label: 'Free public', color: COLORS.work },
+  { label: 'Paid public', color: COLORS.trip }
+];
+
 export default function EvChargingSplit({ state }) {
   const ev = state.cumulativeTotals.ev;
   const digests = state.monthlyDigests;
@@ -38,7 +48,7 @@ export default function EvChargingSplit({ state }) {
 
   const barOpts = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { labels: { color: '#e2e8f0' } } },
+    plugins: { legend: { display: false } },
     scales: {
       x: { stacked: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
       y: { stacked: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
@@ -46,22 +56,32 @@ export default function EvChargingSplit({ state }) {
   };
   const dOpts = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'bottom', labels: { color: '#e2e8f0' } } }
+    plugins: { legend: { display: false } }
   };
 
   return (
-    <div className="grid cols-2">
-      <div>
-        <h3>All-time source mix</h3>
-        <div className="chart-wrap"><Doughnut data={allTime} options={dOpts} /></div>
-        <p className="small">
-          PV {ev.fromPvPct ?? '—'}% · Battery {ev.fromBatteryPct ?? '—'}% · The grid {ev.fromHomeGridPct ?? '—'}%
-        </p>
+    <>
+      <div className="ev-legend">
+        {LEGEND_ITEMS.map((item) => (
+          <span className="ev-legend-item" key={item.label}>
+            <span className="ev-legend-swatch" style={{ background: item.color }} />
+            {item.label}
+          </span>
+        ))}
       </div>
-      <div>
-        <h3>Per month (kWh)</h3>
-        <div className="chart-wrap"><Bar data={monthly} options={barOpts} /></div>
+      <div className="grid cols-2">
+        <div>
+          <h3>All-time source mix</h3>
+          <div className="chart-wrap"><Doughnut data={allTime} options={dOpts} /></div>
+          <p className="small">
+            PV {ev.fromPvPct ?? '—'}% · Battery {ev.fromBatteryPct ?? '—'}% · The grid {ev.fromHomeGridPct ?? '—'}%
+          </p>
+        </div>
+        <div>
+          <h3>Per month (kWh)</h3>
+          <div className="chart-wrap"><Bar data={monthly} options={barOpts} /></div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

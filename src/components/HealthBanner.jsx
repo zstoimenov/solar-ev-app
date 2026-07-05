@@ -3,14 +3,18 @@
 // restore prompt when the store looks empty or shorter than the last export.
 // The "all good" state auto-dismisses after a few seconds (and can be closed
 // early) so it doesn't sit around taking up space; warnings/errors persist
-// since they need the user's attention.
+// since they need the user's attention. Dismissal collapses smoothly (see
+// the .closing CSS transition) rather than unmounting outright, so content
+// below doesn't jump.
 
 import React, { useEffect, useState } from 'react';
 
 const AUTO_DISMISS_MS = 6000;
+const CLOSE_TRANSITION_MS = 350;
 
 export default function HealthBanner({ state, lastExportedCount, onRestore }) {
-  const [dismissed, setDismissed] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [removed, setRemoved] = useState(false);
 
   const count = state?.monthlyDigests.length ?? 0;
   const shorterThanExport = lastExportedCount != null && count < lastExportedCount;
@@ -18,11 +22,19 @@ export default function HealthBanner({ state, lastExportedCount, onRestore }) {
 
   useEffect(() => {
     if (!isOk) return;
-    const t = setTimeout(() => setDismissed(true), AUTO_DISMISS_MS);
+    const t = setTimeout(() => setClosing(true), AUTO_DISMISS_MS);
     return () => clearTimeout(t);
   }, [isOk, count]);
 
-  if (!state || dismissed) return null;
+  // Collapse smoothly (CSS transition below) instead of unmounting outright,
+  // so the content below doesn't jump the instant the banner auto-dismisses.
+  useEffect(() => {
+    if (!closing) return;
+    const t = setTimeout(() => setRemoved(true), CLOSE_TRANSITION_MS);
+    return () => clearTimeout(t);
+  }, [closing]);
+
+  if (!state || removed) return null;
   const { meta } = state;
   const first = meta?.dateRange?.first ?? '?';
   const last = meta?.dateRange?.last ?? '?';
@@ -39,7 +51,7 @@ export default function HealthBanner({ state, lastExportedCount, onRestore }) {
   }
 
   return (
-    <div className={`banner compact ${shorterThanExport ? 'warn' : 'ok'}`}>
+    <div className={`banner compact ${shorterThanExport ? 'warn' : 'ok'} ${closing ? 'closing' : ''}`}>
       <span>
         <strong>{count}</strong> month{count === 1 ? '' : 's'} · {first} → {last}
         {shorterThanExport && (
@@ -49,7 +61,7 @@ export default function HealthBanner({ state, lastExportedCount, onRestore }) {
           </>
         )}
       </span>
-      <button className="banner-close" onClick={() => setDismissed(true)} aria-label="Dismiss">✕</button>
+      <button className="banner-close" onClick={() => setClosing(true)} aria-label="Dismiss">✕</button>
     </div>
   );
 }

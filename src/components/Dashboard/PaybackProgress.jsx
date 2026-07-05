@@ -13,11 +13,20 @@ function money(n) {
   return n == null ? '—' : `$${Number(n).toLocaleString('en-AU')}`;
 }
 
+// Component names come from the household's own config (brand/model), but
+// the tile is about the payback of the *thing* (solar panels, charger,
+// battery), not the brand - strip brand/model qualifiers for display.
+const BRAND_STRIP = /\s*[(]?\b(wattpilot|byd\s*hvm)\b[)]?\s*/gi;
+function simplifyName(name) {
+  if (!name) return name;
+  return name.replace(BRAND_STRIP, ' ').replace(/\s{2,}/g, ' ').trim();
+}
+
 export default function PaybackProgress({ state }) {
   const payback = state.cumulativeTotals.payback ?? [];
   const totals = state.cumulativeTotals.paybackTotals;
 
-  const labels = payback.map((p) => p.component);
+  const labels = payback.map((p) => simplifyName(p.component));
   const data = {
     labels,
     datasets: [
@@ -54,7 +63,7 @@ export default function PaybackProgress({ state }) {
           <tbody>
             {payback.map((p) => (
               <tr key={p.component}>
-                <td>{p.component}</td>
+                <td>{simplifyName(p.component)}</td>
                 <td>{money(p.oopAud)}</td>
                 <td>{money(p.recoveredAud)}</td>
                 <td>{money(p.remainingAud)}</td>
