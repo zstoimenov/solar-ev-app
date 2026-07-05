@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { loadOrSeed } from './data/seed.js';
 import { getState, getAppMeta } from './data/db.js';
+import { recomputeCumulative } from './data/compute.js';
 import { APP_VERSION } from './version.js';
 import HealthBanner from './components/HealthBanner.jsx';
 import DataNotes from './components/DataNotes.jsx';
@@ -10,6 +11,7 @@ import RoiLayers from './components/Dashboard/RoiLayers.jsx';
 import PaybackProgress from './components/Dashboard/PaybackProgress.jsx';
 import EnergyTrends from './components/Dashboard/EnergyTrends.jsx';
 import EvChargingSplit from './components/Dashboard/EvChargingSplit.jsx';
+import DateRangeFilter from './components/Dashboard/DateRangeFilter.jsx';
 import IngestWizard from './components/IngestWizard.jsx';
 import ExportRestore from './components/ExportRestore.jsx';
 
@@ -54,6 +56,8 @@ export default function App() {
   const [tab, setTab] = useState('Dashboard');
   const [notesOpen, setNotesOpen] = useState(false);
   const [panelsOpen, setPanelsOpen] = useState({ roi: false, payback: false, energy: false, ev: false });
+  const [fromMonth, setFromMonth] = useState(null);
+  const [toMonth, setToMonth] = useState(null);
 
   const refresh = useCallback(async () => {
     const [s, m] = await Promise.all([getState(), getAppMeta()]);
@@ -88,6 +92,20 @@ export default function App() {
     setPanelsOpen(Object.fromEntries(PANEL_KEYS.map((k) => [k, next])));
   };
   const togglePanel = (key) => setPanelsOpen((p) => ({ ...p, [key]: !p[key] }));
+
+  const allMonths = state.monthlyDigests.map((d) => d.month);
+  const effectiveFrom = fromMonth && allMonths.includes(fromMonth) ? fromMonth : allMonths[0];
+  const effectiveTo = toMonth && allMonths.includes(toMonth) ? toMonth : allMonths[allMonths.length - 1];
+  const filteredDigests = state.monthlyDigests.filter(
+    (d) => d.month >= effectiveFrom && d.month <= effectiveTo
+  );
+  // Dashboard panels read this scoped view; HealthBanner still reads the
+  // unfiltered `state` so it always reflects the real data integrity.
+  const filteredState = {
+    ...state,
+    monthlyDigests: filteredDigests,
+    cumulativeTotals: recomputeCumulative(filteredDigests, state.cumulativeTotals, state.config)
+  };
 
   // First-run / empty store: the public bundle ships an EMPTY starter (no
   // personal data). Prompt the user to restore their private backup before
@@ -124,20 +142,29 @@ export default function App() {
 
       {tab === 'Dashboard' && (
         <>
-          <button className="ghost expand-all" onClick={toggleAllPanels}>
-            {allPanelsOpen ? '⊟ Collapse all' : '⊞ Expand all'}
-          </button>
+          <div className="dashboard-controls">
+            <button className="ghost expand-all" onClick={toggleAllPanels}>
+              {allPanelsOpen ? '⊟ Collapse all' : '⊞ Expand all'}
+            </button>
+            <DateRangeFilter
+              months={allMonths}
+              from={effectiveFrom}
+              to={effectiveTo}
+              onFromChange={setFromMonth}
+              onToChange={setToMonth}
+            />
+          </div>
           <Collapsible title="ROI Layers" open={panelsOpen.roi} onToggle={() => togglePanel('roi')}>
-            <RoiLayers state={state} />
+            <RoiLayers state={filteredState} />
           </Collapsible>
           <Collapsible title="Payback Progress" open={panelsOpen.payback} onToggle={() => togglePanel('payback')}>
-            <PaybackProgress state={state} />
+            <PaybackProgress state={filteredState} />
           </Collapsible>
           <Collapsible title="Energy Trends" open={panelsOpen.energy} onToggle={() => togglePanel('energy')}>
-            <EnergyTrends state={state} />
+            <EnergyTrends state={filteredState} />
           </Collapsible>
           <Collapsible title="EV Charging Split" open={panelsOpen.ev} onToggle={() => togglePanel('ev')}>
-            <EvChargingSplit state={state} />
+            <EvChargingSplit state={filteredState} />
           </Collapsible>
           {notesOpen && (
             <Modal title="Data Notes" onClose={() => setNotesOpen(false)}>

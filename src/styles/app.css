@@ -22,21 +22,38 @@ body {
 }
 a { color: var(--blue); }
 
-.app { max-width: 1100px; margin: 0 auto; padding: 1rem 1rem 2.5rem; overflow-x: hidden; }
+.app { max-width: 1100px; margin: 0 auto; padding: 1rem 1rem 4rem; overflow-x: hidden; }
 header.top { display: flex; align-items: center; gap: .75rem; flex-wrap: nowrap; position: relative; }
 header.top h1 {
   font-size: 1.35rem; margin: .25rem 0; flex: 1 1 auto; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* Bottom bar: version (left) / Data notes trigger (right) */
+/* Bottom bar: version (left) / Data notes trigger (right) - pinned to the
+   viewport bottom so it's always reachable instead of scrolling away.
+   .app's bottom padding (above) keeps content clear of it. */
 .bottom-bar {
   display: flex; align-items: center; justify-content: space-between;
-  margin-top: 1.5rem; padding-top: .75rem; border-top: 1px solid var(--border);
+  position: fixed; left: 0; right: 0; bottom: 0; margin: 0 auto;
+  max-width: 1100px; width: 100%; box-sizing: border-box;
+  padding: .6rem 1rem; border-top: 1px solid var(--border);
+  background: var(--bg); z-index: 30;
 }
 .bottom-bar .sub { color: var(--muted); font-size: .78rem; font-family: ui-monospace, monospace; }
 
-.expand-all { margin-bottom: .75rem; font-size: .8rem; padding: .4rem .7rem; }
+/* Row holding the expand/collapse-all button + the dashboard date range filter */
+.dashboard-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .6rem; flex-wrap: wrap; margin-bottom: .75rem;
+}
+.expand-all { font-size: .8rem; padding: .4rem .7rem; flex-shrink: 0; }
+
+.date-range-filter { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .8rem; }
+.date-range-filter label { display: flex; align-items: center; gap: .35rem; color: var(--muted); }
+.date-range-filter select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: .3rem .5rem; font-size: .8rem; max-width: 100%;
+}
 
 /* Hamburger menu (replaces the old tab-button row) */
 .hamburger-wrap { margin-left: auto; position: relative; }
@@ -61,10 +78,10 @@ header.top h1 {
 .panel h3 { margin: .25rem 0 .5rem; font-size: .95rem; color: var(--muted); }
 
 /* Collapsible dashboard panels - collapsed by default */
-.collapsible { padding: 0; }
+.collapsible { padding: 0; overflow: hidden; }
 .collapsible-header {
   width: 100%; display: flex; align-items: center; justify-content: space-between;
-  background: transparent; border: none; color: var(--text); cursor: pointer;
+  background: var(--panel-2); border: none; color: var(--text); cursor: pointer;
   padding: 1rem 1.1rem; font: inherit; text-align: left;
 }
 .collapsible-header h2 { margin: 0; }
@@ -85,7 +102,17 @@ header.top h1 {
 .metric .explainer { color: var(--muted); font-size: .75rem; margin: .5rem 0 0; line-height: 1.4; }
 
 .banner { border-radius: 10px; padding: .7rem .9rem; margin-bottom: 1rem; font-size: .9rem; }
-.banner.compact { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .45rem .7rem; font-size: .82rem; }
+.banner.compact {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  padding: .45rem .7rem; font-size: .82rem;
+  max-height: 100px; overflow: hidden;
+  transition: max-height .35s ease, opacity .3s ease, padding .35s ease, margin .35s ease, border-width .35s ease;
+}
+/* Collapses smoothly instead of vanishing outright, so content below eases
+   up rather than jumping the instant the banner auto-dismisses. */
+.banner.compact.closing {
+  max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-bottom: 0; border-width: 0;
+}
 .banner.ok { background: #14322a; border: 1px solid #1f6b4f; color: #a7f3d0; }
 .banner.warn { background: #3a2a10; border: 1px solid #a16207; color: #fde68a; }
 .banner.err { background: #3a1414; border: 1px solid #b91c1c; color: #fecaca; }
@@ -123,6 +150,12 @@ table.digest.payback-table { table-layout: auto; }
 .payback-table td, .payback-table th { white-space: nowrap; }
 .pending { color: var(--accent); font-style: italic; }
 .chart-wrap { position: relative; height: 300px; max-width: 100%; }
+
+/* EV Charging Split: one shared legend on top instead of a legend per chart,
+   since both charts use the same category/color mapping. */
+.ev-legend { display: flex; flex-wrap: wrap; gap: .6rem 1rem; margin-bottom: .75rem; font-size: .8rem; color: var(--text); }
+.ev-legend-item { display: inline-flex; align-items: center; gap: .35rem; }
+.ev-legend-swatch { width: .7rem; height: .7rem; border-radius: 3px; flex-shrink: 0; }
 .small { font-size: .8rem; color: var(--muted); }
 .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 .provisional { display: inline-block; font-size: .7rem; background: #a16207; color: #fff; border-radius: 6px; padding: .05rem .4rem; margin-left: .4rem; }
