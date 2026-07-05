@@ -1,16 +1,15 @@
-// Collapsible - generic expand/collapse panel wrapper. Dashboard panels are
-// collapsed by default so the page reads as a scannable list of headings.
+// Collapsible - controlled expand/collapse panel wrapper. Open state is
+// owned by the parent (App.jsx) so an "expand/collapse all" control can
+// drive every panel at once alongside each panel's own toggle.
 
-import React, { useState } from 'react';
+import React from 'react';
 
-export default function Collapsible({ title, defaultOpen = false, children }) {
-  const [open, setOpen] = useState(defaultOpen);
-
+export default function Collapsible({ title, open, onToggle, children }) {
   return (
     <div className="panel collapsible">
       <button
         className="collapsible-header"
-        onClick={() => setOpen((o) => !o)}
+        onClick={onToggle}
         aria-expanded={open}
       >
         <h2>{title}</h2>

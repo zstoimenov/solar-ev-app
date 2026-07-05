@@ -63,6 +63,28 @@ export async function importState(parsed) {
   return obj;
 }
 
+// Wipe the store back to the same empty shell the public bundle ships with,
+// and clear the export-guard bookkeeping. Used by the Backup tab's "Delete
+// all data" button - irreversible except via a separate backup.
+export async function resetState() {
+  const empty = {
+    schemaVersion: SCHEMA_VERSION,
+    meta: {
+      exportedAt: new Date().toISOString(),
+      appVersion: 'reset',
+      monthCount: 0,
+      dateRange: { first: null, last: null },
+      sourceNote: 'Cleared via the Backup tab "Delete all data" button.'
+    },
+    config: {},
+    monthlyDigests: [],
+    cumulativeTotals: {}
+  };
+  await putState(empty);
+  await (await db()).delete(STORE, META_KEY);
+  return empty;
+}
+
 // Parse a JSON string into an object, surfacing a clean SchemaError on
 // malformed JSON so callers can show one consistent message.
 export function parseBackup(text) {
