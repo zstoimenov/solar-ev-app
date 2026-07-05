@@ -89,6 +89,7 @@ header.top h1 {
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; max-width: 100%; }
 .panel h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
 .panel h3 { margin: .25rem 0 .5rem; font-size: .95rem; color: var(--muted); }
+.tile-sub-note { font-size: .75rem; font-weight: 400; color: var(--muted); opacity: .85; margin-left: .3rem; }
 
 /* Collapsible dashboard panels - collapsed by default */
 .collapsible { padding: 0; overflow: hidden; }
@@ -184,6 +185,16 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .field-section:first-of-type { padding-top: 0; margin-top: .75rem; border-top: none; }
 .field-section h3 { margin-top: 0; }
 
+/* Sub-navigation within a tab (e.g. Ingest: Monthly Upload / Import Tariff /
+   Feed-in Tariff / Public Charging Log) - distinct from the top-level
+   hamburger menu, but the same "pill" language. */
+.subtabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.subtabs button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: .4rem .75rem; font-size: .82rem; cursor: pointer;
+}
+.subtabs button.active { background: var(--accent); color: #1a1a1a; font-weight: 600; border-color: var(--accent); }
+
 /* Small "i" trigger that reveals secondary explanatory text on demand. */
 .info-popover { position: relative; display: inline-flex; }
 .info-popover-trigger {
@@ -221,13 +232,19 @@ label.field .hint { color: var(--muted); font-size: .72rem; font-style: italic; 
 table.digest { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .8rem; }
 table.digest th, table.digest td { border-bottom: 1px solid var(--border); padding: .3rem .4rem; text-align: right; word-break: break-word; }
 table.digest th:first-child, table.digest td:first-child { text-align: left; }
-/* Payback Progress' 5-column table reads better with its numbers on one
-   line. table-layout:auto lets the table grow past the container so the
+/* Multi-column tables read better with their numbers on one line: Payback
+   Progress, and the Ingest tab's tariff-schedule / charging-log tables.
+   table-layout:auto lets the table grow past the container so the
    .table-scroll wrapper's overflow-x handles it with a swipe, instead of
-   fixed columns forcing long component names to overlap neighboring cells. */
-table.digest.payback-table { table-layout: auto; }
-.payback-table td, .payback-table th { white-space: nowrap; }
-.pending { color: var(--accent); font-style: italic; }
+   fixed columns forcing headers/values to wrap and overlap neighboring cells. */
+table.digest.table-nowrap { table-layout: auto; }
+.table-nowrap td, .table-nowrap th { white-space: nowrap; }
+/* Ingest preview: red/yellow/green severity per field, so an actual
+   cross-validation problem stands out from the wall of numbers instead of
+   reading the same as everything else. */
+.digest-ok { color: var(--green); }
+.digest-warn { color: var(--accent); font-style: italic; }
+.digest-err { color: var(--red); font-weight: 700; }
 .chart-wrap { position: relative; height: 300px; max-width: 100%; }
 
 /* EV Charging Split: one shared legend on top instead of a legend per chart,

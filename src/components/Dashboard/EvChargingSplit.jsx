@@ -117,6 +117,14 @@ export default function EvChargingSplit({ state }) {
     { label: 'The grid', value: ev.fromHomeGridKwh ?? 0, pct: ev.fromHomeGridPct, color: COLORS.homeGrid }
   ].sort((a, b) => b.value - a.value);
 
+  // Average monthly charging across every month in the active date range
+  // (pending/null months are skipped, not treated as zero - same convention
+  // as the avg helpers in data/compute.js).
+  const chargedVals = digests.map((d) => d.evTotalChargedKwh).filter((v) => v != null);
+  const avgMonthlyKwh = chargedVals.length
+    ? Math.round(chargedVals.reduce((a, b) => a + b, 0) / chargedVals.length)
+    : null;
+
   return (
     <>
       <div className="ev-legend">
@@ -144,7 +152,7 @@ export default function EvChargingSplit({ state }) {
           </p>
         </div>
         <div>
-          <h3>Per month (kWh)</h3>
+          <h3>Per month (kWh) <span className="tile-sub-note nowrap">avg {avgMonthlyKwh ?? '—'} kWh/mo</span></h3>
           <div className="chart-wrap"><Bar data={monthly} options={barOpts} plugins={[totalLabelPlugin]} /></div>
         </div>
       </div>
