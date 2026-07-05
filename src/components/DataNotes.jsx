@@ -16,8 +16,7 @@ export default function DataNotes({ state }) {
   const cf = config?.counterfactual;
 
   return (
-    <div className="panel">
-      <h2>Data Notes</h2>
+    <>
       <ul className="notes-list">
         {fitProvisional && (
           <li>
@@ -49,7 +48,7 @@ export default function DataNotes({ state }) {
           </li>
         )}
       </ul>
-    </div>
+    </>
   );
 }
 

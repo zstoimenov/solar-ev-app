@@ -48,40 +48,23 @@ function unitScale(unitsRow, idx) {
 const colSum = (rows, idx, scale = 1) =>
   idx < 0 ? null : rows.reduce((a, r) => a + (Number(r[idx]) || 0), 0) * scale;
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-// "01.06.2026" (dd.MM.yyyy) -> "1 Jun 2026", matching the manual-entry convention.
-function formatDay(dateStr) {
-  const m = String(dateStr ?? '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (!m) return null;
-  const [, d, mo] = m;
-  const monthName = MONTHS[Number(mo) - 1];
-  return monthName ? `${Number(d)} ${monthName} ${m[3]}` : null;
+// Count of days with (effectively) zero solar production - derived from the
+// same daily rows used for the monthly total, no manual entry required.
+function countZeroProductionDays(rows, idx, scale) {
+  if (idx < 0 || rows.length === 0) return null;
+  return rows.reduce((a, r) => a + ((Number(r[idx]) || 0) * scale < 0.01 ? 1 : 0), 0);
 }
 
-// Per-day production stats (peak/lowest/std dev), derived from the same
-// daily rows used for the monthly total - no manual entry required.
-function productionStats(rows, idx, scale) {
-  if (idx < 0 || rows.length === 0) {
-    return { peakProductionKwh: null, peakProductionDay: null, lowestProductionKwh: null, productionStdDevKwh: null };
-  }
-  const daily = rows.map((r) => ({ date: formatDay(r[0]), kwh: (Number(r[idx]) || 0) * scale }));
-  const peak = daily.reduce((a, d) => (d.kwh > a.kwh ? d : a), daily[0]);
-  const lowest = daily.reduce((a, d) => (d.kwh < a.kwh ? d : a), daily[0]);
-  const mean = daily.reduce((a, d) => a + d.kwh, 0) / daily.length;
-  const variance = daily.reduce((a, d) => a + (d.kwh - mean) ** 2, 0) / daily.length;
-  return {
-    peakProductionKwh: peak.kwh,
-    peakProductionDay: peak.date,
-    lowestProductionKwh: lowest.kwh,
-    productionStdDevKwh: Math.sqrt(variance)
-  };
+// First data row's date ("01.06.2026", dd.MM.yyyy) -> "2026-06", so the
+// Ingest Wizard can auto-fill the month field from the file itself.
+function monthFromFirstRow(rows) {
+  const d = String(rows?.[0]?.[0] ?? '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  return d ? `${d[3]}-${d[2].padStart(2, '0')}` : null;
 }
 
 // Returns { solarProductionKwh, ownConsumptionKwh, gridExportKwh,
 //           gridImportFroniusKwh, totalConsumptionKwh, days,
-//           peakProductionKwh, peakProductionDay, lowestProductionKwh,
-//           productionStdDevKwh }
+//           zeroProductionDays, month }
 // Column keywords are best-effort against Fronius export headers; adjust
 // keyword lists here if a future export renames columns.
 export async function parseFronius(file) {
@@ -110,6 +93,7 @@ export async function parseFronius(file) {
     ownConsumptionKwh: cons != null && imp != null ? cons - imp : null,
     days: data.length,
     _rows: data.length,
-    ...productionStats(data, production, productionScale)
+    zeroProductionDays: countZeroProductionDays(data, production, productionScale),
+    month: monthFromFirstRow(data)
   };
 }

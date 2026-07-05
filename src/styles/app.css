@@ -11,7 +11,8 @@
   --border: #334155;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; min-width: 0; }
+html, body { overflow-x: hidden; max-width: 100%; }
 body {
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -21,55 +22,112 @@ body {
 }
 a { color: var(--blue); }
 
-.app { max-width: 1100px; margin: 0 auto; padding: 1rem 1rem 4rem; }
-header.top { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
+.app { max-width: 1100px; margin: 0 auto; padding: 1rem 1rem 2.5rem; overflow-x: hidden; }
+header.top { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; position: relative; }
 header.top h1 { font-size: 1.35rem; margin: .25rem 0; }
-header.top .sub { color: var(--muted); font-size: .85rem; }
+header.top .sub { color: var(--muted); font-size: .8rem; font-family: ui-monospace, monospace; }
 
-nav.tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin: 1rem 0; }
-nav.tabs button {
+/* Hamburger menu (replaces the old tab-button row) */
+.hamburger-wrap { margin-left: auto; position: relative; }
+.hamburger {
   background: var(--panel); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: .5rem .9rem; cursor: pointer; font-size: .9rem;
+  border-radius: 8px; padding: .4rem .65rem; cursor: pointer; font-size: 1.1rem; line-height: 1;
 }
-nav.tabs button.active { background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 600; }
+.hamburger-menu {
+  position: absolute; right: 0; top: calc(100% + .4rem); z-index: 20;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: .35rem; display: flex; flex-direction: column; gap: .25rem; min-width: 140px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+}
+.hamburger-menu button {
+  background: transparent; color: var(--text); border: none; border-radius: 6px;
+  padding: .5rem .7rem; text-align: left; cursor: pointer; font-size: .9rem;
+}
+.hamburger-menu button.active { background: var(--accent); color: #1a1a1a; font-weight: 600; }
 
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; max-width: 100%; }
 .panel h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
 .panel h3 { margin: .25rem 0 .5rem; font-size: .95rem; color: var(--muted); }
 
-.grid { display: grid; gap: 1rem; }
-.grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-.grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+/* Collapsible dashboard panels - collapsed by default */
+.collapsible { padding: 0; }
+.collapsible-header {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  background: transparent; border: none; color: var(--text); cursor: pointer;
+  padding: 1rem 1.1rem; font: inherit; text-align: left;
+}
+.collapsible-header h2 { margin: 0; }
+.collapsible-header .chevron { color: var(--muted); transition: transform .15s ease; }
+.collapsible-header .chevron.open { transform: rotate(90deg); }
+.collapsible-body { padding: 0 1.1rem 1rem; }
 
-.metric { background: var(--panel-2); border-radius: 10px; padding: .75rem .9rem; }
+.grid { display: grid; gap: 1rem; min-width: 0; }
+.grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+.metric { background: var(--panel-2); border-radius: 10px; padding: .75rem .9rem; min-width: 0; }
 .metric .label { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
 .metric .value { font-size: 1.5rem; font-weight: 700; margin-top: .2rem; }
 .metric .value.green { color: var(--green); }
 .metric .value.blue { color: var(--blue); }
 .metric .sub { color: var(--muted); font-size: .78rem; margin-top: .15rem; }
+.metric .explainer { color: var(--muted); font-size: .75rem; margin: .5rem 0 0; line-height: 1.4; }
 
 .banner { border-radius: 10px; padding: .7rem .9rem; margin-bottom: 1rem; font-size: .9rem; }
+.banner.compact { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .45rem .7rem; font-size: .82rem; }
 .banner.ok { background: #14322a; border: 1px solid #1f6b4f; color: #a7f3d0; }
 .banner.warn { background: #3a2a10; border: 1px solid #a16207; color: #fde68a; }
 .banner.err { background: #3a1414; border: 1px solid #b91c1c; color: #fecaca; }
+.banner-close {
+  background: transparent; border: none; color: inherit; opacity: .7; cursor: pointer;
+  font-size: .85rem; padding: 0 .2rem; flex-shrink: 0;
+}
+.banner-close:hover { opacity: 1; }
 
 .notes-list { margin: 0; padding-left: 1.1rem; }
 .notes-list li { margin: .35rem 0; }
+.notes-trigger { margin-bottom: 1rem; font-size: .8rem; }
 
 button.primary { background: var(--accent); color: #1a1a1a; border: none; border-radius: 8px; padding: .55rem 1rem; font-weight: 600; cursor: pointer; }
 button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .5rem .9rem; cursor: pointer; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 
 textarea { width: 100%; min-height: 140px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .6rem; font-family: ui-monospace, monospace; font-size: .8rem; }
-input[type="text"], input[type="number"], input[type="file"] { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .45rem .6rem; font-size: .9rem; }
+input[type="text"], input[type="number"], input[type="file"] { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .45rem .6rem; font-size: .9rem; max-width: 100%; }
 label.field { display: block; margin: .5rem 0; font-size: .85rem; }
 label.field span { display: block; color: var(--muted); margin-bottom: .2rem; }
+label.field .hint { color: var(--muted); font-size: .72rem; font-style: italic; margin-top: .2rem; }
 
-table.digest { width: 100%; border-collapse: collapse; font-size: .8rem; }
-table.digest th, table.digest td { border-bottom: 1px solid var(--border); padding: .3rem .4rem; text-align: right; }
+.table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.digest { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .8rem; }
+table.digest th, table.digest td { border-bottom: 1px solid var(--border); padding: .3rem .4rem; text-align: right; word-break: break-word; }
 table.digest th:first-child, table.digest td:first-child { text-align: left; }
+/* Payback Progress' 5-column table reads better with its numbers on one
+   line. table-layout:auto lets the table grow past the container so the
+   .table-scroll wrapper's overflow-x handles it with a swipe, instead of
+   fixed columns forcing long component names to overlap neighboring cells. */
+table.digest.payback-table { table-layout: auto; }
+.payback-table td, .payback-table th { white-space: nowrap; }
 .pending { color: var(--accent); font-style: italic; }
-.chart-wrap { position: relative; height: 300px; }
+.chart-wrap { position: relative; height: 300px; max-width: 100%; }
 .small { font-size: .8rem; color: var(--muted); }
 .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 .provisional { display: inline-block; font-size: .7rem; background: #a16207; color: #fff; border-radius: 6px; padding: .05rem .4rem; margin-left: .4rem; }
+
+/* Data Notes modal */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.modal {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  max-width: 560px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 1rem 1.1rem;
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+.modal-header h2 { margin: 0; }
+.modal-close { padding: .3rem .6rem; }
+
+@media (max-width: 600px) {
+  .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
+  .chart-wrap { height: 240px; }
+}

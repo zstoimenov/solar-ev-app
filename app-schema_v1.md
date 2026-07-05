@@ -25,7 +25,7 @@ starting data before the first live monthly upload.
 | `schemaVersion` | integer | Contract version. Currently `1`. Import must check this. |
 | `meta` | object | Export metadata + health-banner / guard inputs. |
 | `config` | object | Static reference data (hardware, tariffs, EV, lease, counterfactual, baselines). |
-| `monthlyDigests` | array | One object per month, chronological. 37 fields each. |
+| `monthlyDigests` | array | One object per month, chronological. 33 fields each. |
 | `cumulativeTotals` | object | All-time aggregates, payback progress, cross-validation flags. |
 
 ---
@@ -58,7 +58,7 @@ Six blocks:
 
 ## `monthlyDigests[]`
 
-Chronological. Each object has these 37 fields (types normalized from the Notion CSV):
+Chronological. Each object has these 33 fields (types normalized from the Notion CSV):
 
 **Identity / period**
 `month` (YYYY-MM) · `financialYear` (str) · `daysInPeriod` (int) · `partialMonth` (bool)
@@ -66,10 +66,8 @@ Chronological. Each object has these 37 fields (types normalized from the Notion
 **Energy**
 `solarProductionKwh` · `totalConsumptionKwh` · `ownConsumptionKwh` · `gridExportKwh` ·
 `gridImportFroniusKwh` · `gridImportSynergyKwh` · `selfSufficiencyPct` ·
-`selfConsumptionRatePct` · `zeroProductionDays`
-
-**Production quality**
-`peakProductionKwh` · `peakProductionDay` (str) · `lowestProductionKwh` · `productionStdDevKwh`
+`selfConsumptionRatePct` · `zeroProductionDays` (auto-derived from the Fronius
+daily production rows - count of days with ~0 kWh production)
 
 **EV charging**
 `evTotalChargedKwh` · `evFromPvKwh` · `evFromBatteryKwh` · `evFromHomeGridKwh` ·

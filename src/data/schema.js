@@ -4,7 +4,7 @@
 
 export const SCHEMA_VERSION = 1;
 
-// The 37 fields every monthlyDigests entry must carry (schema section
+// The 33 fields every monthlyDigests entry must carry (schema section
 // "monthlyDigests[]"). Order is documentation-only; presence is what matters.
 export const DIGEST_FIELDS = [
   // identity / period
@@ -13,8 +13,6 @@ export const DIGEST_FIELDS = [
   'solarProductionKwh', 'totalConsumptionKwh', 'ownConsumptionKwh', 'gridExportKwh',
   'gridImportFroniusKwh', 'gridImportSynergyKwh', 'selfSufficiencyPct',
   'selfConsumptionRatePct', 'zeroProductionDays',
-  // production quality
-  'peakProductionKwh', 'peakProductionDay', 'lowestProductionKwh', 'productionStdDevKwh',
   // EV charging
   'evTotalChargedKwh', 'evFromPvKwh', 'evFromBatteryKwh', 'evFromHomeGridKwh',
   'evWorkChargingKwh', 'evPublicTripKwh', 'evGridChargingDays', 'evElectricityCostAud',

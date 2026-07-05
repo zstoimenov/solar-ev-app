@@ -1,8 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { loadOrSeed } from './data/seed.js';
 import { getState, getAppMeta } from './data/db.js';
+import { APP_VERSION } from './version.js';
 import HealthBanner from './components/HealthBanner.jsx';
 import DataNotes from './components/DataNotes.jsx';
+import Collapsible from './components/Collapsible.jsx';
+import Modal from './components/Modal.jsx';
 import RoiLayers from './components/Dashboard/RoiLayers.jsx';
 import PaybackProgress from './components/Dashboard/PaybackProgress.jsx';
 import EnergyTrends from './components/Dashboard/EnergyTrends.jsx';
@@ -12,11 +15,43 @@ import ExportRestore from './components/ExportRestore.jsx';
 
 const TABS = ['Dashboard', 'Ingest', 'Backup'];
 
+function HamburgerMenu({ tab, setTab }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, [open]);
+
+  return (
+    <div className="hamburger-wrap" ref={ref}>
+      <button className="hamburger" onClick={() => setOpen((o) => !o)} aria-label="Menu">☰</button>
+      {open && (
+        <div className="hamburger-menu">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              className={t === tab ? 'active' : ''}
+              onClick={() => { setTab(t); setOpen(false); }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [state, setState] = useState(null);
   const [appMeta, setAppMeta] = useState({ lastExportedCount: null });
   const [loadError, setLoadError] = useState(null);
   const [tab, setTab] = useState('Dashboard');
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     const [s, m] = await Promise.all([getState(), getAppMeta()]);
@@ -54,7 +89,7 @@ export default function App() {
       <div className="app">
         <header className="top">
           <h1>☀️ Solar, Battery &amp; EV ROI</h1>
-          <span className="sub">Local-only · IndexedDB · schemaVersion {state.schemaVersion}</span>
+          <span className="sub">{APP_VERSION}</span>
         </header>
         <div className="banner warn">
           <strong>No data yet.</strong> This public build ships empty and contains no
@@ -62,9 +97,6 @@ export default function App() {
           it is then stored only in this browser (IndexedDB) and never uploaded.
         </div>
         <ExportRestore state={state} lastExportedCount={appMeta.lastExportedCount} onChange={refresh} />
-        <footer className="small" style={{ marginTop: '2rem' }}>
-          No backend · no network data calls · backup by exporting JSON to Notion.
-        </footer>
       </div>
     );
   }
@@ -73,7 +105,8 @@ export default function App() {
     <div className="app">
       <header className="top">
         <h1>☀️ Solar, Battery &amp; EV ROI</h1>
-        <span className="sub">Local-only · IndexedDB · schemaVersion {state.schemaVersion}</span>
+        <span className="sub">{APP_VERSION}</span>
+        <HamburgerMenu tab={tab} setTab={setTab} />
       </header>
 
       <HealthBanner
@@ -82,19 +115,20 @@ export default function App() {
         onRestore={() => setTab('Backup')}
       />
 
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <button key={t} className={t === tab ? 'active' : ''} onClick={() => setTab(t)}>{t}</button>
-        ))}
-      </nav>
-
       {tab === 'Dashboard' && (
         <>
-          <RoiLayers state={state} />
-          <PaybackProgress state={state} />
-          <EnergyTrends state={state} />
-          <EvChargingSplit state={state} />
-          <DataNotes state={state} />
+          <button className="ghost notes-trigger" onClick={() => setNotesOpen(true)}>
+            ⓘ Data notes
+          </button>
+          <Collapsible title="ROI Layers"><RoiLayers state={state} /></Collapsible>
+          <Collapsible title="Payback Progress"><PaybackProgress state={state} /></Collapsible>
+          <Collapsible title="Energy Trends"><EnergyTrends state={state} /></Collapsible>
+          <Collapsible title="EV Charging Split"><EvChargingSplit state={state} /></Collapsible>
+          {notesOpen && (
+            <Modal title="Data Notes" onClose={() => setNotesOpen(false)}>
+              <DataNotes state={state} />
+            </Modal>
+          )}
         </>
       )}
 
@@ -103,10 +137,6 @@ export default function App() {
       {tab === 'Backup' && (
         <ExportRestore state={state} lastExportedCount={appMeta.lastExportedCount} onChange={refresh} />
       )}
-
-      <footer className="small" style={{ marginTop: '2rem' }}>
-        No backend · no network data calls · backup by exporting JSON to Notion.
-      </footer>
     </div>
   );
 }
