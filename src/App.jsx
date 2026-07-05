@@ -11,13 +11,15 @@ import RoiLayers from './components/Dashboard/RoiLayers.jsx';
 import PaybackProgress from './components/Dashboard/PaybackProgress.jsx';
 import EnergyTrends from './components/Dashboard/EnergyTrends.jsx';
 import EvChargingSplit from './components/Dashboard/EvChargingSplit.jsx';
+import PlanComparison from './components/Dashboard/PlanComparison.jsx';
 import DateRangeFilter from './components/Dashboard/DateRangeFilter.jsx';
-import { LayersIcon, TargetIcon, TrendIcon, PlugIcon } from './components/Dashboard/icons.jsx';
+import { LayersIcon, TargetIcon, TrendIcon, PlugIcon, ScaleIcon } from './components/Dashboard/icons.jsx';
+import { filterSessionsByMonthRange } from './data/evTimeOfUseSplit.js';
 import IngestWizard from './components/IngestWizard.jsx';
 import ExportRestore from './components/ExportRestore.jsx';
 
 const TABS = ['Dashboard', 'Ingest', 'Backup'];
-const PANEL_KEYS = ['roi', 'payback', 'energy', 'ev'];
+const PANEL_KEYS = ['roi', 'payback', 'energy', 'ev', 'planComparison'];
 
 // Once there's more than this many months of data, the dashboard defaults to
 // showing only the most recent window (still overridable via the date range
@@ -61,7 +63,9 @@ export default function App() {
   const [loadError, setLoadError] = useState(null);
   const [tab, setTab] = useState('Dashboard');
   const [notesOpen, setNotesOpen] = useState(false);
-  const [panelsOpen, setPanelsOpen] = useState({ roi: false, payback: false, energy: false, ev: false });
+  const [panelsOpen, setPanelsOpen] = useState({
+    roi: false, payback: false, energy: false, ev: false, planComparison: false
+  });
   const [fromMonth, setFromMonth] = useState(null);
   const [toMonth, setToMonth] = useState(null);
 
@@ -111,7 +115,8 @@ export default function App() {
   const filteredState = {
     ...state,
     monthlyDigests: filteredDigests,
-    cumulativeTotals: recomputeCumulative(filteredDigests, state.cumulativeTotals, state.config)
+    cumulativeTotals: recomputeCumulative(filteredDigests, state.cumulativeTotals, state.config),
+    evChargingSessions: filterSessionsByMonthRange(state.evChargingSessions, effectiveFrom, effectiveTo)
   };
 
   // First-run / empty store: the public bundle ships an EMPTY starter (no
@@ -172,6 +177,14 @@ export default function App() {
           </Collapsible>
           <Collapsible title="EV Charging Split" icon={<PlugIcon />} open={panelsOpen.ev} onToggle={() => togglePanel('ev')}>
             <EvChargingSplit state={filteredState} />
+          </Collapsible>
+          <Collapsible
+            title="Plan Comparison"
+            icon={<ScaleIcon />}
+            open={panelsOpen.planComparison}
+            onToggle={() => togglePanel('planComparison')}
+          >
+            <PlanComparison state={filteredState} />
           </Collapsible>
           {notesOpen && (
             <Modal title="Data Notes" onClose={() => setNotesOpen(false)}>

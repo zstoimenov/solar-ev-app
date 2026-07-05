@@ -38,14 +38,21 @@ src/
   data/       schema.js (contract + validate()), db.js (IndexedDB, the ONLY
               persistence layer), seed.js (first-run loader), compute.js
               (recompute cumulativeTotals from the digest array), tariffSchedule.js
-              (resolve a dated rate schedule for a month + sum the charging log)
+              (resolve a dated rate schedule for a month + sum the charging log),
+              evTimeOfUseSplit.js (bucket EV charging sessions into time-of-day
+              bands for Dashboard/PlanComparison.jsx)
   ingest/     parseFronius.js, parseWattpilot.js, parseSynergy.js (client-side
-              XLSX/CSV parsing), buildDigest.js (merges parsed + manual input
-              into one monthlyDigests entry + computes the financial layers)
+              XLSX/CSV parsing), parseWattpilotSessions.js (the Wattpilot MOBILE
+              APP's charging-session JSON - different file, different granularity,
+              see "EV time-of-day data" below), buildDigest.js (merges parsed +
+              manual input into one monthlyDigests entry + computes the financial
+              layers)
   components/ HealthBanner, DataNotes, Collapsible, Modal, ExportRestore,
-              IngestWizard (+ Ingest/{TariffScheduleEditor,ChargingLogEditor} -
-              nested sub-tabs, not top-level tabs), Dashboard/{RoiLayers,
-              PaybackProgress,EnergyTrends,EvChargingSplit}
+              IngestWizard (+ Ingest/{TariffScheduleEditor,ChargingLogEditor,
+              TariffPlanEditor,EvSessionsUploader} - a 2-level nav of nested
+              sub-tabs, not top-level tabs: see "Ingest tab navigation" below),
+              Dashboard/{RoiLayers,PaybackProgress,EnergyTrends,EvChargingSplit,
+              PlanComparison}
   version.js  APP_VERSION shown in the header - bump on every change (see below)
 ```
 
@@ -99,26 +106,39 @@ entries also carry `supplyChargeCPerDay` now — applied equally to
 `layer1SavingAud` (same connection fee with or without solar), only the two
 absolute cost figures.
 
-## Tariff plan comparison (not built yet — blocked on data)
+## Tariff plan comparison — EV charging only, not the whole bill
 
-`config.tariffPlans[]` (see app-schema_v1.md) is a catalog of rate-card
-**options** (Synergy's A1/Midday Saver/EV Add On, etc.) entered via the
-Ingest tab's Tariff Plans sub-tab, meant to answer "would a different plan
-have been cheaper?". It is **not wired into any calculation** — that needs a
-time-of-day (peak/off-peak/overnight) split of actual household usage, and as
-of 2026-07 neither of the two possible sources has it:
-- Fronius "Energy balance total" export: one row per **day**, no hour column.
-- Wattpilot "Energy balance" export: same — confirmed against a real
-  2026-06 file (`Date and time` column despite the header, only actually
-  contains a date, `[dd.MM.yyyy]`).
-- The user's Synergy `MA_IntervalDataHistory.csv` was also confirmed (by the
-  user) not to carry usable time-of-day info despite the filename.
+`config.tariffPlans[]` is a catalog of rate-card **options** (Synergy's
+A1/Midday Saver/EV Add On, etc.), entered via Ingest → Tariffs & Rates →
+Tariff Plans, feeding the Dashboard's **Plan Comparison** tile
+(`components/Dashboard/PlanComparison.jsx`). Read that file's header comment
+before touching it — the scope limitation is load-bearing, not a footnote:
 
-Don't build the actual A1-vs-plan-X cost comparison until a usage-by-time-band
-source exists (a different Synergy/Wattpilot export, or a manual monthly
-entry the user explicitly opts into) — the plan catalog alone is safe to keep
-extending, but simulating a bill from it without real time-split usage data
-would just be a guess dressed up as a number.
+- As of 2026-07, **no data source in this app has a time-of-day split of
+  general household usage.** Fronius "Energy balance total" and Wattpilot
+  "Energy balance" are both one row per **day** (confirmed against a real
+  2026-06 Wattpilot file — its `Date and time` column, despite the name, only
+  contains a date). The user's Synergy `MA_IntervalDataHistory.csv` was also
+  confirmed by the user not to carry usable time-of-day info despite the
+  filename. **Do not build a whole-household A1-vs-plan-X comparison** until
+  one of these actually has hour-level data, or the user explicitly opts into
+  manual monthly time-band entry — simulating a bill without real time-split
+  usage would just be a guess dressed up as a number.
+- What *does* exist: the Wattpilot **mobile app's** charging-session JSON
+  export (`ingest/parseWattpilotSessions.js`, stored as top-level
+  `evChargingSessions[]`, uploaded via Ingest → EV Charging Data → EV
+  Sessions) has a real start/end timestamp per charging session. That's
+  enough to bucket **EV charging only** by time-of-day band
+  (`data/evTimeOfUseSplit.js:splitSessionsByBand`) and compare plans on that
+  slice — which is what `PlanComparison.jsx` actually does.
+- That comparison is still a **gross** estimate: it prices 100% of a
+  session's `energyKwh` at grid rates, because the PV/battery/grid split for
+  a given session isn't known (only as a daily total, with no per-session
+  attribution). It also excludes the plans' `supplyChargeCPerDay` — that's a
+  whole-account fixed cost, not attributable to the EV-charging decision.
+- If a genuine whole-household time-of-day usage source ever turns up, wire
+  the general-usage split in alongside the EV-session split rather than
+  replacing it — they answer related but different questions.
 
 ## Null convention
 
@@ -145,17 +165,32 @@ new features or field changes, major only for a `schemaVersion` bump.
 - `table.digest` is a generic key/value or small tabular table style. It
   wraps by default (`table-layout: fixed`) so long labels don't force a
   scroll on narrow screens. If a table specifically benefits from staying on
-  one row (e.g. Payback Progress' 5 numeric columns), wrap it in
-  `.table-scroll` (already `overflow-x: auto`) and add the `payback-table`
-  class (or a similarly-scoped one) to opt out of fixed layout — see
-  `app.css` for why plain `nowrap` + `table-layout: fixed` causes visual
-  overlap instead of a scrollbar.
+  one row (e.g. Payback Progress' 5 numeric columns, or the Ingest tab's
+  tariff-schedule/plan/log tables), wrap it in `.table-scroll` (already
+  `overflow-x: auto`) and add the `table-nowrap` class to opt out of fixed
+  layout — see `app.css` for why plain `nowrap` + `table-layout: fixed`
+  causes visual overlap instead of a scrollbar.
 - Test any layout change against a **412px-wide viewport** (OnePlus 12 /
   typical Android flagship) — the project's acceptance bar for "no
   horizontal scroll" is that width, not just desktop.
 - The Data Notes panel is intentionally a dismissible `<Modal>`, not a
   permanent dashboard panel — it's caveats/context, not something that needs
   to be visible at a glance.
+- **Long explanatory text is a summary sentence + `<InfoPopover>`, not a
+  paragraph.** (`src/components/InfoPopover.jsx`.) Every Ingest sub-page and
+  several Dashboard tiles follow this: one short always-visible sentence
+  saying *what* the page/field is, with the *why/how/caveats* tucked behind
+  the "i" icon. When adding a new field or page, resist writing a 3-sentence
+  blurb up front — write one sentence, and put the rest behind an
+  `InfoPopover` from the start.
+- **Ingest tab navigation is two levels**, not one flat row of pills
+  (`IngestWizard.jsx`'s `CATEGORIES` array): a few broad categories (Monthly
+  Upload / Tariffs & Rates / EV Charging Data), each either a single page
+  (no `subsections`) or a second pill row + a one-line category `intro`. If
+  you add a new Ingest page, put it under an existing category's
+  `subsections` (or add a new category) rather than growing a flat list back
+  out — the whole point of the 2-level nav was that a flat list of 6+ pills
+  reads as overwhelming.
 
 ## Testing changes
 

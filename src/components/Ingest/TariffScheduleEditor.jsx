@@ -6,24 +6,24 @@
 
 import React, { useState } from 'react';
 import { putState } from '../../data/db.js';
+import InfoPopover from '../InfoPopover.jsx';
 
 const MODES = {
   import: {
     title: 'Import (buy) tariff history',
-    blurb: 'What you pay Synergy per kWh drawn from the grid, plus the daily supply ' +
-      '(connection) charge. Add an entry whenever either changes - it applies from ' +
-      'that date until the next entry. Used for newly-ingested months; existing ' +
-      'months keep their stored numbers. The supply charge is added equally to both ' +
-      "the actual and baseline grid cost, so it doesn't change Layer 1's accrued " +
-      'savings - only the two absolute cost figures.'
+    blurb: 'What you pay Synergy per kWh drawn from the grid, plus the daily supply charge.',
+    detail: 'Add an entry whenever either changes - it applies from that date until the ' +
+      "next entry. Used for newly-ingested months only; existing months keep their " +
+      'stored numbers. The supply charge is added equally to both the actual and ' +
+      "baseline grid cost, so it doesn't change Layer 1's accrued savings - only the " +
+      'two absolute cost figures.'
   },
   export: {
     title: 'Feed-in (export) tariff history',
-    blurb: "What you're paid per kWh exported to the grid, split into two " +
-      'time-of-day bands (e.g. DEBS peak/off-peak). Stored here for reference - ' +
-      'not yet auto-applied to Layer 1, since Fronius only reports a monthly ' +
-      "export total, not an hour-by-hour split, so there's no reliable way to " +
-      'apply two time-of-day rates without guessing a peak-share split.'
+    blurb: "What you're paid per kWh exported to the grid, in two time-of-day bands (e.g. DEBS peak/off-peak).",
+    detail: "Stored here for reference - not yet auto-applied to Layer 1, since Fronius " +
+      'only reports a monthly export total, not an hour-by-hour split, so there\'s no ' +
+      'reliable way to apply two time-of-day rates without guessing a peak-share split.'
   }
 };
 
@@ -86,7 +86,10 @@ export default function TariffScheduleEditor({ state, onChange, kind }) {
   return (
     <div className="field-section">
       <h3>{mode.title}</h3>
-      <p className="small">{mode.blurb}</p>
+      <p className="small">
+        {mode.blurb}{' '}
+        <InfoPopover label={`More about ${mode.title}`}>{mode.detail}</InfoPopover>
+      </p>
 
       {sorted.length > 0 ? (
         <div className="table-scroll">

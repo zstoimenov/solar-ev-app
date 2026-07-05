@@ -10,5 +10,6 @@
   "config": {},
   "monthlyDigests": [],
   "cumulativeTotals": {},
-  "chargingLog": []
+  "chargingLog": [],
+  "evChargingSessions": []
 }
