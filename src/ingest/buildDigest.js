@@ -102,10 +102,10 @@ export function buildDigest(parsed, manual, config) {
     selfConsumptionRatePct,
     zeroProductionDays: manual.zeroProductionDays ?? null,
 
-    peakProductionKwh: manual.peakProductionKwh ?? null,
-    peakProductionDay: manual.peakProductionDay ?? null,
-    lowestProductionKwh: manual.lowestProductionKwh ?? null,
-    productionStdDevKwh: manual.productionStdDevKwh ?? null,
+    peakProductionKwh: manual.peakProductionKwh ?? round(fronius.peakProductionKwh),
+    peakProductionDay: manual.peakProductionDay ?? fronius.peakProductionDay ?? null,
+    lowestProductionKwh: manual.lowestProductionKwh ?? round(fronius.lowestProductionKwh),
+    productionStdDevKwh: manual.productionStdDevKwh ?? round(fronius.productionStdDevKwh),
 
     evTotalChargedKwh: round(wattpilot.evTotalChargedKwh),
     evFromPvKwh: round(wattpilot.evFromPvKwh),
