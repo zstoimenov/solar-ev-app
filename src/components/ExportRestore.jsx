@@ -1,10 +1,11 @@
 // ExportRestore - one-click full-store export (download + copy) with the
-// anti-truncation guard, and paste/file restore with validation + confirm.
-// Optional passphrase encryption (brief §8) is deferred - a clearly-labelled,
-// disabled placeholder is shown so the slot is visible but unwired.
+// anti-truncation guard, paste/file restore with validation + confirm,
+// optional passphrase encryption (AES-GCM via data/crypto.js), and a
+// destructive "delete all data" reset.
 
 import React, { useState } from 'react';
-import { getState, importState, parseBackup, setLastExportedCount, SchemaError } from '../data/db.js';
+import { getState, importState, parseBackup, setLastExportedCount, resetState, SchemaError } from '../data/db.js';
+import { encryptJson, decryptJson, isEncryptedEnvelope } from '../data/crypto.js';
 
 function download(filename, text) {
   const blob = new Blob([text], { type: 'application/json' });
@@ -18,8 +19,16 @@ function download(filename, text) {
 export default function ExportRestore({ state, lastExportedCount, onChange }) {
   const [msg, setMsg] = useState(null);
   const [restoreText, setRestoreText] = useState('');
+  const [encryptOn, setEncryptOn] = useState(false);
+  const [passphrase, setPassphrase] = useState('');
+  const [pendingEnvelope, setPendingEnvelope] = useState(null);
+  const [restorePassphrase, setRestorePassphrase] = useState('');
 
   async function handleExport() {
+    if (encryptOn && !passphrase.trim()) {
+      setMsg({ type: 'err', text: 'Enter a passphrase, or untick "Encrypt this export".' });
+      return;
+    }
     const current = await getState();
     const count = current.monthlyDigests.length;
 
@@ -38,22 +47,23 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
       ...current,
       meta: { ...current.meta, exportedAt: new Date().toISOString(), monthCount: count }
     };
-    const json = JSON.stringify(stamped, null, 2);
-    download(`roi-backup_${current.meta?.dateRange?.last ?? 'export'}.json`, json);
+
+    const payload = encryptOn ? await encryptJson(stamped, passphrase) : stamped;
+    const json = JSON.stringify(payload, null, 2);
+    const suffix = encryptOn ? '.encrypted' : '';
+    download(`roi-backup_${current.meta?.dateRange?.last ?? 'export'}${suffix}.json`, json);
     try { await navigator.clipboard.writeText(json); } catch { /* clipboard optional */ }
     await setLastExportedCount(count);
     onChange?.();
-    setMsg({ type: 'ok', text: `Exported ${count} months (downloaded + copied to clipboard).` });
+    setMsg({
+      type: 'ok',
+      text: encryptOn
+        ? `Exported ${count} months, encrypted (downloaded + copied to clipboard). Keep the passphrase safe - it cannot be recovered.`
+        : `Exported ${count} months (downloaded + copied to clipboard).`
+    });
   }
 
-  async function handleRestore(text) {
-    setMsg(null);
-    let parsed;
-    try {
-      parsed = parseBackup(text);
-    } catch (e) {
-      setMsg({ type: 'err', text: e.message }); return;
-    }
+  async function commitImport(parsed) {
     const incomingCount = Array.isArray(parsed.monthlyDigests) ? parsed.monthlyDigests.length : 0;
     const ok = window.confirm(
       `Replace the entire local store with this backup (${incomingCount} months)? ` +
@@ -65,9 +75,38 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
       onChange?.();
       setMsg({ type: 'ok', text: `Restored ${incomingCount} months.` });
       setRestoreText('');
+      setPendingEnvelope(null);
+      setRestorePassphrase('');
     } catch (e) {
       const text = e instanceof SchemaError ? e.message : `Import failed: ${e.message}`;
       setMsg({ type: 'err', text });
+    }
+  }
+
+  async function handleRestore(text) {
+    setMsg(null);
+    setPendingEnvelope(null);
+    let parsed;
+    try {
+      parsed = parseBackup(text);
+    } catch (e) {
+      setMsg({ type: 'err', text: e.message }); return;
+    }
+    if (isEncryptedEnvelope(parsed)) {
+      setPendingEnvelope(parsed);
+      setMsg({ type: 'warn', text: 'This backup is passphrase-encrypted. Enter the passphrase below, then click "Decrypt & restore".' });
+      return;
+    }
+    await commitImport(parsed);
+  }
+
+  async function handleDecryptAndRestore() {
+    if (!pendingEnvelope) return;
+    try {
+      const decrypted = await decryptJson(pendingEnvelope, restorePassphrase);
+      await commitImport(decrypted);
+    } catch (e) {
+      setMsg({ type: 'err', text: e.message });
     }
   }
 
@@ -77,13 +116,44 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
     handleRestore(await file.text());
   }
 
+  async function handleDelete() {
+    const count = state.monthlyDigests.length;
+    const ok = window.confirm(
+      `This will PERMANENTLY DELETE all ${count} month${count === 1 ? '' : 's'} from this ` +
+      `browser's local storage. This cannot be undone unless you have a separate backup. ` +
+      `Continue?`
+    );
+    if (!ok) return;
+    await resetState();
+    onChange?.();
+    setMsg({ type: 'warn', text: 'All local data has been deleted. The app is now empty.' });
+  }
+
   return (
     <div className="panel">
       <h2>Export / Restore</h2>
       {msg && <div className={`banner ${msg.type}`}>{msg.text}</div>}
 
       <h3>Export (backup to Notion)</h3>
-      <div className="row">
+      <label className="field row">
+        <input type="checkbox" checked={encryptOn} onChange={(e) => setEncryptOn(e.target.checked)} />
+        <span style={{ margin: 0 }}>Encrypt this export with a passphrase (AES-GCM)</span>
+      </label>
+      {encryptOn && (
+        <label className="field">
+          <span>Passphrase</span>
+          <input
+            type="password"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            placeholder="Choose a passphrase"
+          />
+          <span className="hint">
+            If this is lost, the encrypted backup is unrecoverable - there is no reset.
+          </span>
+        </label>
+      )}
+      <div className="row" style={{ marginTop: '.5rem' }}>
         <button className="primary" onClick={handleExport}>Export JSON</button>
         <span className="small">
           Downloads a pretty JSON file and copies it to the clipboard. Last exported count:{' '}
@@ -104,14 +174,26 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
         <input type="file" accept="application/json,.json" onChange={onFile} />
       </div>
 
-      <h3 style={{ marginTop: '1rem' }}>Passphrase encryption</h3>
-      <label className="field row" style={{ opacity: .6 }}>
-        <input type="checkbox" disabled />
-        <span style={{ margin: 0 }}>
-          Encrypt local store with a passphrase (AES-GCM) — <em>coming soon, deferred</em>.
-          If enabled and the passphrase is lost, data is unrecoverable except from a Notion backup.
-        </span>
-      </label>
+      {pendingEnvelope && (
+        <div className="row" style={{ marginTop: '.5rem' }}>
+          <input
+            type="password"
+            value={restorePassphrase}
+            onChange={(e) => setRestorePassphrase(e.target.value)}
+            placeholder="Passphrase for this backup"
+          />
+          <button className="primary" disabled={!restorePassphrase} onClick={handleDecryptAndRestore}>
+            Decrypt &amp; restore
+          </button>
+        </div>
+      )}
+
+      <h3 style={{ marginTop: '1.5rem' }}>Danger zone</h3>
+      <p className="small">
+        Permanently clears all data from this browser, leaving the app as an empty shell
+        (same as a fresh install). Export a backup first if you want to keep it.
+      </p>
+      <button className="danger" onClick={handleDelete}>Delete all data</button>
     </div>
   );
 }

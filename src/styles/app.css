@@ -23,9 +23,20 @@ body {
 a { color: var(--blue); }
 
 .app { max-width: 1100px; margin: 0 auto; padding: 1rem 1rem 2.5rem; overflow-x: hidden; }
-header.top { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; position: relative; }
-header.top h1 { font-size: 1.35rem; margin: .25rem 0; }
-header.top .sub { color: var(--muted); font-size: .8rem; font-family: ui-monospace, monospace; }
+header.top { display: flex; align-items: center; gap: .75rem; flex-wrap: nowrap; position: relative; }
+header.top h1 {
+  font-size: 1.35rem; margin: .25rem 0; flex: 1 1 auto; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Bottom bar: version (left) / Data notes trigger (right) */
+.bottom-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 1.5rem; padding-top: .75rem; border-top: 1px solid var(--border);
+}
+.bottom-bar .sub { color: var(--muted); font-size: .78rem; font-family: ui-monospace, monospace; }
+
+.expand-all { margin-bottom: .75rem; font-size: .8rem; padding: .4rem .7rem; }
 
 /* Hamburger menu (replaces the old tab-button row) */
 .hamburger-wrap { margin-left: auto; position: relative; }
@@ -86,10 +97,12 @@ header.top .sub { color: var(--muted); font-size: .8rem; font-family: ui-monospa
 
 .notes-list { margin: 0; padding-left: 1.1rem; }
 .notes-list li { margin: .35rem 0; }
-.notes-trigger { margin-bottom: 1rem; font-size: .8rem; }
+.notes-trigger { font-size: .8rem; }
 
 button.primary { background: var(--accent); color: #1a1a1a; border: none; border-radius: 8px; padding: .55rem 1rem; font-weight: 600; cursor: pointer; }
 button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .5rem .9rem; cursor: pointer; }
+button.danger { background: #7f1d1d; color: #fecaca; border: 1px solid #b91c1c; border-radius: 8px; padding: .55rem 1rem; font-weight: 600; cursor: pointer; }
+button.danger:hover { background: #991b1b; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 
 textarea { width: 100%; min-height: 140px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .6rem; font-family: ui-monospace, monospace; font-size: .8rem; }

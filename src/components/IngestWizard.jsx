@@ -114,14 +114,14 @@ export default function IngestWizard({ state, onChange }) {
       <h3>Manual entry</h3>
       <div className="grid cols-3">
         <label className="field">
-          <span>EV work charging (kWh)</span>
+          <span>Free public charging (kWh)</span>
           <input type="number" value={manual.evWorkChargingKwh} onChange={setM('evWorkChargingKwh')} />
-          <span className="hint">Charged at your workplace's charger, if free/employer-provided.</span>
+          <span className="hint">No cost to you — e.g. a free workplace charger.</span>
         </label>
         <label className="field">
-          <span>EV public/trip charging (kWh)</span>
+          <span>Paid public charging (kWh)</span>
           <input type="number" value={manual.evPublicTripKwh} onChange={setM('evPublicTripKwh')} />
-          <span className="hint">Charged away from home/work — public fast chargers, road trips, etc.</span>
+          <span className="hint">You paid for this — public fast chargers, road trips, etc.</span>
         </label>
       </div>
       <label className="field"><span>Notes (optional)</span>

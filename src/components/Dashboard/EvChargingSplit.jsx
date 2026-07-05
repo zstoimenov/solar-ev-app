@@ -18,7 +18,7 @@ export default function EvChargingSplit({ state }) {
   const digests = state.monthlyDigests;
 
   const allTime = {
-    labels: ['PV', 'Battery', 'Home grid', 'Work', 'Public/trip'],
+    labels: ['PV', 'Battery', 'The grid', 'Free public', 'Paid public'],
     datasets: [{
       data: [ev.fromPvKwh, ev.fromBatteryKwh, ev.fromHomeGridKwh, ev.workChargingKwh, ev.publicTripKwh],
       backgroundColor: [COLORS.pv, COLORS.battery, COLORS.homeGrid, COLORS.work, COLORS.trip]
@@ -30,9 +30,9 @@ export default function EvChargingSplit({ state }) {
     datasets: [
       { label: 'PV', data: digests.map((d) => d.evFromPvKwh), backgroundColor: COLORS.pv, stack: 's' },
       { label: 'Battery', data: digests.map((d) => d.evFromBatteryKwh), backgroundColor: COLORS.battery, stack: 's' },
-      { label: 'Home grid', data: digests.map((d) => d.evFromHomeGridKwh), backgroundColor: COLORS.homeGrid, stack: 's' },
-      { label: 'Work', data: digests.map((d) => d.evWorkChargingKwh), backgroundColor: COLORS.work, stack: 's' },
-      { label: 'Public/trip', data: digests.map((d) => d.evPublicTripKwh), backgroundColor: COLORS.trip, stack: 's' }
+      { label: 'The grid', data: digests.map((d) => d.evFromHomeGridKwh), backgroundColor: COLORS.homeGrid, stack: 's' },
+      { label: 'Free public', data: digests.map((d) => d.evWorkChargingKwh), backgroundColor: COLORS.work, stack: 's' },
+      { label: 'Paid public', data: digests.map((d) => d.evPublicTripKwh), backgroundColor: COLORS.trip, stack: 's' }
     ]
   };
 
@@ -55,7 +55,7 @@ export default function EvChargingSplit({ state }) {
         <h3>All-time source mix</h3>
         <div className="chart-wrap"><Doughnut data={allTime} options={dOpts} /></div>
         <p className="small">
-          PV {ev.fromPvPct ?? '—'}% · Battery {ev.fromBatteryPct ?? '—'}% · Home grid {ev.fromHomeGridPct ?? '—'}%
+          PV {ev.fromPvPct ?? '—'}% · Battery {ev.fromBatteryPct ?? '—'}% · The grid {ev.fromHomeGridPct ?? '—'}%
         </p>
       </div>
       <div>
