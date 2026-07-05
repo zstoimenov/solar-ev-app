@@ -57,9 +57,13 @@ Six blocks:
 - **`tariffSchedule`** *(optional; absent = no history yet, static `tariffs.*` values apply)* -
   `{ import: [], export: [] }`, dated rate-change entries edited via the Ingest
   tab's Import Tariff / Feed-in Tariff sub-tabs (see `src/data/tariffSchedule.js`).
-  - `import[]`: `{ effectiveFrom (YYYY-MM-DD), priceCentsPerKwh }` - what Synergy
-    charges per kWh imported. Step function over time: an entry's price applies
-    from its date until the next entry's date.
+  - `import[]`: `{ effectiveFrom (YYYY-MM-DD), priceCentsPerKwh, supplyChargeCPerDay }` -
+    what Synergy charges per kWh imported, plus the daily supply (connection) charge.
+    Step function over time: an entry's values apply from its date until the next
+    entry's date. `supplyChargeCPerDay` is added equally to `actualGridCostAud` and
+    `baselineGridCostAud` in `buildDigest.js`, so it does **not** change
+    `gridCostAvoidedAud`/`layer1SavingAud` (you'd pay the connection fee regardless of
+    solar) - it only makes the two absolute cost figures match a real bill.
   - `export[]`: `{ effectiveFrom (YYYY-MM-DD), peakFrom (HH:MM), peakTo (HH:MM),
     peakPriceCentsPerKwh, offPeakPriceCentsPerKwh }` - the feed-in (export)
     credit, split into two time-of-day bands (e.g. DEBS peak/off-peak).
@@ -70,6 +74,17 @@ Six blocks:
     existing single blended `tariffs.debsPeakCPerKwh` keeps being used.
   - Resolution is **forward-only**: adding/editing entries never recomputes
     already-ingested historical months, only months ingested from then on.
+- **`tariffPlans`** *(optional; absent = `[]`)* - a catalog of rate-card **options**
+  (e.g. Synergy's A1, Midday Saver, EV Add On) to compare against `tariffSchedule.import`
+  (what you're actually billed on), edited via the Ingest tab's Tariff Plans sub-tab.
+  One row per rate band: `{ planName, year, supplyChargeCPerDay, bandLabel, from
+  (HH:MM|null), to (HH:MM|null), priceCentsPerKwh }`. A flat plan (A1) is one row with
+  `from`/`to` null (all day); a time-of-day plan is several rows sharing the same
+  `planName`+`year`+`supplyChargeCPerDay`. **Not yet used by any calculation** - a
+  real A1-vs-time-of-day-plan comparison needs a time-of-day split of actual usage,
+  which neither the Fronius nor Wattpilot exports currently provide (both are one row
+  per **day**, not per hour - confirmed against a real Wattpilot export 2026-07). This
+  block just records the rate cards for whenever that data becomes available.
 
 ---
 

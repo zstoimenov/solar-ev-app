@@ -93,7 +93,32 @@ export (feed-in) schedule is stored but **not** applied to `exportCreditAud`
 yet — Fronius only reports a monthly export total, not an hourly split, so
 blending two time-of-day rates would need an assumed peak-share % that
 doesn't exist yet. If that assumption gets added later, wire it in
-`buildDigest.js` next to the `debsPeak` calculation.
+`buildDigest.js` next to the `debsPeak` calculation. `tariffSchedule.import[]`
+entries also carry `supplyChargeCPerDay` now — applied equally to
+`actualGridCostAud`/`baselineGridCostAud`, so it does NOT move
+`layer1SavingAud` (same connection fee with or without solar), only the two
+absolute cost figures.
+
+## Tariff plan comparison (not built yet — blocked on data)
+
+`config.tariffPlans[]` (see app-schema_v1.md) is a catalog of rate-card
+**options** (Synergy's A1/Midday Saver/EV Add On, etc.) entered via the
+Ingest tab's Tariff Plans sub-tab, meant to answer "would a different plan
+have been cheaper?". It is **not wired into any calculation** — that needs a
+time-of-day (peak/off-peak/overnight) split of actual household usage, and as
+of 2026-07 neither of the two possible sources has it:
+- Fronius "Energy balance total" export: one row per **day**, no hour column.
+- Wattpilot "Energy balance" export: same — confirmed against a real
+  2026-06 file (`Date and time` column despite the header, only actually
+  contains a date, `[dd.MM.yyyy]`).
+- The user's Synergy `MA_IntervalDataHistory.csv` was also confirmed (by the
+  user) not to carry usable time-of-day info despite the filename.
+
+Don't build the actual A1-vs-plan-X cost comparison until a usage-by-time-band
+source exists (a different Synergy/Wattpilot export, or a manual monthly
+entry the user explicitly opts into) — the plan catalog alone is safe to keep
+extending, but simulating a bill from it without real time-split usage data
+would just be a guess dressed up as a number.
 
 ## Null convention
 

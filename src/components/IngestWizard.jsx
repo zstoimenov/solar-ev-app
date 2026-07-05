@@ -12,6 +12,7 @@ import { recomputeCumulative, recomputeMeta } from '../data/compute.js';
 import { putState } from '../data/db.js';
 import TariffScheduleEditor from './Ingest/TariffScheduleEditor.jsx';
 import ChargingLogEditor from './Ingest/ChargingLogEditor.jsx';
+import TariffPlanEditor from './Ingest/TariffPlanEditor.jsx';
 
 const APP_VERSION = 'app_v1';
 const empty = { fronius: null, wattpilot: null, synergy: null };
@@ -20,7 +21,8 @@ const SECTIONS = [
   { key: 'upload', label: 'Monthly Upload' },
   { key: 'importTariff', label: 'Import Tariff' },
   { key: 'exportTariff', label: 'Feed-in Tariff' },
-  { key: 'chargingLog', label: 'Public Charging Log' }
+  { key: 'chargingLog', label: 'Public Charging Log' },
+  { key: 'tariffPlans', label: 'Tariff Plans' }
 ];
 
 // Fronius/Wattpilot report filenames end in "..._2026_06.xlsx" - pull the
@@ -189,6 +191,7 @@ export default function IngestWizard({ state, onChange, onIngested }) {
       {section === 'importTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="import" />}
       {section === 'exportTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="export" />}
       {section === 'chargingLog' && <ChargingLogEditor state={state} onChange={onChange} />}
+      {section === 'tariffPlans' && <TariffPlanEditor state={state} onChange={onChange} />}
 
       {section === 'upload' && preview && (() => {
         const rows = Object.entries(preview.digest).map(([k, v]) => [k, v, rowStatus(k, v)]);
