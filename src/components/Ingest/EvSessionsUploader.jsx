@@ -6,7 +6,7 @@
 // feeds the Dashboard's Plan Comparison tile.
 
 import React, { useState } from 'react';
-import { parseWattpilotSessions } from '../../ingest/parseWattpilotSessions.js';
+import { parseWattpilotSessions, parseWattpilotDateTime } from '../../ingest/parseWattpilotSessions.js';
 import { putState } from '../../data/db.js';
 import InfoPopover from '../InfoPopover.jsx';
 
@@ -14,9 +14,13 @@ export default function EvSessionsUploader({ state, onChange }) {
   const [error, setError] = useState(null);
   const [msg, setMsg] = useState(null);
   const [pasteText, setPasteText] = useState('');
+  const [showList, setShowList] = useState(false);
 
   const sessions = state.evChargingSessions ?? [];
-  const sorted = [...sessions].sort((a, b) => b.start.localeCompare(a.start));
+  // Sort by the actual parsed instant, not the raw string - "start" is
+  // "dd.MM.yyyy HH:mm:ss", so a lexical sort would order by day-of-month
+  // first and come out chronologically wrong.
+  const sorted = [...sessions].sort((a, b) => (parseWattpilotDateTime(b.start) ?? 0) - (parseWattpilotDateTime(a.start) ?? 0));
 
   async function mergeIncoming(json) {
     const incoming = parseWattpilotSessions(json);
@@ -107,20 +111,28 @@ export default function EvSessionsUploader({ state, onChange }) {
       {msg && <div className={`banner ${msg.type}`}>{msg.text}</div>}
 
       {sorted.length > 0 ? (
-        <div className="table-scroll" style={{ marginTop: '.75rem' }}>
-          <table className="digest table-nowrap">
-            <thead><tr><th>Start</th><th>End</th><th>Energy (kWh)</th></tr></thead>
-            <tbody>
-              {sorted.slice(0, 20).map((s) => (
-                <tr key={s.sessionId}>
-                  <td className="nowrap">{s.start}</td>
-                  <td className="nowrap">{s.end}</td>
-                  <td>{s.energyKwh}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {sorted.length > 20 && <p className="small">…and {sorted.length - 20} more (showing the most recent 20).</p>}
+        <div style={{ marginTop: '.75rem' }}>
+          <button className="ghost" onClick={() => setShowList((v) => !v)}>
+            {showList ? '▾' : '▸'} {sorted.length} session{sorted.length === 1 ? '' : 's'} stored
+            {showList ? '' : ' (tap to view)'}
+          </button>
+          {showList && (
+            <div className="table-scroll" style={{ marginTop: '.5rem' }}>
+              <table className="digest table-nowrap">
+                <thead><tr><th>Start</th><th>End</th><th>Energy (kWh)</th></tr></thead>
+                <tbody>
+                  {sorted.slice(0, 20).map((s) => (
+                    <tr key={s.sessionId}>
+                      <td className="nowrap">{s.start}</td>
+                      <td className="nowrap">{s.end}</td>
+                      <td>{s.energyKwh}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {sorted.length > 20 && <p className="small">…and {sorted.length - 20} more (showing the most recent 20).</p>}
+            </div>
+          )}
         </div>
       ) : (
         <p className="small">No sessions uploaded yet.</p>

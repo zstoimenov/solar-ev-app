@@ -7,16 +7,17 @@
 import React, { useState } from 'react';
 import { putState } from '../../data/db.js';
 import InfoPopover from '../InfoPopover.jsx';
+import RecomputeFinancialsButton from './RecomputeFinancialsButton.jsx';
 
 const MODES = {
   import: {
     title: 'Import (buy) tariff history',
     blurb: 'What you pay Synergy per kWh drawn from the grid, plus the daily supply charge.',
     detail: 'Add an entry whenever either changes - it applies from that date until the ' +
-      "next entry. Used for newly-ingested months only; existing months keep their " +
-      'stored numbers. The supply charge is added equally to both the actual and ' +
-      "baseline grid cost, so it doesn't change Layer 1's accrued savings - only the " +
-      'two absolute cost figures.'
+      'next entry. Used for newly-ingested months by default; existing months keep ' +
+      'their stored numbers unless you use the Recompute button below. The supply ' +
+      "charge is added equally to both the actual and baseline grid cost, so it doesn't " +
+      "change Layer 1's accrued savings - only the two absolute cost figures."
   },
   export: {
     title: 'Feed-in (export) tariff history',
@@ -156,6 +157,8 @@ export default function TariffScheduleEditor({ state, onChange, kind }) {
       </div>
       {error && <div className="banner err">{error}</div>}
       <button className="primary" onClick={addEntry} style={{ marginTop: '.5rem' }}>Add entry</button>
+
+      {kind === 'import' && <RecomputeFinancialsButton state={state} onChange={onChange} />}
     </div>
   );
 }
