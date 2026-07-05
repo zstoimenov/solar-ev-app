@@ -53,10 +53,12 @@ export default function HealthBanner({ state, lastExportedCount, onRestore }) {
   return (
     <div className={`banner compact ${shorterThanExport ? 'warn' : 'ok'} ${closing ? 'closing' : ''}`}>
       <span>
-        <strong>{count}</strong> month{count === 1 ? '' : 's'} · {first} → {last}
+        <span className="nowrap"><strong>{count}</strong> month{count === 1 ? '' : 's'}</span>
+        {' · '}
+        <span className="nowrap">{first} → {last}</span>
         {shorterThanExport && (
           <>
-            {' — '}<strong>fewer months than last export ({lastExportedCount})</strong>.{' '}
+            {' — '}<strong className="nowrap">fewer months than last export ({lastExportedCount})</strong>.{' '}
             <button className="ghost" onClick={onRestore}>Restore</button>
           </>
         )}

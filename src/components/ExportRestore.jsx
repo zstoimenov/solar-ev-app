@@ -134,66 +134,72 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
       <h2>Export / Restore</h2>
       {msg && <div className={`banner ${msg.type}`}>{msg.text}</div>}
 
-      <h3>Export (backup to Notion)</h3>
-      <label className="field row">
-        <input type="checkbox" checked={encryptOn} onChange={(e) => setEncryptOn(e.target.checked)} />
-        <span style={{ margin: 0 }}>Encrypt this export with a passphrase (AES-GCM)</span>
-      </label>
-      {encryptOn && (
-        <label className="field">
-          <span>Passphrase</span>
-          <input
-            type="password"
-            value={passphrase}
-            onChange={(e) => setPassphrase(e.target.value)}
-            placeholder="Choose a passphrase"
-          />
-          <span className="hint">
-            If this is lost, the encrypted backup is unrecoverable - there is no reset.
-          </span>
+      <div className="field-section">
+        <h3>Export (backup to Notion)</h3>
+        <label className="field row">
+          <input type="checkbox" checked={encryptOn} onChange={(e) => setEncryptOn(e.target.checked)} />
+          <span style={{ margin: 0 }}>Encrypt this export with a passphrase (AES-GCM)</span>
         </label>
-      )}
-      <div className="row" style={{ marginTop: '.5rem' }}>
-        <button className="primary" onClick={handleExport}>Export JSON</button>
-        <span className="small">
-          Downloads a pretty JSON file and copies it to the clipboard. Last exported count:{' '}
-          {lastExportedCount ?? '—'}.
-        </span>
-      </div>
-
-      <h3 style={{ marginTop: '1rem' }}>Restore (paste or file)</h3>
-      <textarea
-        placeholder="Paste a JSON backup here…"
-        value={restoreText}
-        onChange={(e) => setRestoreText(e.target.value)}
-      />
-      <div className="row" style={{ marginTop: '.5rem' }}>
-        <button className="ghost" disabled={!restoreText.trim()} onClick={() => handleRestore(restoreText)}>
-          Restore from pasted JSON
-        </button>
-        <input type="file" accept="application/json,.json" onChange={onFile} />
-      </div>
-
-      {pendingEnvelope && (
+        {encryptOn && (
+          <label className="field">
+            <span>Passphrase</span>
+            <input
+              type="password"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              placeholder="Choose a passphrase"
+            />
+            <span className="hint">
+              If this is lost, the encrypted backup is unrecoverable - there is no reset.
+            </span>
+          </label>
+        )}
         <div className="row" style={{ marginTop: '.5rem' }}>
-          <input
-            type="password"
-            value={restorePassphrase}
-            onChange={(e) => setRestorePassphrase(e.target.value)}
-            placeholder="Passphrase for this backup"
-          />
-          <button className="primary" disabled={!restorePassphrase} onClick={handleDecryptAndRestore}>
-            Decrypt &amp; restore
-          </button>
+          <button className="primary" onClick={handleExport}>Export JSON</button>
+          <span className="small">
+            Downloads a pretty JSON file and copies it to the clipboard. Last exported count:{' '}
+            {lastExportedCount ?? '—'}.
+          </span>
         </div>
-      )}
+      </div>
 
-      <h3 style={{ marginTop: '1.5rem' }}>Danger zone</h3>
-      <p className="small">
-        Permanently clears all data from this browser, leaving the app as an empty shell
-        (same as a fresh install). Export a backup first if you want to keep it.
-      </p>
-      <button className="danger" onClick={handleDelete}>Delete all data</button>
+      <div className="field-section">
+        <h3>Restore (paste or file)</h3>
+        <textarea
+          placeholder="Paste a JSON backup here…"
+          value={restoreText}
+          onChange={(e) => setRestoreText(e.target.value)}
+        />
+        <div className="row" style={{ marginTop: '.5rem' }}>
+          <button className="ghost" disabled={!restoreText.trim()} onClick={() => handleRestore(restoreText)}>
+            Restore from pasted JSON
+          </button>
+          <input type="file" accept="application/json,.json" onChange={onFile} />
+        </div>
+
+        {pendingEnvelope && (
+          <div className="row" style={{ marginTop: '.5rem' }}>
+            <input
+              type="password"
+              value={restorePassphrase}
+              onChange={(e) => setRestorePassphrase(e.target.value)}
+              placeholder="Passphrase for this backup"
+            />
+            <button className="primary" disabled={!restorePassphrase} onClick={handleDecryptAndRestore}>
+              Decrypt &amp; restore
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="field-section">
+        <h3>Danger zone</h3>
+        <p className="small">
+          Permanently clears all data from this browser, leaving the app as an empty shell
+          (same as a fresh install). Export a backup first if you want to keep it.
+        </p>
+        <button className="danger" onClick={handleDelete}>Delete all data</button>
+      </div>
     </div>
   );
 }

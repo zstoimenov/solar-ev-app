@@ -18,7 +18,7 @@ const empty = { fronius: null, wattpilot: null, synergy: null };
 // month straight from the filename so the user doesn't have to type it.
 const MONTH_FROM_FILENAME = /(\d{4})[_-](\d{2})(?!\d)/;
 
-export default function IngestWizard({ state, onChange }) {
+export default function IngestWizard({ state, onChange, onIngested }) {
   const [files, setFiles] = useState(empty);
   const [manual, setManual] = useState({
     month: '', evWorkChargingKwh: 0, evPublicTripKwh: 0, notes: ''
@@ -85,6 +85,7 @@ export default function IngestWizard({ state, onChange }) {
     setPreview(null);
     setFiles(empty);
     setManual((m) => ({ ...m, month: '', notes: '' }));
+    onIngested?.();
   }
 
   return (
@@ -95,48 +96,57 @@ export default function IngestWizard({ state, onChange }) {
         until you confirm the preview.
       </p>
 
-      <label className="field"><span>Month (YYYY-MM)</span>
-        <input type="text" placeholder="2026-06" value={manual.month} onChange={setM('month')} />
-      </label>
-
-      <div className="grid cols-2">
-        <label className="field"><span>1 · Fronius total XLSX (Energy_balance_total_…)</span>
-          <input type="file" accept=".xlsx" onChange={setFile('fronius')} />
-        </label>
-        <label className="field"><span>2 · Wattpilot XLSX (Energy_balance_Wattpilot_…)</span>
-          <input type="file" accept=".xlsx" onChange={setFile('wattpilot')} />
-        </label>
-        <label className="field"><span>3 · Synergy CSV (MA_IntervalDataHistory.csv) — optional if pending</span>
-          <input type="file" accept=".csv" onChange={setFile('synergy')} />
+      <div className="field-section">
+        <label className="field"><span>Month (YYYY-MM)</span>
+          <input type="text" placeholder="2026-06" value={manual.month} onChange={setM('month')} />
         </label>
       </div>
 
-      <h3>Manual entry</h3>
-      <div className="grid cols-3">
-        <label className="field">
-          <span>Free public charging (kWh)</span>
-          <input type="number" value={manual.evWorkChargingKwh} onChange={setM('evWorkChargingKwh')} />
-          <span className="hint">No cost to you — e.g. a free workplace charger.</span>
-        </label>
-        <label className="field">
-          <span>Paid public charging (kWh)</span>
-          <input type="number" value={manual.evPublicTripKwh} onChange={setM('evPublicTripKwh')} />
-          <span className="hint">You paid for this — public fast chargers, road trips, etc.</span>
-        </label>
+      <div className="field-section">
+        <h3>Files</h3>
+        <div className="grid cols-2">
+          <label className="field"><span>1 · Fronius total XLSX (Energy_balance_total_…)</span>
+            <input type="file" accept=".xlsx" onChange={setFile('fronius')} />
+          </label>
+          <label className="field"><span>2 · Wattpilot XLSX (Energy_balance_Wattpilot_…)</span>
+            <input type="file" accept=".xlsx" onChange={setFile('wattpilot')} />
+          </label>
+          <label className="field"><span>3 · Synergy CSV (MA_IntervalDataHistory.csv) — optional if pending</span>
+            <input type="file" accept=".csv" onChange={setFile('synergy')} />
+          </label>
+        </div>
       </div>
-      <label className="field"><span>Notes (optional)</span>
-        <input type="text" value={manual.notes} onChange={setM('notes')} /></label>
 
-      <label className="field row">
-        <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
-        <span style={{ margin: 0 }}>Overwrite if the month already exists (duplicate-month guard)</span>
-      </label>
+      <div className="field-section">
+        <h3>Manual entry</h3>
+        <div className="grid cols-3">
+          <label className="field">
+            <span>Free public charging (kWh)</span>
+            <input type="number" value={manual.evWorkChargingKwh} onChange={setM('evWorkChargingKwh')} />
+            <span className="hint">No cost to you — e.g. a free workplace charger.</span>
+          </label>
+          <label className="field">
+            <span>Paid public charging (kWh)</span>
+            <input type="number" value={manual.evPublicTripKwh} onChange={setM('evPublicTripKwh')} />
+            <span className="hint">You paid for this — public fast chargers, road trips, etc.</span>
+          </label>
+        </div>
+        <label className="field"><span>Notes (optional)</span>
+          <input type="text" value={manual.notes} onChange={setM('notes')} /></label>
+      </div>
 
-      {error && <div className="banner err">{error}</div>}
-      <button className="primary" onClick={buildPreview}>Build preview</button>
+      <div className="field-section">
+        <label className="field row">
+          <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
+          <span style={{ margin: 0 }}>Overwrite if the month already exists (duplicate-month guard)</span>
+        </label>
+
+        {error && <div className="banner err">{error}</div>}
+        <button className="primary" onClick={buildPreview}>Build preview</button>
+      </div>
 
       {preview && (
-        <div style={{ marginTop: '1rem' }}>
+        <div className="field-section">
           <div className={`banner ${preview.replaced ? 'warn' : 'ok'}`}>
             {preview.replaced ? 'Will REPLACE existing month' : 'Will APPEND new month'}{' '}
             <strong>{preview.digest.month}</strong>. Review before committing.

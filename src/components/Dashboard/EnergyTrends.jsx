@@ -6,6 +6,7 @@ import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend
 } from 'chart.js';
+import InfoPopover from '../InfoPopover.jsx';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
@@ -25,7 +26,7 @@ export default function EnergyTrends({ state }) {
     labels,
     datasets: [
       {
-        label: 'Solar production (kWh)',
+        label: 'Solar (kWh)',
         data: digests.map((d) => d.solarProductionKwh),
         borderColor: '#facc15', backgroundColor: '#facc15', yAxisID: 'y', spanGaps: false, tension: 0.25
       },
@@ -35,12 +36,12 @@ export default function EnergyTrends({ state }) {
         borderColor: '#34d399', backgroundColor: '#34d399', yAxisID: 'y1', spanGaps: false, tension: 0.25
       },
       {
-        label: 'Combined saving (AUD)',
+        label: 'Savings (AUD)',
         data: digests.map((d) => d.combinedSavingAud),
         borderColor: '#60a5fa', backgroundColor: '#60a5fa', yAxisID: 'y', spanGaps: false, tension: 0.25
       },
       {
-        label: 'EV charging - Wattpilot (kWh)',
+        label: 'EV charging (kWh)',
         data: digests.map((d) => d.evTotalChargedKwh),
         borderColor: '#a78bfa', backgroundColor: '#a78bfa', yAxisID: 'y', spanGaps: false, tension: 0.25
       }
@@ -64,7 +65,11 @@ export default function EnergyTrends({ state }) {
   return (
     <>
       <div className="chart-wrap"><Line data={data} options={options} /></div>
-      <p className="small">Gaps indicate pending / null values (never plotted as zero).</p>
+      <div className="tile-footnote">
+        <InfoPopover label="About gaps in this chart">
+          Gaps indicate pending / null values (never plotted as zero).
+        </InfoPopover>
+      </div>
     </>
   );
 }
