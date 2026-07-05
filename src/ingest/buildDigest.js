@@ -4,6 +4,7 @@
 // totals from the full array (see data/compute.js).
 
 import { crossValFlag } from '../data/compute.js';
+import { resolveScheduleEntry, sumChargingLogForMonth } from '../data/tariffSchedule.js';
 
 const round = (n, dp = 2) =>
   n == null ? null : Math.round((n + Number.EPSILON) * 10 ** dp) / 10 ** dp;
@@ -21,16 +22,27 @@ function daysInMonth(month) {
 }
 
 // Build one digest. `parsed` = { fronius, wattpilot, synergy }.
-// `manual` = { month, daysInPeriod?, partialMonth?, evWorkChargingKwh,
-//              evPublicTripKwh, notes? }
-export function buildDigest(parsed, manual, config) {
+// `manual` = { month, daysInPeriod?, partialMonth?, evWorkChargingKwh, notes? }
+// `chargingLog` = the household's paid-public-charging log (see
+// data/tariffSchedule.js) - replaces the old manual "paid public kWh" entry;
+// free/workplace charging is still a manual field since it has no cost.
+export function buildDigest(parsed, manual, config, chargingLog = []) {
   const { fronius, wattpilot, synergy } = parsed;
   const month = manual.month;
   const days = manual.daysInPeriod ?? daysInMonth(month);
   const fullDays = daysInMonth(month);
 
   const tariffs = config.tariffs;
-  const usageRate = tariffs.usageRateCPerKwh / 100; // AUD/kWh
+  // config.tariffSchedule.import - a dated history of buy-price changes -
+  // takes over from the static config rate once at least one entry is
+  // on/before this month (see data/tariffSchedule.js: no mid-month blending,
+  // whatever rate was active on the 1st applies to the whole month).
+  const importEntry = resolveScheduleEntry(config.tariffSchedule?.import, month);
+  const usageRate = (importEntry ? importEntry.priceCentsPerKwh : tariffs.usageRateCPerKwh) / 100; // AUD/kWh
+  // Feed-in (export) schedule is stored (config.tariffSchedule.export) but not
+  // yet auto-applied here - Fronius only gives a monthly export total, not an
+  // hour-by-hour split, so there's no reliable way to apply its two time-of-day
+  // rates without an assumed peak-share guess. Keeps using the blended rate.
   const debsPeak = tariffs.debsPeakCPerKwh / 100;
 
   // Self-sufficiency / self-consumption from energy fields (null-safe).
@@ -66,7 +78,11 @@ export function buildDigest(parsed, manual, config) {
   const cf = config.counterfactual;
   // Annual counterfactual scope (fuel + service) pro-rated by day count.
   const ceratoCounterfactualAud = round((cf.layer2ScopeTotalAudPerYr / 365) * days, 2);
-  const evElectricityCostAud = wattpilot.evElectricityCostAud ?? manual.evElectricityCostAud ?? 0;
+  // Paid public charging - date-stamped log entries for this month, summed
+  // (see data/tariffSchedule.js). Free/workplace charging stays a manual
+  // field below since it has no cost to subtract here.
+  const publicCharging = sumChargingLogForMonth(chargingLog, month);
+  const evElectricityCostAud = publicCharging.costAud ?? 0;
   const layer2SavingAud = round(ceratoCounterfactualAud - evElectricityCostAud, 2);
 
   const combinedSavingAud =
@@ -105,7 +121,7 @@ export function buildDigest(parsed, manual, config) {
     evFromBatteryKwh: round(wattpilot.evFromBatteryKwh),
     evFromHomeGridKwh: round(wattpilot.evFromHomeGridKwh),
     evWorkChargingKwh: manual.evWorkChargingKwh ?? 0,
-    evPublicTripKwh: manual.evPublicTripKwh ?? 0,
+    evPublicTripKwh: publicCharging.energyKwh ?? 0,
     evGridChargingDays: wattpilot.evGridChargingDays ?? null,
     evElectricityCostAud: round(evElectricityCostAud),
 

@@ -27,6 +27,7 @@ starting data before the first live monthly upload.
 | `config` | object | Static reference data (hardware, tariffs, EV, lease, counterfactual, baselines). |
 | `monthlyDigests` | array | One object per month, chronological. 33 fields each. |
 | `cumulativeTotals` | object | All-time aggregates, payback progress, cross-validation flags. |
+| `chargingLog` | array | *Optional* (absent in pre-v1.5 backups; treat as `[]`). Paid public-charging sessions - see below. |
 
 ---
 
@@ -53,6 +54,38 @@ Six blocks:
 - **`lease`** - provider, term, rate, residual, FBT status, `fortnightlyPreTaxAud` breakdown, net salary impact, `annualAud` figures. `vehicleReturnOption: false` (residual must be paid to own).
 - **`counterfactual`** - petrol baseline vehicle. Holds **both** service costs (`serviceToJun2026`, `serviceFromJul2026`) for the Jul-2026 step-change. `layer2ScopeTotalAudPerYr` = fuel + service scope used in the model.
 - **`baselines`** - confirmed pre/post solar + battery consumption/import/export. Do not re-derive without new data.
+- **`tariffSchedule`** *(optional; absent = no history yet, static `tariffs.*` values apply)* -
+  `{ import: [], export: [] }`, dated rate-change entries edited via the Ingest
+  tab's Import Tariff / Feed-in Tariff sub-tabs (see `src/data/tariffSchedule.js`).
+  - `import[]`: `{ effectiveFrom (YYYY-MM-DD), priceCentsPerKwh }` - what Synergy
+    charges per kWh imported. Step function over time: an entry's price applies
+    from its date until the next entry's date.
+  - `export[]`: `{ effectiveFrom (YYYY-MM-DD), peakFrom (HH:MM), peakTo (HH:MM),
+    peakPriceCentsPerKwh, offPeakPriceCentsPerKwh }` - the feed-in (export)
+    credit, split into two time-of-day bands (e.g. DEBS peak/off-peak).
+    **Stored for reference only** - `buildDigest.js` does not yet apply this to
+    `exportCreditAud`, because Fronius only reports a monthly export total (no
+    hour-by-hour split), so there's no reliable way to blend two time-banded
+    rates into one number without assuming a peak-share percentage. The
+    existing single blended `tariffs.debsPeakCPerKwh` keeps being used.
+  - Resolution is **forward-only**: adding/editing entries never recomputes
+    already-ingested historical months, only months ingested from then on.
+
+---
+
+## `chargingLog[]`
+
+One entry per **paid** public/road-trip charging session (free workplace
+charging stays a manual per-month field in Monthly Ingest - it has no cost to
+track). Edited via the Ingest tab's Public Charging Log sub-tab.
+
+`{ date (YYYY-MM-DD), energyKwh (number), totalCostAud (number), notes (str|null) }`
+
+`buildDigest.js` sums the entries whose `date` falls in the target month
+(`data/tariffSchedule.js:sumChargingLogForMonth`) to derive that month's
+`evPublicTripKwh` and `evElectricityCostAud` (which feeds Layer 2). This
+replaces the old single manual "paid public kWh" ingest field. Forward-only,
+same as the tariff schedules above - historical digests are untouched.
 
 ---
 

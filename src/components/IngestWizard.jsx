@@ -10,9 +10,18 @@ import { parseSynergy } from '../ingest/parseSynergy.js';
 import { buildDigest } from '../ingest/buildDigest.js';
 import { recomputeCumulative, recomputeMeta } from '../data/compute.js';
 import { putState } from '../data/db.js';
+import TariffScheduleEditor from './Ingest/TariffScheduleEditor.jsx';
+import ChargingLogEditor from './Ingest/ChargingLogEditor.jsx';
 
 const APP_VERSION = 'app_v1';
 const empty = { fronius: null, wattpilot: null, synergy: null };
+
+const SECTIONS = [
+  { key: 'upload', label: 'Monthly Upload' },
+  { key: 'importTariff', label: 'Import Tariff' },
+  { key: 'exportTariff', label: 'Feed-in Tariff' },
+  { key: 'chargingLog', label: 'Public Charging Log' }
+];
 
 // Fronius/Wattpilot report filenames end in "..._2026_06.xlsx" - pull the
 // month straight from the filename so the user doesn't have to type it.
@@ -34,9 +43,10 @@ function rowStatus(key, value) {
 const SEVERITY_RANK = { err: 2, warn: 1, ok: 0 };
 
 export default function IngestWizard({ state, onChange, onIngested }) {
+  const [section, setSection] = useState('upload');
   const [files, setFiles] = useState(empty);
   const [manual, setManual] = useState({
-    month: '', evWorkChargingKwh: 0, evPublicTripKwh: 0, notes: ''
+    month: '', evWorkChargingKwh: 0, notes: ''
   });
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState(null);
@@ -72,11 +82,12 @@ export default function IngestWizard({ state, onChange, onIngested }) {
       const manualClean = {
         month: manual.month,
         evWorkChargingKwh: Number(manual.evWorkChargingKwh) || 0,
-        evPublicTripKwh: Number(manual.evPublicTripKwh) || 0,
         notes: manual.notes || null
       };
 
-      const digest = buildDigest({ fronius, wattpilot, synergy }, manualClean, state.config);
+      const digest = buildDigest(
+        { fronius, wattpilot, synergy }, manualClean, state.config, state.chargingLog ?? []
+      );
 
       // Build the proposed next-state (not yet written).
       const others = state.monthlyDigests.filter((d) => d.month !== manual.month);
@@ -106,6 +117,21 @@ export default function IngestWizard({ state, onChange, onIngested }) {
   return (
     <div className="panel">
       <h2>Monthly Ingest</h2>
+
+      <div className="subtabs">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.key}
+            className={s.key === section ? 'active' : ''}
+            onClick={() => setSection(s.key)}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {section === 'upload' && (
+      <>
       <p className="small">
         Upload the three monthly files + enter away-charging. Nothing is written
         until you confirm the preview.
@@ -140,12 +166,10 @@ export default function IngestWizard({ state, onChange, onIngested }) {
             <input type="number" value={manual.evWorkChargingKwh} onChange={setM('evWorkChargingKwh')} />
             <span className="hint">No cost to you — e.g. a free workplace charger.</span>
           </label>
-          <label className="field">
-            <span>Paid public charging (kWh)</span>
-            <input type="number" value={manual.evPublicTripKwh} onChange={setM('evPublicTripKwh')} />
-            <span className="hint">You paid for this — public fast chargers, road trips, etc.</span>
-          </label>
         </div>
+        <p className="small">
+          Paid public charging now comes from the <strong>Public Charging Log</strong> tab above instead of a monthly total here.
+        </p>
         <label className="field"><span>Notes (optional)</span>
           <input type="text" value={manual.notes} onChange={setM('notes')} /></label>
       </div>
@@ -159,8 +183,14 @@ export default function IngestWizard({ state, onChange, onIngested }) {
         {error && <div className="banner err">{error}</div>}
         <button className="primary" onClick={buildPreview}>Build preview</button>
       </div>
+      </>
+      )}
 
-      {preview && (() => {
+      {section === 'importTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="import" />}
+      {section === 'exportTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="export" />}
+      {section === 'chargingLog' && <ChargingLogEditor state={state} onChange={onChange} />}
+
+      {section === 'upload' && preview && (() => {
         const rows = Object.entries(preview.digest).map(([k, v]) => [k, v, rowStatus(k, v)]);
         const overall = rows.reduce((worst, [, , s]) => (SEVERITY_RANK[s] > SEVERITY_RANK[worst] ? s : worst), 'ok');
         const overallText = {

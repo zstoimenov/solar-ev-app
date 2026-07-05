@@ -78,7 +78,8 @@ export async function resetState() {
     },
     config: {},
     monthlyDigests: [],
-    cumulativeTotals: {}
+    cumulativeTotals: {},
+    chargingLog: []
   };
   await putState(empty);
   await (await db()).delete(STORE, META_KEY);

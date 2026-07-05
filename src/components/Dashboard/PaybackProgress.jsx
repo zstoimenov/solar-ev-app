@@ -56,7 +56,7 @@ export default function PaybackProgress({ state }) {
     <>
       <div className="chart-wrap"><Bar data={data} options={options} /></div>
       <div className="table-scroll" style={{ marginTop: '.75rem' }}>
-        <table className="digest payback-table">
+        <table className="digest table-nowrap">
           <thead>
             <tr><th>Component</th><th>Remaining</th><th>Recovered</th><th>OOP</th><th>Est. payback</th></tr>
           </thead>
