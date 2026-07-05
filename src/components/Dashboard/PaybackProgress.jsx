@@ -58,14 +58,14 @@ export default function PaybackProgress({ state }) {
       <div className="table-scroll" style={{ marginTop: '.75rem' }}>
         <table className="digest table-nowrap">
           <thead>
-            <tr><th>Component</th><th>Remaining</th><th>Recovered</th><th>OOP</th><th>Est. payback</th></tr>
+            <tr><th>Component</th><th>Recovered</th><th>Remaining</th><th>OOP</th><th>Est. payback</th></tr>
           </thead>
           <tbody>
             {payback.map((p) => (
               <tr key={p.component}>
                 <td>{simplifyName(p.component)}</td>
-                <td>{money(p.remainingAud)}</td>
                 <td>{money(p.recoveredAud)}</td>
+                <td>{money(p.remainingAud)}</td>
                 <td>{money(p.oopAud)}</td>
                 <td>{p.estPaybackYear ?? '—'}</td>
               </tr>
@@ -73,8 +73,8 @@ export default function PaybackProgress({ state }) {
             {totals && (
               <tr>
                 <td><strong>Total</strong></td>
-                <td><strong>{money(totals.remainingAud)}</strong></td>
                 <td><strong>{money(totals.recoveredAud)}</strong></td>
+                <td><strong>{money(totals.remainingAud)}</strong></td>
                 <td><strong>{money(totals.oopAud)}</strong></td>
                 <td className="small">{totals.allocationOrder}</td>
               </tr>
