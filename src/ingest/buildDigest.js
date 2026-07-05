@@ -39,6 +39,13 @@ export function buildDigest(parsed, manual, config, chargingLog = []) {
   // whatever rate was active on the 1st applies to the whole month).
   const importEntry = resolveScheduleEntry(config.tariffSchedule?.import, month);
   const usageRate = (importEntry ? importEntry.priceCentsPerKwh : tariffs.usageRateCPerKwh) / 100; // AUD/kWh
+  // Daily supply charge - only tracked via the schedule (the old static
+  // config.tariffs never had one), so it's 0 for months resolved from the
+  // static fallback above. Applied equally to actual + baseline below, so it
+  // does NOT change gridCostAvoidedAud/layer1SavingAud (you'd pay the same
+  // connection fee with or without solar) - it only makes the two absolute
+  // cost figures match a real bill instead of usage-only.
+  const supplyChargeAudPerDay = (importEntry?.supplyChargeCPerDay ?? 0) / 100;
   // Feed-in (export) schedule is stored (config.tariffSchedule.export) but not
   // yet auto-applied here - Fronius only gives a monthly export total, not an
   // hour-by-hour split, so there's no reliable way to apply its two time-of-day
@@ -57,11 +64,12 @@ export function buildDigest(parsed, manual, config, chargingLog = []) {
   // Layer 1 (solar + battery): grid cost avoided on self-consumed energy +
   // export credit, less actual grid cost paid. Baseline = what the same
   // consumption would have cost fully imported.
+  const supplyChargeAud = round(supplyChargeAudPerDay * days, 2);
   const actualGridCostAud =
     fronius.gridImportFroniusKwh != null
-      ? round(fronius.gridImportFroniusKwh * usageRate, 2)
+      ? round(fronius.gridImportFroniusKwh * usageRate + supplyChargeAud, 2)
       : null;
-  const baselineGridCostAud = cons != null ? round(cons * usageRate, 2) : null;
+  const baselineGridCostAud = cons != null ? round(cons * usageRate + supplyChargeAud, 2) : null;
   const gridCostAvoidedAud =
     baselineGridCostAud != null && actualGridCostAud != null
       ? round(baselineGridCostAud - actualGridCostAud, 2)

@@ -10,9 +10,12 @@ import { putState } from '../../data/db.js';
 const MODES = {
   import: {
     title: 'Import (buy) tariff history',
-    blurb: 'What you pay Synergy per kWh drawn from the grid. Add an entry ' +
-      'whenever the rate changes - it applies from that date until the next entry. ' +
-      'Used for newly-ingested months; existing months keep their stored numbers.'
+    blurb: 'What you pay Synergy per kWh drawn from the grid, plus the daily supply ' +
+      '(connection) charge. Add an entry whenever either changes - it applies from ' +
+      'that date until the next entry. Used for newly-ingested months; existing ' +
+      'months keep their stored numbers. The supply charge is added equally to both ' +
+      "the actual and baseline grid cost, so it doesn't change Layer 1's accrued " +
+      'savings - only the two absolute cost figures.'
   },
   export: {
     title: 'Feed-in (export) tariff history',
@@ -25,7 +28,7 @@ const MODES = {
 };
 
 const emptyForm = {
-  effectiveFrom: '', priceCentsPerKwh: '', peakFrom: '15:00', peakTo: '21:00',
+  effectiveFrom: '', priceCentsPerKwh: '', supplyChargeCPerDay: '', peakFrom: '15:00', peakTo: '21:00',
   peakPriceCentsPerKwh: '', offPeakPriceCentsPerKwh: ''
 };
 
@@ -56,8 +59,10 @@ export default function TariffScheduleEditor({ state, onChange, kind }) {
     let entry;
     if (kind === 'import') {
       const price = Number(form.priceCentsPerKwh);
+      const supplyCharge = Number(form.supplyChargeCPerDay);
       if (!Number.isFinite(price)) { setError('Enter a price (c/kWh).'); return; }
-      entry = { effectiveFrom: form.effectiveFrom, priceCentsPerKwh: price };
+      if (!Number.isFinite(supplyCharge)) { setError('Enter the supply charge (c/day).'); return; }
+      entry = { effectiveFrom: form.effectiveFrom, priceCentsPerKwh: price, supplyChargeCPerDay: supplyCharge };
     } else {
       const peak = Number(form.peakPriceCentsPerKwh);
       const offPeak = Number(form.offPeakPriceCentsPerKwh);
@@ -90,7 +95,7 @@ export default function TariffScheduleEditor({ state, onChange, kind }) {
               <tr>
                 <th>Effective from</th>
                 {kind === 'import'
-                  ? <th>Price (c/kWh)</th>
+                  ? (<><th>Price (c/kWh)</th><th>Supply (c/day)</th></>)
                   : (<><th>Peak window</th><th>Peak (c/kWh)</th><th>Off-peak (c/kWh)</th></>)}
                 <th></th>
               </tr>
@@ -100,7 +105,7 @@ export default function TariffScheduleEditor({ state, onChange, kind }) {
                 <tr key={e.effectiveFrom}>
                   <td>{e.effectiveFrom}</td>
                   {kind === 'import'
-                    ? <td>{e.priceCentsPerKwh}</td>
+                    ? (<><td>{e.priceCentsPerKwh}</td><td>{e.supplyChargeCPerDay ?? 0}</td></>)
                     : (<>
                         <td className="nowrap">{e.peakFrom}–{e.peakTo}</td>
                         <td>{e.peakPriceCentsPerKwh}</td>
@@ -121,9 +126,14 @@ export default function TariffScheduleEditor({ state, onChange, kind }) {
           <input type="date" value={form.effectiveFrom} onChange={setF('effectiveFrom')} />
         </label>
         {kind === 'import' ? (
-          <label className="field"><span>Price (c/kWh)</span>
-            <input type="number" step="0.01" value={form.priceCentsPerKwh} onChange={setF('priceCentsPerKwh')} />
-          </label>
+          <>
+            <label className="field"><span>Price (c/kWh)</span>
+              <input type="number" step="0.0001" value={form.priceCentsPerKwh} onChange={setF('priceCentsPerKwh')} />
+            </label>
+            <label className="field"><span>Supply charge (c/day)</span>
+              <input type="number" step="0.0001" value={form.supplyChargeCPerDay} onChange={setF('supplyChargeCPerDay')} />
+            </label>
+          </>
         ) : (
           <>
             <label className="field"><span>Peak from</span>
