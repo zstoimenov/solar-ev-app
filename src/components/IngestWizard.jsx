@@ -14,18 +14,27 @@ import { putState } from '../data/db.js';
 const APP_VERSION = 'app_v1';
 const empty = { fronius: null, wattpilot: null, synergy: null };
 
+// Fronius/Wattpilot report filenames end in "..._2026_06.xlsx" - pull the
+// month straight from the filename so the user doesn't have to type it.
+const MONTH_FROM_FILENAME = /(\d{4})[_-](\d{2})(?!\d)/;
+
 export default function IngestWizard({ state, onChange }) {
   const [files, setFiles] = useState(empty);
   const [manual, setManual] = useState({
-    month: '', evWorkChargingKwh: 0, evPublicTripKwh: 0,
-    zeroProductionDays: 0, peakProductionKwh: '', peakProductionDay: '',
-    lowestProductionKwh: '', productionStdDevKwh: '', notes: ''
+    month: '', evWorkChargingKwh: 0, evPublicTripKwh: 0, notes: ''
   });
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState(null);
   const [overwrite, setOverwrite] = useState(false);
 
-  const setFile = (k) => (e) => setFiles((f) => ({ ...f, [k]: e.target.files?.[0] ?? null }));
+  const setFile = (k) => (e) => {
+    const file = e.target.files?.[0] ?? null;
+    setFiles((f) => ({ ...f, [k]: file }));
+    if (file && (k === 'fronius' || k === 'wattpilot')) {
+      const m = file.name.match(MONTH_FROM_FILENAME);
+      if (m) setManual((cur) => (cur.month ? cur : { ...cur, month: `${m[1]}-${m[2]}` }));
+    }
+  };
   const setM = (k) => (e) => setManual((m) => ({ ...m, [k]: e.target.value }));
 
   async function buildPreview() {
@@ -45,16 +54,10 @@ export default function IngestWizard({ state, onChange }) {
         ? parseSynergy(await files.synergy.text())
         : { gridImportSynergyKwh: null, pending: true, billedRows: 0, unbilledRows: 0 };
 
-      const num = (v) => (v === '' || v == null ? null : Number(v));
       const manualClean = {
         month: manual.month,
         evWorkChargingKwh: Number(manual.evWorkChargingKwh) || 0,
         evPublicTripKwh: Number(manual.evPublicTripKwh) || 0,
-        zeroProductionDays: Number(manual.zeroProductionDays) || 0,
-        peakProductionKwh: num(manual.peakProductionKwh),
-        peakProductionDay: manual.peakProductionDay || null,
-        lowestProductionKwh: num(manual.lowestProductionKwh),
-        productionStdDevKwh: num(manual.productionStdDevKwh),
         notes: manual.notes || null
       };
 
@@ -110,20 +113,16 @@ export default function IngestWizard({ state, onChange }) {
 
       <h3>Manual entry</h3>
       <div className="grid cols-3">
-        <label className="field"><span>EV work charging (kWh)</span>
-          <input type="number" value={manual.evWorkChargingKwh} onChange={setM('evWorkChargingKwh')} /></label>
-        <label className="field"><span>EV public/trip charging (kWh)</span>
-          <input type="number" value={manual.evPublicTripKwh} onChange={setM('evPublicTripKwh')} /></label>
-        <label className="field"><span>Zero-production days</span>
-          <input type="number" value={manual.zeroProductionDays} onChange={setM('zeroProductionDays')} /></label>
-        <label className="field"><span>Peak production (kWh) — auto if blank</span>
-          <input type="number" value={manual.peakProductionKwh} onChange={setM('peakProductionKwh')} /></label>
-        <label className="field"><span>Peak production day — auto if blank</span>
-          <input type="text" placeholder="14 Jun 2026" value={manual.peakProductionDay} onChange={setM('peakProductionDay')} /></label>
-        <label className="field"><span>Lowest production (kWh) — auto if blank</span>
-          <input type="number" value={manual.lowestProductionKwh} onChange={setM('lowestProductionKwh')} /></label>
-        <label className="field"><span>Production std dev (kWh) — auto if blank</span>
-          <input type="number" value={manual.productionStdDevKwh} onChange={setM('productionStdDevKwh')} /></label>
+        <label className="field">
+          <span>EV work charging (kWh)</span>
+          <input type="number" value={manual.evWorkChargingKwh} onChange={setM('evWorkChargingKwh')} />
+          <span className="hint">Charged at your workplace's charger, if free/employer-provided.</span>
+        </label>
+        <label className="field">
+          <span>EV public/trip charging (kWh)</span>
+          <input type="number" value={manual.evPublicTripKwh} onChange={setM('evPublicTripKwh')} />
+          <span className="hint">Charged away from home/work — public fast chargers, road trips, etc.</span>
+        </label>
       </div>
       <label className="field"><span>Notes (optional)</span>
         <input type="text" value={manual.notes} onChange={setM('notes')} /></label>
@@ -145,23 +144,27 @@ export default function IngestWizard({ state, onChange }) {
           <div className="grid cols-2">
             <div>
               <h3>New month</h3>
-              <table className="digest"><tbody>
-                {Object.entries(preview.digest).map(([k, v]) => (
-                  <tr key={k}><td>{k}</td><td className={v == null ? 'pending' : ''}>{v == null ? 'null' : String(v)}</td></tr>
-                ))}
-              </tbody></table>
+              <div className="table-scroll">
+                <table className="digest"><tbody>
+                  {Object.entries(preview.digest).map(([k, v]) => (
+                    <tr key={k}><td>{k}</td><td className={v == null ? 'pending' : ''}>{v == null ? 'null' : String(v)}</td></tr>
+                  ))}
+                </tbody></table>
+              </div>
             </div>
             <div>
               <h3>Updated totals</h3>
-              <table className="digest"><tbody>
-                <tr><td>Total months</td><td>{preview.next.cumulativeTotals.coverage.totalMonths}</td></tr>
-                <tr><td>Range</td><td>{preview.next.meta.dateRange.first} → {preview.next.meta.dateRange.last}</td></tr>
-                <tr><td>Solar production (kWh)</td><td>{preview.next.cumulativeTotals.energy.solarProductionKwh}</td></tr>
-                <tr><td>Layer 1 saving</td><td>{preview.next.cumulativeTotals.financial.layer1SavingAud}</td></tr>
-                <tr><td>Layer 2 saving</td><td>{preview.next.cumulativeTotals.financial.layer2SavingAud}</td></tr>
-                <tr><td>Combined 1+2</td><td>{preview.next.cumulativeTotals.financial.combinedLayer12SavingAud}</td></tr>
-                <tr><td>Cross-val flags</td><td>{preview.next.cumulativeTotals.crossValFlags.join(', ') || 'none'}</td></tr>
-              </tbody></table>
+              <div className="table-scroll">
+                <table className="digest"><tbody>
+                  <tr><td>Total months</td><td>{preview.next.cumulativeTotals.coverage.totalMonths}</td></tr>
+                  <tr><td>Range</td><td>{preview.next.meta.dateRange.first} → {preview.next.meta.dateRange.last}</td></tr>
+                  <tr><td>Solar production (kWh)</td><td>{preview.next.cumulativeTotals.energy.solarProductionKwh}</td></tr>
+                  <tr><td>Layer 1 saving</td><td>{preview.next.cumulativeTotals.financial.layer1SavingAud}</td></tr>
+                  <tr><td>Layer 2 saving</td><td>{preview.next.cumulativeTotals.financial.layer2SavingAud}</td></tr>
+                  <tr><td>Combined 1+2</td><td>{preview.next.cumulativeTotals.financial.combinedLayer12SavingAud}</td></tr>
+                  <tr><td>Cross-val flags</td><td>{preview.next.cumulativeTotals.crossValFlags.join(', ') || 'none'}</td></tr>
+                </tbody></table>
+              </div>
             </div>
           </div>
           <div className="row" style={{ marginTop: '.5rem' }}>

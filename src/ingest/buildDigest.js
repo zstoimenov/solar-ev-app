@@ -1,5 +1,5 @@
 // buildDigest.js - merge parsed inputs (Fronius + Wattpilot + Synergy) plus the
-// manual away-charging entry into ONE 37-field monthlyDigests object, computing
+// manual away-charging entry into ONE 33-field monthlyDigests object, computing
 // the per-month financial layers from config. Then callers recompute cumulative
 // totals from the full array (see data/compute.js).
 
@@ -22,9 +22,7 @@ function daysInMonth(month) {
 
 // Build one digest. `parsed` = { fronius, wattpilot, synergy }.
 // `manual` = { month, daysInPeriod?, partialMonth?, evWorkChargingKwh,
-//              evPublicTripKwh, peakProductionKwh, peakProductionDay,
-//              lowestProductionKwh, productionStdDevKwh, zeroProductionDays,
-//              notes? }
+//              evPublicTripKwh, notes? }
 export function buildDigest(parsed, manual, config) {
   const { fronius, wattpilot, synergy } = parsed;
   const month = manual.month;
@@ -100,12 +98,7 @@ export function buildDigest(parsed, manual, config) {
     gridImportSynergyKwh: synergy.gridImportSynergyKwh,
     selfSufficiencyPct,
     selfConsumptionRatePct,
-    zeroProductionDays: manual.zeroProductionDays ?? null,
-
-    peakProductionKwh: manual.peakProductionKwh ?? round(fronius.peakProductionKwh),
-    peakProductionDay: manual.peakProductionDay ?? fronius.peakProductionDay ?? null,
-    lowestProductionKwh: manual.lowestProductionKwh ?? round(fronius.lowestProductionKwh),
-    productionStdDevKwh: manual.productionStdDevKwh ?? round(fronius.productionStdDevKwh),
+    zeroProductionDays: fronius.zeroProductionDays ?? null,
 
     evTotalChargedKwh: round(wattpilot.evTotalChargedKwh),
     evFromPvKwh: round(wattpilot.evFromPvKwh),

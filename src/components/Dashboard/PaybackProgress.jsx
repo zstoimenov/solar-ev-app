@@ -44,34 +44,35 @@ export default function PaybackProgress({ state }) {
   };
 
   return (
-    <div className="panel">
-      <h2>Payback Progress</h2>
+    <>
       <div className="chart-wrap"><Bar data={data} options={options} /></div>
-      <table className="digest" style={{ marginTop: '.75rem' }}>
-        <thead>
-          <tr><th>Component</th><th>OOP</th><th>Recovered</th><th>Remaining</th><th>Est. payback</th></tr>
-        </thead>
-        <tbody>
-          {payback.map((p) => (
-            <tr key={p.component}>
-              <td>{p.component}</td>
-              <td>{money(p.oopAud)}</td>
-              <td>{money(p.recoveredAud)}</td>
-              <td>{money(p.remainingAud)}</td>
-              <td>{p.estPaybackYear ?? '—'}</td>
-            </tr>
-          ))}
-          {totals && (
-            <tr>
-              <td><strong>Total</strong></td>
-              <td><strong>{money(totals.oopAud)}</strong></td>
-              <td><strong>{money(totals.recoveredAud)}</strong></td>
-              <td><strong>{money(totals.remainingAud)}</strong></td>
-              <td className="small">{totals.allocationOrder}</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+      <div className="table-scroll" style={{ marginTop: '.75rem' }}>
+        <table className="digest payback-table">
+          <thead>
+            <tr><th>Component</th><th>OOP</th><th>Recovered</th><th>Remaining</th><th>Est. payback</th></tr>
+          </thead>
+          <tbody>
+            {payback.map((p) => (
+              <tr key={p.component}>
+                <td>{p.component}</td>
+                <td>{money(p.oopAud)}</td>
+                <td>{money(p.recoveredAud)}</td>
+                <td>{money(p.remainingAud)}</td>
+                <td>{p.estPaybackYear ?? '—'}</td>
+              </tr>
+            ))}
+            {totals && (
+              <tr>
+                <td><strong>Total</strong></td>
+                <td><strong>{money(totals.oopAud)}</strong></td>
+                <td><strong>{money(totals.recoveredAud)}</strong></td>
+                <td><strong>{money(totals.remainingAud)}</strong></td>
+                <td className="small">{totals.allocationOrder}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

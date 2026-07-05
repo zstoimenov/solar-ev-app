@@ -9,9 +9,17 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
+// "2026-06" -> "Jun '26", so x-axis labels fit on one short line instead of
+// wrapping across three.
+function shortMonth(month) {
+  const [y, m] = month.split('-').map(Number);
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${MONTHS[m - 1]} '${String(y).slice(-2)}`;
+}
+
 export default function EnergyTrends({ state }) {
   const digests = state.monthlyDigests;
-  const labels = digests.map((d) => d.month);
+  const labels = digests.map((d) => shortMonth(d.month));
 
   const data = {
     labels,
@@ -30,6 +38,11 @@ export default function EnergyTrends({ state }) {
         label: 'Combined saving (AUD)',
         data: digests.map((d) => d.combinedSavingAud),
         borderColor: '#60a5fa', backgroundColor: '#60a5fa', yAxisID: 'y', spanGaps: false, tension: 0.25
+      },
+      {
+        label: 'EV charging - Wattpilot (kWh)',
+        data: digests.map((d) => d.evTotalChargedKwh),
+        borderColor: '#a78bfa', backgroundColor: '#a78bfa', yAxisID: 'y', spanGaps: false, tension: 0.25
       }
     ]
   };
@@ -37,19 +50,21 @@ export default function EnergyTrends({ state }) {
   const options = {
     responsive: true, maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
-    plugins: { legend: { labels: { color: '#e2e8f0' } } },
+    plugins: { legend: { labels: { color: '#e2e8f0', boxWidth: 12, font: { size: 11 } } } },
     scales: {
-      x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+      x: {
+        ticks: { color: '#94a3b8', maxRotation: 0, minRotation: 0, autoSkip: true, font: { size: 11 } },
+        grid: { color: '#334155' }
+      },
       y: { position: 'left', ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
       y1: { position: 'right', min: 0, max: 100, ticks: { color: '#34d399' }, grid: { drawOnChartArea: false } }
     }
   };
 
   return (
-    <div className="panel">
-      <h2>Energy Trends</h2>
+    <>
       <div className="chart-wrap"><Line data={data} options={options} /></div>
       <p className="small">Gaps indicate pending / null values (never plotted as zero).</p>
-    </div>
+    </>
   );
 }

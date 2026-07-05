@@ -50,20 +50,17 @@ export default function EvChargingSplit({ state }) {
   };
 
   return (
-    <div className="panel">
-      <h2>EV Charging Split</h2>
-      <div className="grid cols-2">
-        <div>
-          <h3>All-time source mix</h3>
-          <div className="chart-wrap"><Doughnut data={allTime} options={dOpts} /></div>
-          <p className="small">
-            PV {ev.fromPvPct ?? '—'}% · Battery {ev.fromBatteryPct ?? '—'}% · Home grid {ev.fromHomeGridPct ?? '—'}%
-          </p>
-        </div>
-        <div>
-          <h3>Per month (kWh)</h3>
-          <div className="chart-wrap"><Bar data={monthly} options={barOpts} /></div>
-        </div>
+    <div className="grid cols-2">
+      <div>
+        <h3>All-time source mix</h3>
+        <div className="chart-wrap"><Doughnut data={allTime} options={dOpts} /></div>
+        <p className="small">
+          PV {ev.fromPvPct ?? '—'}% · Battery {ev.fromBatteryPct ?? '—'}% · Home grid {ev.fromHomeGridPct ?? '—'}%
+        </p>
+      </div>
+      <div>
+        <h3>Per month (kWh)</h3>
+        <div className="chart-wrap"><Bar data={monthly} options={barOpts} /></div>
       </div>
     </div>
   );
