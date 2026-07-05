@@ -75,14 +75,23 @@ Six blocks:
   - Resolution is **forward-only**: adding/editing entries never recomputes
     already-ingested historical months, only months ingested from then on.
 - **`tariffPlans`** *(optional; absent = `[]`)* - a catalog of rate-card **options**
-  (e.g. Synergy's A1, Midday Saver, EV Add On) to compare against `tariffSchedule.import`
-  (what you're actually billed on), edited via Ingest -> Tariffs & Rates -> Tariff Plans.
-  One row per rate band: `{ planName, year, supplyChargeCPerDay, bandLabel, from
-  (HH:MM|null), to (HH:MM|null), priceCentsPerKwh }`. A flat plan (A1) is one row with
-  `from`/`to` null (all day); a time-of-day plan is several rows sharing the same
-  `planName`+`year`+`supplyChargeCPerDay`. Used by the Dashboard's Plan Comparison tile
-  (`data/evTimeOfUseSplit.js`) - **EV charging only**, not a whole-household bill
-  comparison (see `evChargingSessions` below for why).
+  (e.g. Synergy's A1, EV Add On) to compare against `tariffSchedule.import` (what
+  you're actually billed on), edited via Ingest -> Tariffs & Rates -> Tariff Plans.
+  Pre-populated in `public/seed-data_v1.json` with Synergy's published A1/EV Add On
+  rates (`data/defaultTariffPlans.js`, also loadable on demand via that page's "Load
+  Synergy's published rates" button) - this is public rate-card info, not
+  household-specific, so it's fine to ship. One row per rate band: `{ planName,
+  financialYear, supplyChargeCPerDay, bandLabel, from (HH:MM|null), to (HH:MM|null),
+  priceCentsPerKwh }`. `financialYear` is the Australian FY the price took effect
+  (`"FY2025-26"` etc, via `data/tariffSchedule.js:financialYearLabel`) - **not** a
+  calendar year, since Synergy (like most WA retailers) reprices on 1 July. (Entries
+  saved before this fix used a bare `year` number; `financialYearOf()` reads those as
+  the FY start year for backward compatibility - don't remove that fallback without
+  migrating existing data first.) A flat plan (A1) is one row with `from`/`to` null
+  (all day); a time-of-day plan is several rows sharing the same
+  `planName`+`financialYear`+`supplyChargeCPerDay`. Used by the Dashboard's Plan
+  Comparison tile (`data/evTimeOfUseSplit.js`) - **EV charging only**, not a
+  whole-household bill comparison (see `evChargingSessions` below for why).
 
 ---
 

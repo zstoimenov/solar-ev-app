@@ -5,8 +5,16 @@
 
 import React, { useState } from 'react';
 import { putState } from '../../data/db.js';
+import RecomputeFinancialsButton from './RecomputeFinancialsButton.jsx';
 
 const emptyForm = { date: '', energyKwh: '', totalCostAud: '', notes: '' };
+
+// c/kWh, derived from cost/energy rather than asked for separately - matches
+// the app's other rate fields (all c/kWh) so it's directly comparable.
+function pricePerKwh(entry) {
+  if (!entry.energyKwh) return null;
+  return Math.round((entry.totalCostAud / entry.energyKwh) * 100 * 100) / 100;
+}
 
 export default function ChargingLogEditor({ state, onChange }) {
   const log = state.chargingLog ?? [];
@@ -52,13 +60,14 @@ export default function ChargingLogEditor({ state, onChange }) {
       {sorted.length > 0 ? (
         <div className="table-scroll">
           <table className="digest table-nowrap">
-            <thead><tr><th>Date</th><th>kWh</th><th>Cost (AUD)</th><th>Notes</th><th></th></tr></thead>
+            <thead><tr><th>Date</th><th>kWh</th><th>Cost (AUD)</th><th>c/kWh</th><th>Notes</th><th></th></tr></thead>
             <tbody>
               {sorted.map((e) => (
                 <tr key={`${e.date}-${e.energyKwh}-${e.totalCostAud}`}>
                   <td>{e.date}</td>
                   <td>{e.energyKwh}</td>
                   <td>${Number(e.totalCostAud).toLocaleString('en-AU')}</td>
+                  <td>{pricePerKwh(e) ?? '—'}</td>
                   <td className="small">{e.notes ?? '—'}</td>
                   <td><button className="ghost" onClick={() => removeEntry(e)}>Remove</button></td>
                 </tr>
@@ -86,6 +95,8 @@ export default function ChargingLogEditor({ state, onChange }) {
       </label>
       {error && <div className="banner err">{error}</div>}
       <button className="primary" onClick={addEntry} style={{ marginTop: '.5rem' }}>Add entry</button>
+
+      <RecomputeFinancialsButton state={state} onChange={onChange} />
     </div>
   );
 }

@@ -15,23 +15,26 @@
 import React from 'react';
 import InfoPopover from '../InfoPopover.jsx';
 import { splitSessionsByBand } from '../../data/evTimeOfUseSplit.js';
+import { financialYearOf } from '../../data/tariffSchedule.js';
 
 function money(n) {
   return n == null ? '—' : `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// Flattens the (planName, year, bandLabel) rows from config.tariffPlans back
-// into one object per plan-year, each carrying its full band list.
+// Flattens the (planName, financialYear, bandLabel) rows from
+// config.tariffPlans back into one object per plan-year, each carrying its
+// full band list.
 function groupPlans(tariffPlans) {
   const map = new Map();
   for (const p of tariffPlans ?? []) {
-    const key = `${p.planName}__${p.year}`;
+    const fy = financialYearOf(p);
+    const key = `${p.planName}__${fy}`;
     if (!map.has(key)) {
-      map.set(key, { planName: p.planName, year: p.year, supplyChargeCPerDay: p.supplyChargeCPerDay, bands: [] });
+      map.set(key, { planName: p.planName, financialYear: fy, supplyChargeCPerDay: p.supplyChargeCPerDay, bands: [] });
     }
     map.get(key).bands.push({ label: p.bandLabel, from: p.from, to: p.to, priceCentsPerKwh: p.priceCentsPerKwh });
   }
-  return [...map.values()].sort((a, b) => a.planName.localeCompare(b.planName) || a.year - b.year);
+  return [...map.values()].sort((a, b) => a.planName.localeCompare(b.planName) || a.financialYear.localeCompare(b.financialYear));
 }
 
 export default function PlanComparison({ state }) {
@@ -75,12 +78,12 @@ export default function PlanComparison({ state }) {
       </p>
       <div className="table-scroll">
         <table className="digest table-nowrap">
-          <thead><tr><th>Plan</th><th>Year</th><th>Est. EV charging cost</th></tr></thead>
+          <thead><tr><th>Plan</th><th>FY</th><th>Est. EV charging cost</th></tr></thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={`${r.planName}-${r.year}`}>
+              <tr key={`${r.planName}-${r.financialYear}`}>
                 <td>{r.planName}</td>
-                <td>{r.year}</td>
+                <td>{r.financialYear}</td>
                 <td className={r.costAud === cheapest ? 'digest-ok' : ''}>
                   <strong>{money(r.costAud)}</strong>{r.costAud === cheapest ? ' ✓' : ''}
                 </td>

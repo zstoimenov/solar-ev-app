@@ -4,17 +4,10 @@
 // totals from the full array (see data/compute.js).
 
 import { crossValFlag } from '../data/compute.js';
-import { resolveScheduleEntry, sumChargingLogForMonth } from '../data/tariffSchedule.js';
+import { resolveScheduleEntry, sumChargingLogForMonth, financialYearLabel } from '../data/tariffSchedule.js';
 
 const round = (n, dp = 2) =>
   n == null ? null : Math.round((n + Number.EPSILON) * 10 ** dp) / 10 ** dp;
-
-// Financial-year label for a YYYY-MM (Australian FY: Jul-Jun).
-function financialYear(month) {
-  const [y, m] = month.split('-').map(Number);
-  const startYear = m >= 7 ? y : y - 1;
-  return `FY${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`;
-}
 
 function daysInMonth(month) {
   const [y, m] = month.split('-').map(Number);
@@ -110,7 +103,7 @@ export function buildDigest(parsed, manual, config, chargingLog = []) {
 
   return {
     month,
-    financialYear: financialYear(month),
+    financialYear: financialYearLabel(month),
     daysInPeriod: days,
     partialMonth: manual.partialMonth ?? days < fullDays,
 

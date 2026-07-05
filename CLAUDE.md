@@ -91,11 +91,30 @@ Fronius/Wattpilot XLSX exports are **not consistent between months**:
 ## Tariff schedule + public charging log
 
 `config.tariffSchedule.{import,export}` and top-level `chargingLog[]` (see
-`app-schema_v1.md`) are **forward-only**: `buildDigest.js` resolves them at
-ingest time for the month being built, but adding/editing an entry never
-recomputes already-stored historical digests — only new/re-ingested months
-see the change. This was an explicit product decision (not a shortcut), so
-don't "fix" it into a retroactive recompute without checking first. The
+`app-schema_v1.md`) are **forward-only by default**: `buildDigest.js`
+resolves them at ingest time for the month being built, but adding/editing an
+entry never automatically recomputes already-stored historical digests —
+only new/re-ingested months see the change. This was an explicit product
+decision (not a shortcut). An explicit, opt-in escape hatch exists for when
+the user wants existing months brought up to date without re-uploading the
+original Fronius/Wattpilot files:
+`ingest/recomputeFinancials.js:recomputeDigestFinancials()` re-derives just
+the tariff/charging-log-DEPENDENT fields (grid cost, EV charging cost, Layer
+1/2 savings) from fields **already stored on the digest**
+(`gridImportFroniusKwh`, `totalConsumptionKwh`, `gridExportKwh`,
+`daysInPeriod`) — it never needs the raw parsed inputs. It's wired up via
+`components/Ingest/RecomputeFinancialsButton.jsx`, shown on the Import
+Tariff and Public Charging Log pages, and must stay an explicit user action
+(confirm dialog, not automatic) — don't wire it to fire on every
+tariff/log edit, that would silently rewrite historical numbers.
+**Important subtlety already hit once:** a month with no charging-log
+entries is NOT "zero paid public charging" — it may predate the log
+feature entirely (a real manually-entered figure from the old ingest flow).
+`recomputeDigestFinancials()` falls back to the digest's *existing*
+`evPublicTripKwh`/`evElectricityCostAud` when the log has nothing for that
+month, rather than zeroing them — don't change that `?? digest.field`
+fallback to `?? 0`, that's the exact bug that shipped and got caught by
+testing (May's value got erased when only June had a log entry). The
 export (feed-in) schedule is stored but **not** applied to `exportCreditAud`
 yet — Fronius only reports a monthly export total, not an hourly split, so
 blending two time-of-day rates would need an assumed peak-share % that
