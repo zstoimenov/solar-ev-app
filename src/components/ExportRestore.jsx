@@ -4,8 +4,9 @@
 // destructive "delete all data" reset.
 
 import React, { useState } from 'react';
-import { getState, importState, parseBackup, setLastExportedCount, resetState, SchemaError } from '../data/db.js';
+import { getState, importState, parseBackup, setLastExportedCount, resetState, putState, SchemaError } from '../data/db.js';
 import { encryptJson, decryptJson, isEncryptedEnvelope } from '../data/crypto.js';
+import { recomputeCumulative, recomputeMeta } from '../data/compute.js';
 
 function download(filename, text) {
   const blob = new Blob([text], { type: 'application/json' });
@@ -23,6 +24,7 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
   const [passphrase, setPassphrase] = useState('');
   const [pendingEnvelope, setPendingEnvelope] = useState(null);
   const [restorePassphrase, setRestorePassphrase] = useState('');
+  const [monthToDelete, setMonthToDelete] = useState('');
 
   async function handleExport() {
     if (encryptOn && !passphrase.trim()) {
@@ -129,6 +131,30 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
     setMsg({ type: 'warn', text: 'All local data has been deleted. The app is now empty.' });
   }
 
+  // Removes one previously-ingested month and recomputes cumulative totals +
+  // meta from what remains - any month can be removed, not just the latest,
+  // since coverage/energy/financial totals are all re-derived from the
+  // digest array rather than assuming adjacency. cumulativeTotals.payback is
+  // config-driven (not digest-derived), so it's untouched by this.
+  async function handleDeleteMonth() {
+    if (!monthToDelete) return;
+    const ok = window.confirm(
+      `Permanently delete the imported data for ${monthToDelete}? This cannot be undone ` +
+      `unless you have a separate backup.`
+    );
+    if (!ok) return;
+    const nextDigests = state.monthlyDigests.filter((d) => d.month !== monthToDelete);
+    const nextCumulative = recomputeCumulative(nextDigests, state.cumulativeTotals, state.config);
+    const nextMeta = recomputeMeta(state.meta, nextDigests);
+    await putState({ ...state, meta: nextMeta, monthlyDigests: nextDigests, cumulativeTotals: nextCumulative });
+    onChange?.();
+    setMsg({
+      type: 'warn',
+      text: `Deleted ${monthToDelete}. ${nextDigests.length} month${nextDigests.length === 1 ? '' : 's'} remain.`
+    });
+    setMonthToDelete('');
+  }
+
   return (
     <div className="panel">
       <h2>Export / Restore</h2>
@@ -189,6 +215,30 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
               Decrypt &amp; restore
             </button>
           </div>
+        )}
+      </div>
+
+      <div className="field-section">
+        <h3>Delete a specific month</h3>
+        <p className="small">
+          Removes just one previously-imported month (e.g. you re-ingested June under the
+          wrong data) and recomputes the running totals from what's left. Export a backup
+          first if you're not sure.
+        </p>
+        {state.monthlyDigests.length > 0 ? (
+          <div className="row">
+            <select value={monthToDelete} onChange={(e) => setMonthToDelete(e.target.value)}>
+              <option value="">Choose a month…</option>
+              {[...state.monthlyDigests].reverse().map((d) => (
+                <option key={d.month} value={d.month}>{d.month}</option>
+              ))}
+            </select>
+            <button className="danger" disabled={!monthToDelete} onClick={handleDeleteMonth}>
+              Delete month
+            </button>
+          </div>
+        ) : (
+          <p className="small">No months loaded yet.</p>
         )}
       </div>
 

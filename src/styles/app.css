@@ -223,7 +223,12 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .tile-footnote { display: flex; justify-content: flex-end; margin-top: .4rem; }
 
 textarea { width: 100%; min-height: 140px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .6rem; font-family: ui-monospace, monospace; font-size: .8rem; }
-input[type="text"], input[type="number"], input[type="file"] { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .45rem .6rem; font-size: .9rem; max-width: 100%; }
+input[type="text"], input[type="number"], input[type="file"], input[type="date"], input[type="time"], select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: .45rem .6rem; font-size: .9rem; max-width: 100%;
+}
+select { color-scheme: dark; }
+input[type="date"], input[type="time"] { color-scheme: dark; }
 label.field { display: block; margin: .5rem 0; font-size: .85rem; }
 label.field span { display: block; color: var(--muted); margin-bottom: .2rem; }
 label.field .hint { color: var(--muted); font-size: .72rem; font-style: italic; margin-top: .2rem; }
