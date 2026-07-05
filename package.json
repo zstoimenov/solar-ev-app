@@ -1,0 +1,26 @@
+{
+  "name": "solar-ev-roi-pwa",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Local-only PWA for Solar, Battery & EV ROI tracking (schemaVersion 1).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.7",
+    "idb": "^8.0.0",
+    "papaparse": "^5.4.1",
+    "react": "^18.3.1",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.7",
+    "vite-plugin-pwa": "^0.21.1"
+  }
+}

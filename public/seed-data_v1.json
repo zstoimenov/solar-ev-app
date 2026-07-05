@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "exportedAt": "2026-07-05T00:00:00Z",
+    "appVersion": "empty_v1",
+    "monthCount": 0,
+    "dateRange": { "first": null, "last": null },
+    "sourceNote": "Empty starter shipped with the public build - contains NO personal data. Restore your private JSON backup (Backup tab) to load your real dataset. Your data then lives only in this browser's IndexedDB."
+  },
+  "config": {},
+  "monthlyDigests": [],
+  "cumulativeTotals": {}
+}
