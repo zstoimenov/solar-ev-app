@@ -116,13 +116,13 @@ export default function IngestWizard({ state, onChange }) {
           <input type="number" value={manual.evPublicTripKwh} onChange={setM('evPublicTripKwh')} /></label>
         <label className="field"><span>Zero-production days</span>
           <input type="number" value={manual.zeroProductionDays} onChange={setM('zeroProductionDays')} /></label>
-        <label className="field"><span>Peak production (kWh)</span>
+        <label className="field"><span>Peak production (kWh) — auto if blank</span>
           <input type="number" value={manual.peakProductionKwh} onChange={setM('peakProductionKwh')} /></label>
-        <label className="field"><span>Peak production day</span>
+        <label className="field"><span>Peak production day — auto if blank</span>
           <input type="text" placeholder="14 Jun 2026" value={manual.peakProductionDay} onChange={setM('peakProductionDay')} /></label>
-        <label className="field"><span>Lowest production (kWh)</span>
+        <label className="field"><span>Lowest production (kWh) — auto if blank</span>
           <input type="number" value={manual.lowestProductionKwh} onChange={setM('lowestProductionKwh')} /></label>
-        <label className="field"><span>Production std dev (kWh)</span>
+        <label className="field"><span>Production std dev (kWh) — auto if blank</span>
           <input type="number" value={manual.productionStdDevKwh} onChange={setM('productionStdDevKwh')} /></label>
       </div>
       <label className="field"><span>Notes (optional)</span>

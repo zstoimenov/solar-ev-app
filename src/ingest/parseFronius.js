@@ -48,8 +48,40 @@ function unitScale(unitsRow, idx) {
 const colSum = (rows, idx, scale = 1) =>
   idx < 0 ? null : rows.reduce((a, r) => a + (Number(r[idx]) || 0), 0) * scale;
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "01.06.2026" (dd.MM.yyyy) -> "1 Jun 2026", matching the manual-entry convention.
+function formatDay(dateStr) {
+  const m = String(dateStr ?? '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return null;
+  const [, d, mo] = m;
+  const monthName = MONTHS[Number(mo) - 1];
+  return monthName ? `${Number(d)} ${monthName} ${m[3]}` : null;
+}
+
+// Per-day production stats (peak/lowest/std dev), derived from the same
+// daily rows used for the monthly total - no manual entry required.
+function productionStats(rows, idx, scale) {
+  if (idx < 0 || rows.length === 0) {
+    return { peakProductionKwh: null, peakProductionDay: null, lowestProductionKwh: null, productionStdDevKwh: null };
+  }
+  const daily = rows.map((r) => ({ date: formatDay(r[0]), kwh: (Number(r[idx]) || 0) * scale }));
+  const peak = daily.reduce((a, d) => (d.kwh > a.kwh ? d : a), daily[0]);
+  const lowest = daily.reduce((a, d) => (d.kwh < a.kwh ? d : a), daily[0]);
+  const mean = daily.reduce((a, d) => a + d.kwh, 0) / daily.length;
+  const variance = daily.reduce((a, d) => a + (d.kwh - mean) ** 2, 0) / daily.length;
+  return {
+    peakProductionKwh: peak.kwh,
+    peakProductionDay: peak.date,
+    lowestProductionKwh: lowest.kwh,
+    productionStdDevKwh: Math.sqrt(variance)
+  };
+}
+
 // Returns { solarProductionKwh, ownConsumptionKwh, gridExportKwh,
-//           gridImportFroniusKwh, totalConsumptionKwh, days }
+//           gridImportFroniusKwh, totalConsumptionKwh, days,
+//           peakProductionKwh, peakProductionDay, lowestProductionKwh,
+//           productionStdDevKwh }
 // Column keywords are best-effort against Fronius export headers; adjust
 // keyword lists here if a future export renames columns.
 export async function parseFronius(file) {
@@ -64,7 +96,8 @@ export async function parseFronius(file) {
   const feedIn = findCol(header, 'to', 'grid');     // grid export / feed-in ("Energy to grid")
   const fromGrid = findCol(header, 'from', 'grid'); // grid import ("Energy from grid")
 
-  const solar = colSum(data, production, unitScale(unitsRow, production));
+  const productionScale = unitScale(unitsRow, production);
+  const solar = colSum(data, production, productionScale);
   const cons = colSum(data, consumption, unitScale(unitsRow, consumption));
   const exp = colSum(data, feedIn, unitScale(unitsRow, feedIn));
   const imp = colSum(data, fromGrid, unitScale(unitsRow, fromGrid));
@@ -76,6 +109,7 @@ export async function parseFronius(file) {
     gridImportFroniusKwh: imp,
     ownConsumptionKwh: cons != null && imp != null ? cons - imp : null,
     days: data.length,
-    _rows: data.length
+    _rows: data.length,
+    ...productionStats(data, production, productionScale)
   };
 }
