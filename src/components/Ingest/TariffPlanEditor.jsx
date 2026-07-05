@@ -1,8 +1,8 @@
 // TariffPlanEditor - a catalog of tariff PLAN OPTIONS (e.g. Synergy's A1,
 // Midday Saver, EV Add On) to compare against what you're actually billed on
-// (see the Import Tariff tab for that). Not yet wired into any comparison -
-// see CLAUDE.md "Tariff plan comparison" for why (needs a time-of-day usage
-// split the app doesn't have a source for yet).
+// (see the Import Tariff tab for that). Feeds the Dashboard's Plan Comparison
+// tile - EV charging only, see Dashboard/PlanComparison.jsx for why it can't
+// (yet) cover the whole household bill.
 //
 // A flat plan (e.g. A1) is one row with no time window. A time-of-day plan
 // (Midday Saver, EV Add On) is one row per band (Peak, Off Peak, ...) - rows
@@ -13,6 +13,7 @@
 
 import React, { useState } from 'react';
 import { putState } from '../../data/db.js';
+import InfoPopover from '../InfoPopover.jsx';
 
 const emptyForm = {
   planName: '', year: '', supplyChargeCPerDay: '', bandLabel: '', from: '', to: '', priceCentsPerKwh: ''
@@ -65,15 +66,15 @@ export default function TariffPlanEditor({ state, onChange }) {
     <div className="field-section">
       <h3>Tariff plan catalog</h3>
       <p className="small">
-        Rate-card options to compare against what you're actually billed on (Import
-        Tariff tab) - e.g. Synergy's A1 (flat), Midday Saver, or EV Add On plans. A
-        flat plan is one row (leave the band fields blank); a time-of-day plan is one
-        row per band, all sharing the same plan name, year, and supply charge.
-      </p>
-      <p className="small">
-        Not yet used for an automatic comparison - that needs a time-of-day split of
-        your usage, which neither the Fronius nor Wattpilot exports currently provide
-        (see Data Notes). This just records the rate cards for when that's available.
+        Rate-card options (e.g. Synergy's A1, Midday Saver, EV Add On) feeding the
+        Dashboard's <strong>Plan Comparison</strong> tile.{' '}
+        <InfoPopover label="How to enter a plan">
+          A flat plan (A1) is one row with the band fields left blank. A time-of-day
+          plan (Midday Saver, EV Add On) is one row per band (Peak, Off Peak, ...),
+          all sharing the same plan name, year, and supply charge. The comparison
+          currently covers EV charging only, not your whole bill - see the Plan
+          Comparison tile for why.
+        </InfoPopover>
       </p>
 
       {sorted.length > 0 ? (

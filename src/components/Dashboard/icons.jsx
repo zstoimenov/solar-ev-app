@@ -46,3 +46,13 @@ export function PlugIcon(props) {
     </svg>
   );
 }
+
+export function ScaleIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <path d="M12 3v18M8 21h8" />
+      <path d="M4 7h6M14 7h6" />
+      <path d="M4 7l-2.5 5a2.5 2.5 0 0 0 5 0L4 7ZM20 7l-2.5 5a2.5 2.5 0 0 0 5 0L20 7Z" />
+    </svg>
+  );
+}

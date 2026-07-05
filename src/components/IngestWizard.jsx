@@ -13,16 +13,37 @@ import { putState } from '../data/db.js';
 import TariffScheduleEditor from './Ingest/TariffScheduleEditor.jsx';
 import ChargingLogEditor from './Ingest/ChargingLogEditor.jsx';
 import TariffPlanEditor from './Ingest/TariffPlanEditor.jsx';
+import EvSessionsUploader from './Ingest/EvSessionsUploader.jsx';
 
 const APP_VERSION = 'app_v1';
 const empty = { fronius: null, wattpilot: null, synergy: null };
 
-const SECTIONS = [
+// Two levels: a few broad categories (kept to 3 top-level pills instead of
+// piling every page into one row), each with its own short intro - and,
+// where a category groups more than one page, a second row of pills for the
+// specific page. Monthly Upload has no group intro since it's a single page.
+const CATEGORIES = [
   { key: 'upload', label: 'Monthly Upload' },
-  { key: 'importTariff', label: 'Import Tariff' },
-  { key: 'exportTariff', label: 'Feed-in Tariff' },
-  { key: 'chargingLog', label: 'Public Charging Log' },
-  { key: 'tariffPlans', label: 'Tariff Plans' }
+  {
+    key: 'tariffs', label: 'Tariffs & Rates',
+    intro: "Three related pages for electricity pricing: what you actually pay to " +
+      "import, what you're paid to export, and reference rate cards to compare " +
+      'plans against.',
+    subsections: [
+      { key: 'importTariff', label: 'Import Tariff' },
+      { key: 'exportTariff', label: 'Feed-in Tariff' },
+      { key: 'tariffPlans', label: 'Tariff Plans' }
+    ]
+  },
+  {
+    key: 'evData', label: 'EV Charging Data',
+    intro: 'Two related pages for your EV: paid public-charging costs, and ' +
+      "charging-session timestamps used by the Dashboard's Plan Comparison tile.",
+    subsections: [
+      { key: 'chargingLog', label: 'Public Charging Log' },
+      { key: 'evSessions', label: 'EV Sessions' }
+    ]
+  }
 ];
 
 // Fronius/Wattpilot report filenames end in "..._2026_06.xlsx" - pull the
@@ -45,7 +66,8 @@ function rowStatus(key, value) {
 const SEVERITY_RANK = { err: 2, warn: 1, ok: 0 };
 
 export default function IngestWizard({ state, onChange, onIngested }) {
-  const [section, setSection] = useState('upload');
+  const [category, setCategory] = useState('upload');
+  const [subsection, setSubsection] = useState(null);
   const [files, setFiles] = useState(empty);
   const [manual, setManual] = useState({
     month: '', evWorkChargingKwh: 0, notes: ''
@@ -116,23 +138,48 @@ export default function IngestWizard({ state, onChange, onIngested }) {
     onIngested?.();
   }
 
+  const activeCategory = CATEGORIES.find((c) => c.key === category);
+
+  function selectCategory(key) {
+    setCategory(key);
+    const cat = CATEGORIES.find((c) => c.key === key);
+    setSubsection(cat.subsections?.[0]?.key ?? null);
+  }
+
   return (
     <div className="panel">
       <h2>Monthly Ingest</h2>
 
       <div className="subtabs">
-        {SECTIONS.map((s) => (
+        {CATEGORIES.map((c) => (
           <button
-            key={s.key}
-            className={s.key === section ? 'active' : ''}
-            onClick={() => setSection(s.key)}
+            key={c.key}
+            className={c.key === category ? 'active' : ''}
+            onClick={() => selectCategory(c.key)}
           >
-            {s.label}
+            {c.label}
           </button>
         ))}
       </div>
 
-      {section === 'upload' && (
+      {activeCategory.subsections && (
+        <>
+          <p className="small">{activeCategory.intro}</p>
+          <div className="subtabs subtabs-nested">
+            {activeCategory.subsections.map((s) => (
+              <button
+                key={s.key}
+                className={s.key === subsection ? 'active' : ''}
+                onClick={() => setSubsection(s.key)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {category === 'upload' && (
       <>
       <p className="small">
         Upload the three monthly files + enter away-charging. Nothing is written
@@ -170,7 +217,7 @@ export default function IngestWizard({ state, onChange, onIngested }) {
           </label>
         </div>
         <p className="small">
-          Paid public charging now comes from the <strong>Public Charging Log</strong> tab above instead of a monthly total here.
+          Paid public charging now comes from <strong>EV Charging Data → Public Charging Log</strong> instead of a monthly total here.
         </p>
         <label className="field"><span>Notes (optional)</span>
           <input type="text" value={manual.notes} onChange={setM('notes')} /></label>
@@ -188,12 +235,13 @@ export default function IngestWizard({ state, onChange, onIngested }) {
       </>
       )}
 
-      {section === 'importTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="import" />}
-      {section === 'exportTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="export" />}
-      {section === 'chargingLog' && <ChargingLogEditor state={state} onChange={onChange} />}
-      {section === 'tariffPlans' && <TariffPlanEditor state={state} onChange={onChange} />}
+      {subsection === 'importTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="import" />}
+      {subsection === 'exportTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="export" />}
+      {subsection === 'chargingLog' && <ChargingLogEditor state={state} onChange={onChange} />}
+      {subsection === 'tariffPlans' && <TariffPlanEditor state={state} onChange={onChange} />}
+      {subsection === 'evSessions' && <EvSessionsUploader state={state} onChange={onChange} />}
 
-      {section === 'upload' && preview && (() => {
+      {category === 'upload' && preview && (() => {
         const rows = Object.entries(preview.digest).map(([k, v]) => [k, v, rowStatus(k, v)]);
         const overall = rows.reduce((worst, [, , s]) => (SEVERITY_RANK[s] > SEVERITY_RANK[worst] ? s : worst), 'ok');
         const overallText = {

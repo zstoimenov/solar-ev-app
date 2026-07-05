@@ -76,15 +76,13 @@ Six blocks:
     already-ingested historical months, only months ingested from then on.
 - **`tariffPlans`** *(optional; absent = `[]`)* - a catalog of rate-card **options**
   (e.g. Synergy's A1, Midday Saver, EV Add On) to compare against `tariffSchedule.import`
-  (what you're actually billed on), edited via the Ingest tab's Tariff Plans sub-tab.
+  (what you're actually billed on), edited via Ingest -> Tariffs & Rates -> Tariff Plans.
   One row per rate band: `{ planName, year, supplyChargeCPerDay, bandLabel, from
   (HH:MM|null), to (HH:MM|null), priceCentsPerKwh }`. A flat plan (A1) is one row with
   `from`/`to` null (all day); a time-of-day plan is several rows sharing the same
-  `planName`+`year`+`supplyChargeCPerDay`. **Not yet used by any calculation** - a
-  real A1-vs-time-of-day-plan comparison needs a time-of-day split of actual usage,
-  which neither the Fronius nor Wattpilot exports currently provide (both are one row
-  per **day**, not per hour - confirmed against a real Wattpilot export 2026-07). This
-  block just records the rate cards for whenever that data becomes available.
+  `planName`+`year`+`supplyChargeCPerDay`. Used by the Dashboard's Plan Comparison tile
+  (`data/evTimeOfUseSplit.js`) - **EV charging only**, not a whole-household bill
+  comparison (see `evChargingSessions` below for why).
 
 ---
 
@@ -101,6 +99,39 @@ track). Edited via the Ingest tab's Public Charging Log sub-tab.
 `evPublicTripKwh` and `evElectricityCostAud` (which feeds Layer 2). This
 replaces the old single manual "paid public kWh" ingest field. Forward-only,
 same as the tariff schedules above - historical digests are untouched.
+
+---
+
+## `evChargingSessions[]`
+
+*(optional; absent = `[]`)* One entry per EV charging **session**, sourced from the
+Wattpilot **mobile app's** charging-session JSON export (distinct from the "Energy
+balance" monthly XLSX used elsewhere) - edited via Ingest -> EV Charging Data -> EV
+Sessions. Unlike every other energy source in this app, this one carries real
+wall-clock **timestamps**, not just a daily/monthly total.
+
+`{ sessionId (str), start (str, "dd.MM.yyyy HH:mm:ss"), end (same format), energyKwh (number) }`
+
+- `sessionId` is the Wattpilot `session_identifier` (or a `session_N` fallback) - used
+  to de-duplicate on re-upload, so re-exporting a longer history is always safe.
+- `start`/`end` are kept in their original Wattpilot string format (not converted to a
+  real Date/ISO timestamp) - see `ingest/parseWattpilotSessions.js`'s
+  `parseWattpilotDateTime`, which turns them into a monotonic ms value via `Date.UTC`
+  purely as a wall-clock arithmetic trick (the strings are already local time; this is
+  never converted back to a real UTC instant, so it's safe regardless of the browser's
+  timezone).
+- `data/evTimeOfUseSplit.js:splitSessionsByBand` allocates a session's `energyKwh`
+  across time-of-day bands proportional to how much of its `[start,end)` duration
+  overlaps each band (handles overnight-wrapping bands and multi-day sessions).
+  **This is an approximation** - it assumes a constant charge rate across the session,
+  since the export doesn't include a sub-session power curve.
+- Feeds the Dashboard's Plan Comparison tile, which is **EV-charging-only**: it does
+  NOT cover the rest of household usage (fridge, lights, aircon, ...), which still has
+  no time-of-day source. It's also a **gross** figure - it assumes every kWh shown was
+  billed at grid rates; the actual PV/battery/grid split for a given session isn't
+  known (only as a daily total, from the Energy Balance XLSX, with no per-session
+  attribution). Treat it as "the most EV charging could have cost under each plan," not
+  a real bill.
 
 ---
 
