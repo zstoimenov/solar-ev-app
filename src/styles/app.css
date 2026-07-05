@@ -41,18 +41,25 @@ header.top h1 {
 }
 .bottom-bar .sub { color: var(--muted); font-size: .78rem; font-family: ui-monospace, monospace; }
 
-/* Row holding the expand/collapse-all button + the dashboard date range filter */
+/* Row holding the expand/collapse button + the dashboard date range filter.
+   Kept on one line even on narrow phones (nowrap) - the controls shrink
+   instead of wrapping to a second line. */
 .dashboard-controls {
   display: flex; align-items: center; justify-content: space-between;
-  gap: .6rem; flex-wrap: wrap; margin-bottom: .75rem;
+  gap: .5rem; flex-wrap: nowrap; margin-bottom: .75rem;
 }
-.expand-all { font-size: .8rem; padding: .4rem .7rem; flex-shrink: 0; }
+.expand-all { font-size: .78rem; padding: .4rem .6rem; flex-shrink: 0; white-space: nowrap; }
 
-.date-range-filter { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .8rem; }
-.date-range-filter label { display: flex; align-items: center; gap: .35rem; color: var(--muted); }
+.date-range-filter { display: flex; align-items: center; gap: .4rem; font-size: .78rem; min-width: 0; }
+.date-range-filter label { display: flex; align-items: center; gap: .25rem; color: var(--muted); white-space: nowrap; }
 .date-range-filter select {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: .3rem .5rem; font-size: .8rem; max-width: 100%;
+  border-radius: 8px; padding: .3rem .4rem; font-size: .78rem; max-width: 6.5rem;
+}
+
+@media (max-width: 420px) {
+  .date-range-filter label span { display: none; } /* keep just the selects on very narrow screens */
+  .date-range-filter select { max-width: 5.4rem; padding: .3rem; }
 }
 
 /* Hamburger menu (replaces the old tab-button row) */
@@ -60,16 +67,22 @@ header.top h1 {
 .hamburger {
   background: var(--panel); color: var(--text); border: 1px solid var(--border);
   border-radius: 8px; padding: .4rem .65rem; cursor: pointer; font-size: 1.1rem; line-height: 1;
+  transition: background-color .15s ease, transform .1s ease;
 }
+.hamburger:active { transform: scale(.94); }
 .hamburger-menu {
   position: absolute; right: 0; top: calc(100% + .4rem); z-index: 20;
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
   padding: .35rem; display: flex; flex-direction: column; gap: .25rem; min-width: 140px;
   box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  opacity: 0; transform: translateY(-6px) scale(.98); pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease;
 }
+.hamburger-menu.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
 .hamburger-menu button {
   background: transparent; color: var(--text); border: none; border-radius: 6px;
   padding: .5rem .7rem; text-align: left; cursor: pointer; font-size: .9rem;
+  transition: background-color .12s ease;
 }
 .hamburger-menu button.active { background: var(--accent); color: #1a1a1a; font-weight: 600; }
 
@@ -83,23 +96,47 @@ header.top h1 {
   width: 100%; display: flex; align-items: center; justify-content: space-between;
   background: var(--panel-2); border: none; color: var(--text); cursor: pointer;
   padding: 1rem 1.1rem; font: inherit; text-align: left;
+  transition: background-color .15s ease;
 }
-.collapsible-header h2 { margin: 0; }
-.collapsible-header .chevron { color: var(--muted); transition: transform .15s ease; }
+.collapsible-header:hover { background: #2f3e57; }
+.collapsible-header:active { background: #34435e; }
+.collapsible-header h2 { margin: 0; display: flex; align-items: center; gap: .55rem; }
+.collapsible-icon { display: inline-flex; color: var(--muted); flex-shrink: 0; }
+.collapsible-header .chevron { color: var(--muted); transition: transform .2s ease; }
 .collapsible-header .chevron.open { transform: rotate(90deg); }
+
+/* Height-accurate expand/collapse: App.jsx/Collapsible.jsx measure the real
+   content height and transition max-height to/from it (see Collapsible.jsx),
+   so it never snaps or clips regardless of how tall a tile's content is. */
+.collapsible-body-wrap {
+  max-height: 0px;
+  overflow: hidden;
+  transition: max-height .32s ease;
+}
 .collapsible-body { padding: 0 1.1rem 1rem; }
+
+/* Freshly-mounted tile content (replayed on every open, not just the first)
+   gets a small fade/rise so every tile feels the same when it opens,
+   whether or not it contains a chart with its own entrance animation. */
+@keyframes panelContentIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.collapsible-body { animation: panelContentIn .28s ease; }
 
 .grid { display: grid; gap: 1rem; min-width: 0; }
 .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 
-.metric { background: var(--panel-2); border-radius: 10px; padding: .75rem .9rem; min-width: 0; }
+.metric { position: relative; background: var(--panel-2); border-radius: 10px; padding: .75rem 2.1rem .75rem .9rem; min-width: 0; }
 .metric .label { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
 .metric .value { font-size: 1.5rem; font-weight: 700; margin-top: .2rem; }
 .metric .value.green { color: var(--green); }
 .metric .value.blue { color: var(--blue); }
 .metric .sub { color: var(--muted); font-size: .78rem; margin-top: .15rem; }
-.metric .explainer { color: var(--muted); font-size: .75rem; margin: .5rem 0 0; line-height: 1.4; }
+/* Compound selector so this beats the plain .info-popover position rule
+   below regardless of source order (both are otherwise equal specificity). */
+.info-popover.metric-info { position: absolute; right: .55rem; bottom: .55rem; }
 
 .banner { border-radius: 10px; padding: .7rem .9rem; margin-bottom: 1rem; font-size: .9rem; }
 .banner.compact {
@@ -126,11 +163,53 @@ header.top h1 {
 .notes-list li { margin: .35rem 0; }
 .notes-trigger { font-size: .8rem; }
 
+button { transition: background-color .15s ease, border-color .15s ease, transform .1s ease, opacity .15s ease; }
+button:active:not(:disabled) { transform: scale(.96); }
 button.primary { background: var(--accent); color: #1a1a1a; border: none; border-radius: 8px; padding: .55rem 1rem; font-weight: 600; cursor: pointer; }
+button.primary:hover:not(:disabled) { background: #fde047; }
 button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .5rem .9rem; cursor: pointer; }
+button.ghost:hover:not(:disabled) { background: rgba(255,255,255,.06); }
 button.danger { background: #7f1d1d; color: #fecaca; border: 1px solid #b91c1c; border-radius: 8px; padding: .55rem 1rem; font-weight: 600; cursor: pointer; }
 button.danger:hover { background: #991b1b; }
 button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Utility: keep short compound phrases (counts, date ranges, money) from
+   wrapping mid-phrase - only the space between separate phrases should
+   ever become a line break. */
+.nowrap { white-space: nowrap; }
+
+/* Divides a screen's fields into visually distinct groups (Ingest, Backup)
+   instead of one long unbroken stack. */
+.field-section { padding-top: 1rem; margin-top: 1rem; border-top: 1px solid var(--border); }
+.field-section:first-of-type { padding-top: 0; margin-top: .75rem; border-top: none; }
+.field-section h3 { margin-top: 0; }
+
+/* Small "i" trigger that reveals secondary explanatory text on demand. */
+.info-popover { position: relative; display: inline-flex; }
+.info-popover-trigger {
+  width: 1.3rem; height: 1.3rem; border-radius: 50%;
+  background: transparent; color: var(--muted); border: 1px solid var(--border);
+  font-size: .72rem; font-style: italic; font-family: Georgia, serif; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer;
+}
+.info-popover-trigger:hover { color: var(--text); border-color: var(--muted); }
+.info-popover-content {
+  position: absolute; right: 0; bottom: calc(100% + .4rem); z-index: 15;
+  width: max-content; max-width: 15rem;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: .55rem .7rem; font-size: .78rem; line-height: 1.4; color: var(--text);
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  animation: popoverIn .14s ease;
+}
+@keyframes popoverIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.section-info { margin-left: .4rem; vertical-align: middle; }
+
+/* Small right-aligned row for a tile's footnote-style info icon (e.g. the
+   "gaps in this chart" note) instead of a permanent line of text. */
+.tile-footnote { display: flex; justify-content: flex-end; margin-top: .4rem; }
 
 textarea { width: 100%; min-height: 140px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .6rem; font-family: ui-monospace, monospace; font-size: .8rem; }
 input[type="text"], input[type="number"], input[type="file"] { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .45rem .6rem; font-size: .9rem; max-width: 100%; }
@@ -152,23 +231,35 @@ table.digest.payback-table { table-layout: auto; }
 .chart-wrap { position: relative; height: 300px; max-width: 100%; }
 
 /* EV Charging Split: one shared legend on top instead of a legend per chart,
-   since both charts use the same category/color mapping. */
-.ev-legend { display: flex; flex-wrap: wrap; gap: .6rem 1rem; margin-bottom: .75rem; font-size: .8rem; color: var(--text); }
-.ev-legend-item { display: inline-flex; align-items: center; gap: .35rem; }
+   since both charts use the same category/color mapping. Home sources (PV /
+   Battery / Grid) and away/public charging are different kinds of things, so
+   they're on separate rows rather than one run-on line. */
+.ev-legend { display: flex; flex-direction: column; gap: .4rem; margin-bottom: .75rem; font-size: .8rem; color: var(--text); }
+.ev-legend-row { display: flex; flex-wrap: wrap; gap: .6rem 1rem; }
+.ev-legend-item { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; }
 .ev-legend-swatch { width: .7rem; height: .7rem; border-radius: 3px; flex-shrink: 0; }
 .small { font-size: .8rem; color: var(--muted); }
 .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 .provisional { display: inline-block; font-size: .7rem; background: #a16207; color: #fff; border-radius: 6px; padding: .05rem .4rem; margin-left: .4rem; }
 
-/* Data Notes modal */
+/* Data Notes modal - fades/scales in on open, and .closing (set briefly by
+   Modal.jsx before it unmounts) plays the reverse so it never just vanishes. */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 50;
   display: flex; align-items: center; justify-content: center; padding: 1rem;
+  animation: backdropIn .16s ease;
 }
+.modal-backdrop.closing { animation: backdropOut .16s ease forwards; }
 .modal {
   background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
   max-width: 560px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 1rem 1.1rem;
+  animation: modalIn .18s ease;
 }
+.modal.closing { animation: modalOut .16s ease forwards; }
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes modalOut { from { opacity: 1; transform: scale(1) translateY(0); } to { opacity: 0; transform: scale(.96) translateY(6px); } }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
 .modal-header h2 { margin: 0; }
 .modal-close { padding: .3rem .6rem; }

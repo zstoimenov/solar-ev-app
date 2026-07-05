@@ -12,11 +12,19 @@ import PaybackProgress from './components/Dashboard/PaybackProgress.jsx';
 import EnergyTrends from './components/Dashboard/EnergyTrends.jsx';
 import EvChargingSplit from './components/Dashboard/EvChargingSplit.jsx';
 import DateRangeFilter from './components/Dashboard/DateRangeFilter.jsx';
+import { LayersIcon, TargetIcon, TrendIcon, PlugIcon } from './components/Dashboard/icons.jsx';
 import IngestWizard from './components/IngestWizard.jsx';
 import ExportRestore from './components/ExportRestore.jsx';
 
 const TABS = ['Dashboard', 'Ingest', 'Backup'];
 const PANEL_KEYS = ['roi', 'payback', 'energy', 'ev'];
+
+// Once there's more than this many months of data, the dashboard defaults to
+// showing only the most recent window (still overridable via the date range
+// filter) - both because a running household ROI story is about "lately",
+// and because cramming years of bars/points into one chart on a phone-width
+// screen stops being readable.
+const DEFAULT_MONTH_WINDOW = 12;
 
 function HamburgerMenu({ tab, setTab }) {
   const [open, setOpen] = useState(false);
@@ -32,19 +40,17 @@ function HamburgerMenu({ tab, setTab }) {
   return (
     <div className="hamburger-wrap" ref={ref}>
       <button className="hamburger" onClick={() => setOpen((o) => !o)} aria-label="Menu">☰</button>
-      {open && (
-        <div className="hamburger-menu">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              className={t === tab ? 'active' : ''}
-              onClick={() => { setTab(t); setOpen(false); }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className={`hamburger-menu ${open ? 'open' : ''}`}>
+        {TABS.map((t) => (
+          <button
+            key={t}
+            className={t === tab ? 'active' : ''}
+            onClick={() => { setTab(t); setOpen(false); }}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -94,8 +100,9 @@ export default function App() {
   const togglePanel = (key) => setPanelsOpen((p) => ({ ...p, [key]: !p[key] }));
 
   const allMonths = state.monthlyDigests.map((d) => d.month);
-  const effectiveFrom = fromMonth && allMonths.includes(fromMonth) ? fromMonth : allMonths[0];
   const effectiveTo = toMonth && allMonths.includes(toMonth) ? toMonth : allMonths[allMonths.length - 1];
+  const defaultFromIndex = Math.max(0, allMonths.indexOf(effectiveTo) - (DEFAULT_MONTH_WINDOW - 1));
+  const effectiveFrom = fromMonth && allMonths.includes(fromMonth) ? fromMonth : allMonths[defaultFromIndex];
   const filteredDigests = state.monthlyDigests.filter(
     (d) => d.month >= effectiveFrom && d.month <= effectiveTo
   );
@@ -144,7 +151,7 @@ export default function App() {
         <>
           <div className="dashboard-controls">
             <button className="ghost expand-all" onClick={toggleAllPanels}>
-              {allPanelsOpen ? '⊟ Collapse all' : '⊞ Expand all'}
+              {allPanelsOpen ? '⊟ Collapse' : '⊞ Expand'}
             </button>
             <DateRangeFilter
               months={allMonths}
@@ -154,16 +161,16 @@ export default function App() {
               onToChange={setToMonth}
             />
           </div>
-          <Collapsible title="ROI Layers" open={panelsOpen.roi} onToggle={() => togglePanel('roi')}>
+          <Collapsible title="ROI Layers" icon={<LayersIcon />} open={panelsOpen.roi} onToggle={() => togglePanel('roi')}>
             <RoiLayers state={filteredState} />
           </Collapsible>
-          <Collapsible title="Payback Progress" open={panelsOpen.payback} onToggle={() => togglePanel('payback')}>
+          <Collapsible title="Payback Progress" icon={<TargetIcon />} open={panelsOpen.payback} onToggle={() => togglePanel('payback')}>
             <PaybackProgress state={filteredState} />
           </Collapsible>
-          <Collapsible title="Energy Trends" open={panelsOpen.energy} onToggle={() => togglePanel('energy')}>
+          <Collapsible title="Energy Trends" icon={<TrendIcon />} open={panelsOpen.energy} onToggle={() => togglePanel('energy')}>
             <EnergyTrends state={filteredState} />
           </Collapsible>
-          <Collapsible title="EV Charging Split" open={panelsOpen.ev} onToggle={() => togglePanel('ev')}>
+          <Collapsible title="EV Charging Split" icon={<PlugIcon />} open={panelsOpen.ev} onToggle={() => togglePanel('ev')}>
             <EvChargingSplit state={filteredState} />
           </Collapsible>
           {notesOpen && (
@@ -174,7 +181,9 @@ export default function App() {
         </>
       )}
 
-      {tab === 'Ingest' && <IngestWizard state={state} onChange={refresh} />}
+      {tab === 'Ingest' && (
+        <IngestWizard state={state} onChange={refresh} onIngested={() => setTab('Dashboard')} />
+      )}
 
       {tab === 'Backup' && (
         <ExportRestore state={state} lastExportedCount={appMeta.lastExportedCount} onChange={refresh} />
