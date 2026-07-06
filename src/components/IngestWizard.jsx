@@ -14,6 +14,7 @@ import TariffScheduleEditor from './Ingest/TariffScheduleEditor.jsx';
 import ChargingLogEditor from './Ingest/ChargingLogEditor.jsx';
 import TariffPlanEditor from './Ingest/TariffPlanEditor.jsx';
 import EvSessionsUploader from './Ingest/EvSessionsUploader.jsx';
+import PaybackSettingsEditor from './Ingest/PaybackSettingsEditor.jsx';
 
 const APP_VERSION = 'app_v1';
 const empty = { fronius: null, wattpilot: null, synergy: null };
@@ -43,7 +44,8 @@ const CATEGORIES = [
       { key: 'chargingLog', label: 'Public Charging Log' },
       { key: 'evSessions', label: 'EV Sessions' }
     ]
-  }
+  },
+  { key: 'payback', label: 'Payback' }
 ];
 
 // Fronius/Wattpilot report filenames end in "..._2026_06.xlsx" - pull the
@@ -244,6 +246,7 @@ export default function IngestWizard({ state, onChange, onIngested }) {
       {subsection === 'chargingLog' && <ChargingLogEditor state={state} onChange={onChange} />}
       {subsection === 'tariffPlans' && <TariffPlanEditor state={state} onChange={onChange} />}
       {subsection === 'evSessions' && <EvSessionsUploader state={state} onChange={onChange} />}
+      {category === 'payback' && <PaybackSettingsEditor state={state} onChange={onChange} />}
 
       {category === 'upload' && preview && (() => {
         const rows = Object.entries(preview.digest).map(([k, v]) => [k, v, rowStatus(k, v)]);
