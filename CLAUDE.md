@@ -183,6 +183,31 @@ authored data now. Payback is an **all-time** concept: `App.jsx` overrides
 the date-filtered cumulative's `payback`/`paybackTotals` with a full-history
 recompute — keep that override if you touch the dashboard filtering.
 
+## Pre-tracking payback estimate (since v1.11)
+
+Some hardware (e.g. the solar system) can predate ALL smart-meter data, not
+just the earliest ingested month — there's no Fronius/Wattpilot history to
+backfill because none was ever captured. `config.paybackPreTracking.
+installDate` lets a household flag this; `compute.js:recomputeCumulative`
+fills the `installDate` → earliest-tracked-month gap with an **extrapolated
+estimate** (tracked-period average Layer 1/month × gap months) and credits
+it toward Payback Progress only, via `payback[].recoveredPreTrackingAud` and
+`cumulativeTotals.paybackPreTracking` — same chronological cascade order as
+the tracked pool (solar → charger → battery), consumed first since it's the
+earliest money. **This was an explicit, deliberately-accepted trade-off**:
+extrapolating from later data is exactly the kind of "guess dressed up as a
+number" this app avoids everywhere else (see Plan Comparison's scope notes),
+but here the alternative — a real multi-year gap with a hard `null`/zero —
+was judged less useful than a clearly-labeled rough estimate. It WILL
+overstate the gap if `installDate` predates the battery or EV (their
+savings get baked into the average), which is why it's surfaced with an
+explicit caveat in `PaybackProgress.jsx`'s InfoPopover and never blended
+into Layer 1 or ROI Layers' data-derived totals — those stay real-data-only.
+Self-corrects to a no-op (`paybackPreTracking: null`) once ingested data
+actually reaches back to `installDate`, since the gap is recomputed live
+from the current earliest digest every time, never stored as a fixed
+snapshot.
+
 ## Null convention
 
 Absent numeric/text values are always `null`, never `0` or `""` — this is

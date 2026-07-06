@@ -123,7 +123,8 @@ export default function App() {
     cumulativeTotals: {
       ...filteredCumulative,
       payback: fullCumulative.payback,
-      paybackTotals: fullCumulative.paybackTotals
+      paybackTotals: fullCumulative.paybackTotals,
+      paybackPreTracking: fullCumulative.paybackPreTracking
     },
     evChargingSessions: filterSessionsByMonthRange(state.evChargingSessions, effectiveFrom, effectiveTo)
   };
