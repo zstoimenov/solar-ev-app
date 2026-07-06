@@ -34,7 +34,26 @@ function groupPlans(tariffPlans) {
     }
     map.get(key).bands.push({ label: p.bandLabel, from: p.from, to: p.to, priceCentsPerKwh: p.priceCentsPerKwh });
   }
-  return [...map.values()].sort((a, b) => a.planName.localeCompare(b.planName) || a.financialYear.localeCompare(b.financialYear));
+  // Sort FY first so each financial year reads as its own group - plans are
+  // only compared against others in the SAME FY (comparing FY2025-26 prices
+  // against FY2026-27 prices would just crown the older, cheaper year).
+  return [...map.values()].sort((a, b) => a.financialYear.localeCompare(b.financialYear) || a.planName.localeCompare(b.planName));
+}
+
+// Total minutes/day a plan's bands cover. 1440 = exactly the full day; less
+// means a gap (energy charged in it silently prices at $0 - see
+// splitSessionsByBand), more means overlapping bands double-price energy.
+function bandCoverageMinutes(bands) {
+  const mins = (hhmm) => {
+    const [h, m] = (hhmm ?? '00:00').split(':').map(Number);
+    return h * 60 + m;
+  };
+  return bands.reduce((total, b) => {
+    const from = mins(b.from);
+    const toRaw = mins(b.to);
+    const to = toRaw <= from ? toRaw + 1440 : toRaw;
+    return total + (to - from);
+  }, 0);
 }
 
 export default function PlanComparison({ state }) {
@@ -56,9 +75,16 @@ export default function PlanComparison({ state }) {
   const rows = plans.map((plan) => {
     const byBand = splitSessionsByBand(sessions, plan.bands);
     const costAud = plan.bands.reduce((sum, b) => sum + (byBand[b.label] ?? 0) * (b.priceCentsPerKwh / 100), 0);
-    return { ...plan, costAud };
+    return { ...plan, costAud, coverageMin: bandCoverageMinutes(plan.bands) };
   });
-  const cheapest = Math.min(...rows.map((r) => r.costAud));
+  // Cheapest is per financial year - different FYs are different price
+  // vintages, not competing options you could pick between today.
+  const cheapestByFy = new Map();
+  for (const r of rows) {
+    const cur = cheapestByFy.get(r.financialYear);
+    if (cur == null || r.costAud < cur) cheapestByFy.set(r.financialYear, r.costAud);
+  }
+  const coverageWarnings = rows.filter((r) => r.coverageMin !== 1440);
 
   return (
     <>
@@ -66,7 +92,7 @@ export default function PlanComparison({ state }) {
         Estimated cost of just your EV's charging (
         <strong>{totalSessionKwh.toLocaleString('en-AU', { maximumFractionDigits: 1 })} kWh</strong> across{' '}
         {sessions.length} session{sessions.length === 1 ? '' : 's'} in range) under each
-        plan's usage rates - cheapest highlighted.
+        plan's usage rates - cheapest per financial year highlighted.
         <InfoPopover label="What this does and doesn't cover" className="section-info">
           Covers EV charging only, not your whole electricity bill - general home usage
           (fridge, lights, aircon, etc.) has no time-of-day data yet. It's also a gross
@@ -78,20 +104,32 @@ export default function PlanComparison({ state }) {
       </p>
       <div className="table-scroll">
         <table className="digest table-nowrap">
-          <thead><tr><th>Plan</th><th>FY</th><th>Est. EV charging cost</th></tr></thead>
+          <thead><tr><th>FY</th><th>Plan</th><th>Est. EV charging cost</th></tr></thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={`${r.planName}-${r.financialYear}`}>
-                <td>{r.planName}</td>
-                <td>{r.financialYear}</td>
-                <td className={r.costAud === cheapest ? 'digest-ok' : ''}>
-                  <strong>{money(r.costAud)}</strong>{r.costAud === cheapest ? ' ✓' : ''}
-                </td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const isCheapest = r.costAud === cheapestByFy.get(r.financialYear);
+              return (
+                <tr key={`${r.planName}-${r.financialYear}`}>
+                  <td>{r.financialYear}</td>
+                  <td>{r.planName}{r.coverageMin !== 1440 ? ' ⚠' : ''}</td>
+                  <td className={isCheapest ? 'digest-ok' : ''}>
+                    <strong>{money(r.costAud)}</strong>{isCheapest ? ' ✓' : ''}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+      {coverageWarnings.length > 0 && (
+        <p className="small">
+          ⚠ {coverageWarnings.map((r) => `${r.planName} (${r.financialYear})`).join(', ')}:
+          this plan's time bands cover {coverageWarnings[0].coverageMin < 1440 ? 'less' : 'more'} than
+          the full 24h day — energy in uncovered gaps is not priced (and overlapping bands
+          double-price it), so its estimate is unreliable. Check the plan's band times on the
+          Ingest tab's Tariff Plans page.
+        </p>
+      )}
     </>
   );
 }

@@ -51,7 +51,7 @@ Six blocks:
 - **`hardware`** - array kW, inverter, install dates (`YYYY-MM-DD`), OOP costs (AUD), total OOP.
 - **`tariffs`** - usage rate (c/kWh), supply charge, escalation %, DEBS peak/off-peak FiT, blended FiT (post/pre battery), rate at install. Includes `blendedFiTConfirmed: false` - the blended FiT is still **estimated** (open item #4), so the app should surface it as provisional.
 - **`ev`** - model, dates, prices, consumption, distance, `chargingMix` (home/work/trip with rate, seasonal %, annual kWh + cost), annual electricity cost.
-- **`lease`** - provider, term, rate, residual, FBT status, `fortnightlyPreTaxAud` breakdown, net salary impact, `annualAud` figures. `vehicleReturnOption: false` (residual must be paid to own).
+- **`lease`** - provider, term, rate, residual, FBT status, `fortnightlyPreTaxAud` breakdown, net salary impact, `annualAud` figures. `vehicleReturnOption: false` (residual must be paid to own). Optional `taxSavingAudPerYr` - the fixed Layer 3 annual figure shown on the Dashboard; when absent the app falls back to its built-in constant ($5,378/yr, `data/compute.js:layer3AnnualAud`).
 - **`counterfactual`** - petrol baseline vehicle. Holds **both** service costs (`serviceToJun2026`, `serviceFromJul2026`) for the Jul-2026 step-change. `layer2ScopeTotalAudPerYr` = fuel + service scope used in the model.
 - **`baselines`** - confirmed pre/post solar + battery consumption/import/export. Do not re-derive without new data.
 - **`tariffSchedule`** *(optional; absent = no history yet, static `tariffs.*` values apply)* -
@@ -161,12 +161,22 @@ daily production rows - count of days with ~0 kWh production)
 `evTotalChargedKwh` · `evFromPvKwh` · `evFromBatteryKwh` · `evFromHomeGridKwh` ·
 `evWorkChargingKwh` · `evPublicTripKwh` · `evGridChargingDays` · `evElectricityCostAud`
 
+> Optional extra (NOT one of the 33 required fields, so pre-v1.10 backups still
+> validate): `evHomeChargingCostAud` - what the EV's home charging cost that month
+> (grid-sourced share × import rate + PV/battery share × blended FiT, the export
+> credit that energy displaced). Subtracted in `layer2SavingAud` alongside
+> `evElectricityCostAud` from v1.10 on; older stored digests keep their original
+> Layer 2 math until the user runs the opt-in "Recompute financials" action.
+
 **Financial (AUD numbers)**
 `actualGridCostAud` · `baselineGridCostAud` · `gridCostAvoidedAud` · `exportCreditAud` ·
 `ceratoCounterfactualAud` · `layer1SavingAud` · `layer2SavingAud` · `combinedSavingAud`
 
 **Validation / text**
-`crossValImport` (Pass/Fail str) · `crossValExport` (str) · `flags` (str|null) · `notes` (str|null)
+`crossValImport` (Pass/Fail/Pending str) · `crossValExport` (str - `"n/a"` from v1.10 on:
+there is no export cross-check source, Synergy's file only covers billed import;
+older digests may carry `"Pass"`/`"Pending"` from when this was hardcoded) ·
+`flags` (str|null) · `notes` (str|null)
 
 > Null convention: any absent numeric or text value is `null`, never `0` or `""`,
 > so "pending" (e.g. Synergy import for Apr/May) is distinguishable from a real zero.
@@ -182,8 +192,8 @@ daily production rows - count of days with ~0 kWh production)
 | `quality` | avg self-sufficiency %, avg self-consumption %, zero-production days, `batteryShortfallDays: null` (retired metric). |
 | `ev` | all-time charged kWh + source split, away-charging cost, total EV cost, grid-charging days. |
 | `financial` | Layer 1, Layer 2, combined. Layer 3 is time-based (note only). |
-| `payback[]` | per-component OOP / recovered / remaining / est. payback year. |
-| `paybackTotals` | rolled-up OOP / recovered / remaining + allocation order. |
+| `payback[]` | per-component OOP / recovered / remaining / est. payback year. From v1.10, recovered/remaining/est-year are **derived**: cumulative Layer 1 is allocated across components in array order (solar → charger → battery), clamped at each `oopAud`; only `component`/`oopAud` (and the array order) are authored data. |
+| `paybackTotals` | rolled-up OOP / recovered / remaining + allocation order (rolled up from `payback[]` from v1.10). |
 | `crossValFlags[]` | months breaching the dual threshold (>5% AND >2 kWh). Empty to date. |
 
 ---

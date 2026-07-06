@@ -17,10 +17,27 @@ function findField(fields, ...keywords) {
   return null;
 }
 
-// Returns { gridImportSynergyKwh, billedRows, unbilledRows, pending }
+// "12/06/2026", "12.06.2026 00:30" or "2026-06-12..." -> "2026-06", or null
+// if the value doesn't look like a date. AU exports are day-first.
+function monthOfDateValue(v) {
+  const s = String(v ?? '').trim();
+  let m = /^(\d{4})-(\d{2})/.exec(s);
+  if (m) return `${m[1]}-${m[2]}`;
+  m = /^(\d{1,2})[/.](\d{1,2})[/.](\d{4})/.exec(s);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}`;
+  return null;
+}
+
+// Returns { gridImportSynergyKwh, billedRows, unbilledRows, outOfMonthRows, pending }
 // gridImportSynergyKwh is null when there are zero billed rows (pending),
 // preserving the null convention (distinguishable from a real zero).
-export function parseSynergy(text) {
+// `month` (YYYY-MM, optional) scopes the sum to rows dated in the ingest
+// month - a Synergy download often spans several months, and summing them
+// all would falsely fail cross-validation against one month of Fronius
+// import. Rows outside the month are counted (outOfMonthRows) so the ingest
+// preview can surface that they were ignored. Rows with no parseable date
+// (or a file with no date column) are kept - fail-open to the old behavior.
+export function parseSynergy(text, month = null) {
   const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
   const fields = parsed.meta.fields ?? [];
 
@@ -30,12 +47,21 @@ export function parseSynergy(text) {
     findField(fields, 'kwh') ||
     findField(fields, 'consumption') ||
     findField(fields, 'quantity');
+  const dateField = findField(fields, 'date');
 
   let billed = 0;
   let billedRows = 0;
   let unbilledRows = 0;
+  let outOfMonthRows = 0;
 
   for (const row of parsed.data) {
+    if (month && dateField) {
+      const rowMonth = monthOfDateValue(row[dateField]);
+      if (rowMonth && rowMonth !== month) {
+        outOfMonthRows += 1;
+        continue;
+      }
+    }
     const status = statusField ? norm(row[statusField]) : 'billed';
     const kwh = usageField ? Number(row[usageField]) || 0 : 0;
     if (status === 'billed') {
@@ -51,6 +77,7 @@ export function parseSynergy(text) {
     gridImportSynergyKwh: pending ? null : Math.round((billed + Number.EPSILON) * 100) / 100,
     billedRows,
     unbilledRows,
+    outOfMonthRows,
     pending
   };
 }

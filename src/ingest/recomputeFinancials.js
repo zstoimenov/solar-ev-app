@@ -2,7 +2,8 @@
 // fields of an ALREADY-STORED digest using the CURRENT tariff schedule and
 // charging log, without needing the original raw Fronius/Wattpilot files -
 // everything needed (gridImportFroniusKwh, totalConsumptionKwh,
-// gridExportKwh, daysInPeriod) is already sitting on the stored digest.
+// gridExportKwh, daysInPeriod, evFromPvKwh/evFromBatteryKwh/
+// evFromHomeGridKwh) is already sitting on the stored digest.
 //
 // Ingest itself stays forward-only (see CLAUDE.md "Tariff schedule + public
 // charging log") - this is the explicit, opt-in way to bring EXISTING months
@@ -47,7 +48,17 @@ export function recomputeDigestFinancials(digest, config, chargingLog) {
   const publicCharging = sumChargingLogForMonth(chargingLog, digest.month);
   const evPublicTripKwh = publicCharging.energyKwh ?? digest.evPublicTripKwh ?? 0;
   const evElectricityCostAud = publicCharging.costAud ?? digest.evElectricityCostAud ?? 0;
-  const layer2SavingAud = round(ceratoCounterfactualAud - evElectricityCostAud, 2);
+  // Home charging cost (grid portion at the import rate, PV/battery portion
+  // at the foregone feed-in rate) - mirrors buildDigest.js exactly; the
+  // per-source kWh are already stored on the digest.
+  const evHomeChargingCostAud = round(
+    (digest.evFromHomeGridKwh ?? 0) * usageRate +
+    ((digest.evFromPvKwh ?? 0) + (digest.evFromBatteryKwh ?? 0)) * debsPeak,
+    2
+  );
+  const layer2SavingAud = round(
+    ceratoCounterfactualAud - evElectricityCostAud - evHomeChargingCostAud, 2
+  );
 
   const combinedSavingAud = layer1SavingAud != null && layer2SavingAud != null
     ? round(layer1SavingAud + layer2SavingAud, 2)
@@ -57,6 +68,7 @@ export function recomputeDigestFinancials(digest, config, chargingLog) {
     ...digest,
     evPublicTripKwh,
     evElectricityCostAud: round(evElectricityCostAud),
+    evHomeChargingCostAud,
     actualGridCostAud,
     baselineGridCostAud,
     gridCostAvoidedAud,

@@ -19,11 +19,16 @@ function daysInMonth(month) {
 // `chargingLog` = the household's paid-public-charging log (see
 // data/tariffSchedule.js) - replaces the old manual "paid public kWh" entry;
 // free/workplace charging is still a manual field since it has no cost.
-export function buildDigest(parsed, manual, config, chargingLog = []) {
+// `prevDigest` = the existing digest when overwriting an already-ingested
+// month - used only as the public-charging fallback (see below).
+export function buildDigest(parsed, manual, config, chargingLog = [], prevDigest = null) {
   const { fronius, wattpilot, synergy } = parsed;
   const month = manual.month;
-  const days = manual.daysInPeriod ?? daysInMonth(month);
   const fullDays = daysInMonth(month);
+  // Days actually covered: the Fronius file's daily row count, capped at the
+  // calendar month - a mid-month export must pro-rate the counterfactual and
+  // the supply charge by the days it covers, not the whole month.
+  const days = manual.daysInPeriod ?? Math.min(fronius.days || fullDays, fullDays);
 
   const tariffs = config.tariffs;
   // config.tariffSchedule.import - a dated history of buy-price changes -
@@ -81,25 +86,46 @@ export function buildDigest(parsed, manual, config, chargingLog = []) {
   const ceratoCounterfactualAud = round((cf.layer2ScopeTotalAudPerYr / 365) * days, 2);
   // Paid public charging - date-stamped log entries for this month, summed
   // (see data/tariffSchedule.js). Free/workplace charging stays a manual
-  // field below since it has no cost to subtract here.
+  // field below since it has no cost to subtract here. When OVERWRITING an
+  // existing month and the log has nothing for it, keep the digest's stored
+  // figures (may be a real manually-entered value predating the log feature)
+  // - same fallback rule as recomputeFinancials.js, don't change to ?? 0.
   const publicCharging = sumChargingLogForMonth(chargingLog, month);
-  const evElectricityCostAud = publicCharging.costAud ?? 0;
-  const layer2SavingAud = round(ceratoCounterfactualAud - evElectricityCostAud, 2);
+  const evPublicTripKwh = publicCharging.energyKwh ?? prevDigest?.evPublicTripKwh ?? 0;
+  const evElectricityCostAud = publicCharging.costAud ?? prevDigest?.evElectricityCostAud ?? 0;
+  // Home charging is NOT free to the EV: the grid-sourced portion is paid at
+  // the import rate, and the PV/battery-sourced portion forgoes the export
+  // credit it would otherwise have earned (FiT). Without this, Layer 1
+  // (which already credits solar for covering the EV's load) plus Layer 2
+  // would overstate the combined saving by the EV's home energy.
+  const evHomeChargingCostAud = round(
+    (wattpilot.evFromHomeGridKwh ?? 0) * usageRate +
+    ((wattpilot.evFromPvKwh ?? 0) + (wattpilot.evFromBatteryKwh ?? 0)) * debsPeak,
+    2
+  );
+  const layer2SavingAud = round(
+    ceratoCounterfactualAud - evElectricityCostAud - evHomeChargingCostAud, 2
+  );
 
   const combinedSavingAud =
     layer1SavingAud != null && layer2SavingAud != null
       ? round(layer1SavingAud + layer2SavingAud, 2)
       : null;
 
-  // Cross-validation Fronius vs Synergy grid import.
+  // Cross-validation Fronius vs Synergy grid import. There is no export
+  // cross-check source (Synergy's file only covers billed import), so
+  // crossValExport is honestly 'n/a' - never a fake 'Pass'.
   const cv = crossValFlag(fronius.gridImportFroniusKwh, synergy.gridImportSynergyKwh);
   const crossValImport = synergy.pending ? 'Pending' : cv && cv.breach ? 'Fail' : 'Pass';
-  const crossValExport = synergy.pending ? 'Pending' : 'Pass';
+  const crossValExport = 'n/a';
 
   const flagsParts = [];
   if ((manual.partialMonth ?? days < fullDays)) flagsParts.push(`Partial month (${days}d).`);
   if (cv && cv.breach) flagsParts.push(`Cross-val breach (${cv.pct}% / ${cv.absDiff} kWh).`);
   if (synergy.pending) flagsParts.push('Synergy cross-validation pending.');
+  if (synergy.outOfMonthRows > 0) {
+    flagsParts.push(`Synergy file had ${synergy.outOfMonthRows} row(s) outside ${month} (ignored).`);
+  }
 
   return {
     month,
@@ -122,9 +148,12 @@ export function buildDigest(parsed, manual, config, chargingLog = []) {
     evFromBatteryKwh: round(wattpilot.evFromBatteryKwh),
     evFromHomeGridKwh: round(wattpilot.evFromHomeGridKwh),
     evWorkChargingKwh: manual.evWorkChargingKwh ?? 0,
-    evPublicTripKwh: publicCharging.energyKwh ?? 0,
+    evPublicTripKwh,
     evGridChargingDays: wattpilot.evGridChargingDays ?? null,
     evElectricityCostAud: round(evElectricityCostAud),
+    // Optional (not in DIGEST_FIELDS, so older backups still validate):
+    // what the EV's home charging cost this month - see Layer 2 above.
+    evHomeChargingCostAud,
 
     actualGridCostAud,
     baselineGridCostAud,

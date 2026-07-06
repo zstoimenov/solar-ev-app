@@ -29,8 +29,19 @@ function findCol(header, ...keywords) {
   return -1;
 }
 
-const colSum = (rows, idx) =>
-  idx < 0 ? null : rows.reduce((a, r) => a + (Number(r[idx]) || 0), 0);
+// Row 2 (index 1) carries the unit for each column ("[Wh]" or "[kWh]") -
+// same rule as parseFronius.js. Units VARY between exports (see CLAUDE.md
+// "Ingest parsing"), so always scale from the units row, never assume kWh.
+function unitScale(unitsRow, idx) {
+  if (idx < 0) return 1;
+  const u = String(unitsRow?.[idx] ?? '').toLowerCase();
+  if (u.includes('kwh')) return 1;
+  if (u.includes('wh')) return 0.001;
+  return 1;
+}
+
+const colSum = (rows, idx, scale = 1) =>
+  idx < 0 ? null : rows.reduce((a, r) => a + (Number(r[idx]) || 0), 0) * scale;
 
 // Count days on which the grid-source column was > 0 (EV grid charging days).
 function daysWithGrid(rows, idx) {
@@ -44,6 +55,7 @@ export async function parseWattpilot(file) {
   const buf = await file.arrayBuffer();
   const rows = sheetRows(new Uint8Array(buf));
   const header = rows[0] ?? [];
+  const unitsRow = rows[1] ?? [];
   const data = dataRows(rows);
 
   // Keyword scan - positions vary between exports.
@@ -51,9 +63,9 @@ export async function parseWattpilot(file) {
   const batteryCol = findCol(header, 'battery');
   const gridCol = findCol(header, 'grid');
 
-  const fromPv = colSum(data, pvCol);
-  const fromBattery = colSum(data, batteryCol);
-  const fromHomeGrid = colSum(data, gridCol);
+  const fromPv = colSum(data, pvCol, unitScale(unitsRow, pvCol));
+  const fromBattery = colSum(data, batteryCol, unitScale(unitsRow, batteryCol));
+  const fromHomeGrid = colSum(data, gridCol, unitScale(unitsRow, gridCol));
   const total = [fromPv, fromBattery, fromHomeGrid].reduce(
     (a, v) => (v == null ? a : a + v),
     0
