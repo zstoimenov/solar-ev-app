@@ -7,8 +7,7 @@
 
 import React from 'react';
 import InfoPopover from '../InfoPopover.jsx';
-
-const LAYER3_ANNUAL_AUD = 5378; // fixed, time-based (see brief §5 / seed note)
+import { layer3AnnualAud } from '../../data/compute.js';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -28,6 +27,7 @@ export default function RoiLayers({ state }) {
   const layer1 = c.financial.layer1SavingAud;
   const layer2Accrued = c.financial.layer2SavingAud; // canonical headline
   const layer2AnnualScope = cfg.counterfactual.layer2ScopeTotalAudPerYr;
+  const layer3Annual = layer3AnnualAud(cfg);
   const combined12 = c.financial.combinedLayer12SavingAud;
   const first = formatMonth(c.coverage.firstMonth);
   const last = formatMonth(c.coverage.lastMonth);
@@ -56,15 +56,18 @@ export default function RoiLayers({ state }) {
           <InfoPopover label="What Layer 2 means" className="metric-info">
             Money saved by driving an EV instead of the old petrol car — fuel +
             servicing you'd have paid for the petrol car, minus what it
-            actually costs to charge the EV. (For reference, a full year of
-            that fuel+servicing budget is {money(layer2AnnualScope)}; the
-            number above is the real running total for {period}, not a
-            projection.)
+            actually costs to charge the EV: paid public charging, plus home
+            charging (the grid-sourced share at the import rate, and the
+            solar/battery share at the feed-in credit it displaced — that
+            energy would otherwise have been exported). (For reference, a
+            full year of that fuel+servicing budget is
+            {' '}{money(layer2AnnualScope)}; the number above is the real
+            running total for {period}, not a projection.)
           </InfoPopover>
         </div>
         <div className="metric">
           <div className="label">Layer 3 — Lease tax saving</div>
-          <div className="value blue nowrap">{money(LAYER3_ANNUAL_AUD)}/yr</div>
+          <div className="value blue nowrap">{money(layer3Annual)}/yr</div>
           <div className="sub">Fixed yearly amount, every year</div>
           <InfoPopover label="What Layer 3 means" className="metric-info">
             The income-tax saving from paying for the EV lease out of pre-tax
@@ -88,7 +91,7 @@ export default function RoiLayers({ state }) {
             <tr><td>Layer 1 (this period)</td><td>{money(layer1)}</td></tr>
             <tr><td>Layer 2 (this period)</td><td>{money(layer2Accrued)}</td></tr>
             <tr><td><strong>Layers 1+2 total</strong></td><td><strong>{money(combined12)}</strong></td></tr>
-            <tr><td>Layer 3 (fixed, per year)</td><td>{money(LAYER3_ANNUAL_AUD)}/yr</td></tr>
+            <tr><td>Layer 3 (fixed, per year)</td><td>{money(layer3Annual)}/yr</td></tr>
           </tbody>
         </table>
       </div>

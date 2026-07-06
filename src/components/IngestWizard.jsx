@@ -100,8 +100,8 @@ export default function IngestWizard({ state, onChange, onIngested }) {
       const fronius = await parseFronius(files.fronius);
       const wattpilot = await parseWattpilot(files.wattpilot);
       const synergy = files.synergy
-        ? parseSynergy(await files.synergy.text())
-        : { gridImportSynergyKwh: null, pending: true, billedRows: 0, unbilledRows: 0 };
+        ? parseSynergy(await files.synergy.text(), manual.month)
+        : { gridImportSynergyKwh: null, pending: true, billedRows: 0, unbilledRows: 0, outOfMonthRows: 0 };
 
       const manualClean = {
         month: manual.month,
@@ -109,8 +109,12 @@ export default function IngestWizard({ state, onChange, onIngested }) {
         notes: manual.notes || null
       };
 
+      // When overwriting, hand the existing digest to buildDigest so a month
+      // with no charging-log entries keeps its stored public-charging figures
+      // (they may predate the log feature) instead of being zeroed.
+      const prevDigest = state.monthlyDigests.find((d) => d.month === manual.month) ?? null;
       const digest = buildDigest(
-        { fronius, wattpilot, synergy }, manualClean, state.config, state.chargingLog ?? []
+        { fronius, wattpilot, synergy }, manualClean, state.config, state.chargingLog ?? [], prevDigest
       );
 
       // Build the proposed next-state (not yet written).

@@ -3,8 +3,18 @@
 // cumulativeTotals block and meta fields. Null-safe throughout: absent values
 // stay null and are skipped in sums (never treated as 0).
 
+// Null-preserving: a column with NO values at all sums to null (no data
+// yet), not 0 - months with values are summed and nulls skipped.
 const sum = (arr, key) =>
-  arr.reduce((acc, d) => (d[key] == null ? acc : acc + d[key]), 0);
+  arr.reduce((acc, d) => (d[key] == null ? acc : (acc ?? 0) + d[key]), null);
+
+// The fixed Layer 3 (novated lease tax saving) annual figure. Read from
+// config.lease.taxSavingAudPerYr when the backup carries it; the constant
+// fallback matches the household's current lease terms for older backups.
+const DEFAULT_LAYER3_ANNUAL_AUD = 5378;
+export function layer3AnnualAud(config) {
+  return config?.lease?.taxSavingAudPerYr ?? DEFAULT_LAYER3_ANNUAL_AUD;
+}
 
 const round = (n, dp = 2) =>
   n == null ? null : Math.round((n + Number.EPSILON) * 10 ** dp) / 10 ** dp;
@@ -22,9 +32,12 @@ export function crossValFlag(fronius, synergy) {
 }
 
 // Recompute the cumulativeTotals object from the full chronological digest
-// array. Preserves the seed's structure. Payback is carried from the previous
-// cumulativeTotals (component OOP + allocation are config-driven, not derived
-// month-to-month here) but recovered/remaining are re-rolled from Layer 1.
+// array. Preserves the seed's structure. Payback component OOP + allocation
+// order are carried from the previous cumulativeTotals (config-driven), and
+// recovered/remaining/estPaybackYear are re-rolled from cumulative Layer 1.
+// NOTE: callers building a date-FILTERED view (App.jsx) must take payback
+// from a full-history recompute, not this filtered one - payback progress
+// is an all-time concept.
 export function recomputeCumulative(digests, prevCumulative, config) {
   const months = digests.length;
   const first = months ? digests[0].month : null;
@@ -42,14 +55,23 @@ export function recomputeCumulative(digests, prevCumulative, config) {
     gridImportSynergyNote: `${gridImportSynergyMonths} of ${months} months`
   };
 
-  const avg = (key) => {
-    const vals = digests.map((d) => d[key]).filter((v) => v != null);
-    return vals.length ? round(vals.reduce((a, b) => a + b, 0) / vals.length, 1) : null;
+  // Energy-weighted, not a mean of the monthly percentages - a mean would
+  // count a 5-day partial month the same as a full 31-day one. Only months
+  // where both sides are known contribute (null convention).
+  const weightedPct = (numKey, denKey) => {
+    let num = 0;
+    let den = 0;
+    for (const d of digests) {
+      if (d[numKey] == null || d[denKey] == null) continue;
+      num += d[numKey];
+      den += d[denKey];
+    }
+    return den > 0 ? round((num / den) * 100, 1) : null;
   };
 
   const quality = {
-    avgSelfSufficiencyPct: avg('selfSufficiencyPct'),
-    avgSelfConsumptionRatePct: avg('selfConsumptionRatePct'),
+    avgSelfSufficiencyPct: weightedPct('ownConsumptionKwh', 'totalConsumptionKwh'),
+    avgSelfConsumptionRatePct: weightedPct('ownConsumptionKwh', 'solarProductionKwh'),
     zeroProductionDays: sum(digests, 'zeroProductionDays'),
     batteryShortfallDays: null // retired metric - stays null
   };
@@ -58,8 +80,15 @@ export function recomputeCumulative(digests, prevCumulative, config) {
   const fromPv = sum(digests, 'evFromPvKwh');
   const fromBattery = sum(digests, 'evFromBatteryKwh');
   const fromHomeGrid = sum(digests, 'evFromHomeGridKwh');
-  const pct = (part) => (totalCharged > 0 ? round((part / totalCharged) * 100, 1) : null);
+  const pct = (part) =>
+    totalCharged > 0 && part != null ? round((part / totalCharged) * 100, 1) : null;
 
+  // Paid public/trip charging vs home charging are different costs: "away"
+  // is real money handed to a charging network; "home" is the grid portion
+  // paid on the bill + the export credit forgone on the PV/battery portion
+  // (evHomeChargingCostAud - optional, absent on pre-v1.10 digests).
+  const awayCost = sum(digests, 'evElectricityCostAud');
+  const homeCost = sum(digests, 'evHomeChargingCostAud');
   const ev = {
     totalChargedKwh: round(totalCharged),
     fromPvKwh: round(fromPv),
@@ -70,10 +99,9 @@ export function recomputeCumulative(digests, prevCumulative, config) {
     fromHomeGridPct: pct(fromHomeGrid),
     workChargingKwh: round(sum(digests, 'evWorkChargingKwh')),
     publicTripKwh: round(sum(digests, 'evPublicTripKwh')),
-    totalAwayChargingCostAud: round(
-      sum(digests, 'evElectricityCostAud') // away-charging cost approximation
-    ),
-    totalEvElectricityCostAud: round(sum(digests, 'evElectricityCostAud')),
+    totalAwayChargingCostAud: round(awayCost),
+    totalEvElectricityCostAud:
+      awayCost == null && homeCost == null ? null : round((awayCost ?? 0) + (homeCost ?? 0)),
     evGridChargingDays: sum(digests, 'evGridChargingDays')
   };
 
@@ -82,15 +110,48 @@ export function recomputeCumulative(digests, prevCumulative, config) {
   const financial = {
     layer1SavingAud: layer1,
     layer2SavingAud: layer2,
-    combinedLayer12SavingAud: round((layer1 || 0) + (layer2 || 0)),
+    combinedLayer12SavingAud:
+      layer1 == null && layer2 == null ? null : round((layer1 ?? 0) + (layer2 ?? 0)),
     layer3Note: prevCumulative?.financial?.layer3Note ??
-      'Layer 3 (novated lease tax saving) is time-based ($5,378/yr fixed), not derived from energy data.'
+      `Layer 3 (novated lease tax saving) is time-based ($${layer3AnnualAud(config).toLocaleString('en-AU')}/yr fixed), not derived from energy data.`
   };
 
-  // Payback: keep component OOP + estPaybackYear + allocation from prev/config;
-  // re-roll recovered against Layer 1 cumulative in allocation order
-  // (solar panels, then charger, then battery).
-  const payback = (prevCumulative?.payback ?? []).map((p) => ({ ...p }));
+  // Payback: component OOP + allocation order come from the stored/seed
+  // payback block (config-driven, in allocation order: solar panels, then
+  // charger, then battery). Recovered/remaining are re-rolled from the
+  // cumulative Layer 1 saving, filling each component in order and clamping
+  // at its OOP. estPaybackYear is re-projected from the average Layer 1
+  // run-rate over the months that have data.
+  const monthsWithLayer1 = digests.filter((d) => d.layer1SavingAud != null).length;
+  const layer1Total = Math.max(0, layer1 ?? 0);
+  const avgLayer1PerMonth = monthsWithLayer1 > 0 ? layer1Total / monthsWithLayer1 : null;
+  const projectYear = (thresholdAud) => {
+    if (!avgLayer1PerMonth || avgLayer1PerMonth <= 0 || !last) return null;
+    const monthsToGo = Math.ceil((thresholdAud - layer1Total) / avgLayer1PerMonth);
+    const [ly, lm] = last.split('-').map(Number);
+    return Math.floor((ly * 12 + (lm - 1) + monthsToGo) / 12);
+  };
+  let pool = layer1Total;
+  let cumOopAud = 0;
+  const payback = (prevCumulative?.payback ?? []).map((p) => {
+    const oop = p.oopAud ?? 0;
+    const recovered = round(Math.min(oop, Math.max(0, pool)), 2);
+    pool -= oop;
+    cumOopAud += oop;
+    const remaining = round(oop - recovered, 2);
+    const estPaybackYear =
+      remaining <= 0 ? 'Paid off' : projectYear(cumOopAud) ?? p.estPaybackYear ?? null;
+    return { ...p, recoveredAud: recovered, remainingAud: remaining, estPaybackYear };
+  });
+  const paybackTotals = payback.length
+    ? {
+        oopAud: round(payback.reduce((a, p) => a + (p.oopAud ?? 0), 0)),
+        recoveredAud: round(payback.reduce((a, p) => a + (p.recoveredAud ?? 0), 0)),
+        remainingAud: round(payback.reduce((a, p) => a + (p.remainingAud ?? 0), 0)),
+        allocationOrder: prevCumulative?.paybackTotals?.allocationOrder ??
+          payback.map((p) => p.component).join(' → ')
+      }
+    : prevCumulative?.paybackTotals ?? null;
   const crossValFlags = digests
     .filter((d) => {
       const cv = crossValFlag(d.gridImportFroniusKwh, d.gridImportSynergyKwh);
@@ -111,7 +172,7 @@ export function recomputeCumulative(digests, prevCumulative, config) {
     ev,
     financial,
     payback,
-    paybackTotals: prevCumulative?.paybackTotals ?? null,
+    paybackTotals,
     crossValFlags,
     crossValNote:
       prevCumulative?.crossValNote ??

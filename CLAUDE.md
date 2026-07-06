@@ -99,10 +99,11 @@ decision (not a shortcut). An explicit, opt-in escape hatch exists for when
 the user wants existing months brought up to date without re-uploading the
 original Fronius/Wattpilot files:
 `ingest/recomputeFinancials.js:recomputeDigestFinancials()` re-derives just
-the tariff/charging-log-DEPENDENT fields (grid cost, EV charging cost, Layer
-1/2 savings) from fields **already stored on the digest**
-(`gridImportFroniusKwh`, `totalConsumptionKwh`, `gridExportKwh`,
-`daysInPeriod`) — it never needs the raw parsed inputs. It's wired up via
+the tariff/charging-log-DEPENDENT fields (grid cost, EV charging cost incl.
+the home-charging cost, Layer 1/2 savings) from fields **already stored on
+the digest** (`gridImportFroniusKwh`, `totalConsumptionKwh`, `gridExportKwh`,
+`daysInPeriod`, `evFromPvKwh`/`evFromBatteryKwh`/`evFromHomeGridKwh`) — it
+never needs the raw parsed inputs. It's wired up via
 `components/Ingest/RecomputeFinancialsButton.jsx`, shown on the Import
 Tariff and Public Charging Log pages, and must stay an explicit user action
 (confirm dialog, not automatic) — don't wire it to fire on every
@@ -158,6 +159,29 @@ before touching it — the scope limitation is load-bearing, not a footnote:
 - If a genuine whole-household time-of-day usage source ever turns up, wire
   the general-usage split in alongside the EV-session split rather than
   replacing it — they answer related but different questions.
+
+## Layer 2 charges the EV for home energy (since v1.10)
+
+`layer2SavingAud` = petrol counterfactual − paid public charging − **home
+charging cost** (`evHomeChargingCostAud`: grid-sourced share × import rate +
+PV/battery share × blended FiT, i.e. the export credit that energy
+displaced). Without the home-charging term, Layer 1 (whose baseline includes
+the EV's consumption) plus Layer 2 double-counted the EV's home energy and
+overstated the combined saving by roughly home-charged kWh × import rate.
+Keep `buildDigest.js` and `recomputeFinancials.js` in lockstep on this
+formula. `evHomeChargingCostAud` is an **optional** digest field —
+deliberately NOT in `schema.js:DIGEST_FIELDS`, so pre-v1.10 backups still
+validate; old months pick it up via the opt-in Recompute Financials action.
+
+## Payback accrues from Layer 1 (since v1.10)
+
+`compute.js:recomputeCumulative` re-rolls
+`payback[].recoveredAud/remainingAud/estPaybackYear` from cumulative Layer 1,
+allocated across components in array order (solar → charger → battery) and
+clamped at each `oopAud` — only `component`/`oopAud` and the array order are
+authored data now. Payback is an **all-time** concept: `App.jsx` overrides
+the date-filtered cumulative's `payback`/`paybackTotals` with a full-history
+recompute — keep that override if you touch the dashboard filtering.
 
 ## Null convention
 

@@ -1,5 +1,6 @@
 // EvChargingSplit - EV charge source split (PV / battery / home-grid / work /
-// public), all-time (doughnut) and per-month (stacked bar).
+// public) for the dashboard's ACTIVE DATE RANGE (the state prop arrives
+// pre-filtered from App.jsx): range totals (doughnut) + per-month (stacked bar).
 
 import React from 'react';
 import { Doughnut, Bar } from 'react-chartjs-2';
@@ -141,7 +142,7 @@ export default function EvChargingSplit({ state }) {
       </div>
       <div className="grid cols-2">
         <div>
-          <h3>All-time source mix</h3>
+          <h3>Source mix (selected range)</h3>
           <div className="chart-wrap"><Doughnut data={allTime} options={dOpts} /></div>
           <p className="small">
             {pctBreakdown.map((item, i) => (

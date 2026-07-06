@@ -112,10 +112,19 @@ export default function App() {
   );
   // Dashboard panels read this scoped view; HealthBanner still reads the
   // unfiltered `state` so it always reflects the real data integrity.
+  // Payback is the exception: it's an all-time concept, so it comes from a
+  // full-history recompute (also keeps it live for backups exported by app
+  // versions that stored stale payback figures), not the filtered window.
+  const fullCumulative = recomputeCumulative(state.monthlyDigests, state.cumulativeTotals, state.config);
+  const filteredCumulative = recomputeCumulative(filteredDigests, state.cumulativeTotals, state.config);
   const filteredState = {
     ...state,
     monthlyDigests: filteredDigests,
-    cumulativeTotals: recomputeCumulative(filteredDigests, state.cumulativeTotals, state.config),
+    cumulativeTotals: {
+      ...filteredCumulative,
+      payback: fullCumulative.payback,
+      paybackTotals: fullCumulative.paybackTotals
+    },
     evChargingSessions: filterSessionsByMonthRange(state.evChargingSessions, effectiveFrom, effectiveTo)
   };
 
