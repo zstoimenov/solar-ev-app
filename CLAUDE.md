@@ -253,8 +253,9 @@ new features or field changes, major only for a `schemaVersion` bump.
   `InfoPopover` from the start.
 - **Ingest tab navigation is two levels**, not one flat row of pills
   (`IngestWizard.jsx`'s `CATEGORIES` array): a few broad categories (Monthly
-  Upload / Tariffs & Rates / EV Charging Data), each either a single page
-  (no `subsections`) or a second pill row + a one-line category `intro`. If
+  Upload / Tariffs & Rates / EV Charging Data / Payback), each either a single
+  page (no `subsections`, e.g. Monthly Upload and Payback) or a second pill
+  row + a one-line category `intro`. If
   you add a new Ingest page, put it under an existing category's
   `subsections` (or add a new category) rather than growing a flat list back
   out — the whole point of the 2-level nav was that a flat list of 6+ pills

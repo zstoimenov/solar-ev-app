@@ -55,8 +55,10 @@ Six blocks:
 - **`counterfactual`** - petrol baseline vehicle. Holds **both** service costs (`serviceToJun2026`, `serviceFromJul2026`) for the Jul-2026 step-change. `layer2ScopeTotalAudPerYr` = fuel + service scope used in the model.
 - **`baselines`** - confirmed pre/post solar + battery consumption/import/export. Do not re-derive without new data.
 - **`paybackPreTracking`** *(optional; absent = no pre-tracking estimate)* -
-  `{ installDate (YYYY-MM-DD) }`. Set this when a hardware component (e.g.
-  solar) was installed **before any smart-meter data exists** - not just
+  `{ installDate (YYYY-MM-DD) }`, edited in-app via **Ingest → Payback**
+  (`components/Ingest/PaybackSettingsEditor.jsx`; writes just this config
+  field onto the stored state, no re-import). Set this when a hardware
+  component (e.g. solar) was installed **before any smart-meter data exists** - not just
   before the earliest ingested month, but before Fronius/Wattpilot tracking
   was possible at all, so there is no real data to ingest for that gap. When
   set, `data/compute.js:recomputeCumulative` fills the `installDate` →
