@@ -55,22 +55,35 @@ Six blocks:
 - **`counterfactual`** - petrol baseline vehicle. Holds **both** service costs (`serviceToJun2026`, `serviceFromJul2026`) for the Jul-2026 step-change. `layer2ScopeTotalAudPerYr` = fuel + service scope used in the model.
 - **`baselines`** - confirmed pre/post solar + battery consumption/import/export. Do not re-derive without new data.
 - **`paybackPreTracking`** *(optional; absent = no pre-tracking estimate)* -
-  `{ installDate (YYYY-MM-DD) }`, edited in-app via **Ingest → Payback**
-  (`components/Ingest/PaybackSettingsEditor.jsx`; writes just this config
-  field onto the stored state, no re-import). Set this when a hardware
-  component (e.g. solar) was installed **before any smart-meter data exists** - not just
-  before the earliest ingested month, but before Fronius/Wattpilot tracking
-  was possible at all, so there is no real data to ingest for that gap. When
-  set, `data/compute.js:recomputeCumulative` fills the `installDate` →
-  earliest-tracked-month gap with an estimate (the tracked period's average
-  Layer 1 saving/month × the gap in months) and credits it toward Payback
-  Progress only (`cumulativeTotals.paybackPreTracking`, and
-  `payback[].recoveredPreTrackingAud`) - it never touches Layer
-  1/ROI Layers' data-derived totals. Self-corrects to no-op once ingested
-  data actually covers the gap (recomputed live from `installDate` +
-  the current earliest digest, not a stored one-time snapshot). See
-  CLAUDE.md "Pre-tracking payback estimate" for the known overstatement risk
-  when the install date predates the battery/EV.
+  `{ installDate (YYYY-MM-DD), basis?, batteryRoundTripEfficiency? }`, edited
+  in-app via **Ingest → Payback** (`components/Ingest/PaybackSettingsEditor.jsx`;
+  writes just this config field onto the stored state, no re-import). Set
+  `installDate` when a hardware component (e.g. solar) was installed **before
+  any smart-meter data exists** - not just before the earliest ingested month,
+  but before Fronius/Wattpilot tracking was possible at all, so there is no
+  real data to ingest for that gap. When set,
+  `data/compute.js:recomputeCumulative` fills the `installDate` →
+  earliest-tracked-month gap with an estimate (an average monthly saving × the
+  gap in months) and credits it toward Payback Progress only
+  (`cumulativeTotals.paybackPreTracking`, and
+  `payback[].recoveredPreTrackingAud`) - it never touches Layer 1/ROI Layers'
+  data-derived totals. Self-corrects to no-op once ingested data actually
+  covers the gap (recomputed live from `installDate` + the current earliest
+  digest, not a stored one-time snapshot).
+  - `basis` *(optional; default `"solar-only"`)* - `"solar-only"` strips the
+    battery time-shift + EV load out of the tracked Layer 1 average so a
+    solar-only install period isn't inflated by hardware that didn't exist
+    yet (needs `config.tariffs` rates; falls back to `"layer1"` if absent).
+    `"layer1"` uses the raw solar+battery+EV average (overstates a solar-only
+    gap). See CLAUDE.md "Pre-tracking payback estimate" for the full method.
+  - `batteryRoundTripEfficiency` *(optional; default `0.9`)* - used by the
+    solar-only basis to derive whole-house battery discharge from the energy
+    balance (no direct throughput field exists).
+  - The computed `cumulativeTotals.paybackPreTracking` result carries the
+    breakdown: `{ installDate, fromMonth, toMonth, gapMonths, basis,
+    avgMonthlyRateUsedAud, avgMonthlyLayer1Aud, batteryDischargeKwhEst,
+    batteryRoundTripEfficiency, evAdjustmentAud, batteryAdjustmentAud,
+    estimatedAud, method }`.
 - **`tariffSchedule`** *(optional; absent = no history yet, static `tariffs.*` values apply)* -
   `{ import: [], export: [] }`, dated rate-change entries edited via the Ingest
   tab's Import Tariff / Feed-in Tariff sub-tabs (see `src/data/tariffSchedule.js`).

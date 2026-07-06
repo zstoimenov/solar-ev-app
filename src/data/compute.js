@@ -145,30 +145,83 @@ export function recomputeCumulative(digests, prevCumulative, config) {
   // smart-meter data (no Fronius/Wattpilot history exists for that gap - it
   // isn't a matter of ingesting more months, the data was never captured).
   // Per explicit product decision this gap is filled with an EXTRAPOLATED
-  // estimate (the tracked-period average Layer 1/month x gap months), not
-  // left at zero. This is deliberately a rougher estimate than anything else
-  // in the app: if the install date predates the battery/EV, it bakes their
-  // later contribution into the average and OVERSTATES the gap - surfaced
-  // via paybackPreTracking below and the Payback Progress UI, never silently
-  // blended into Layer 1's data-derived figures elsewhere (ROI Layers stays
-  // untouched). Only applied to Payback Progress, and only while the real
-  // gap remains (self-corrects to null once ingested data covers it).
+  // estimate (a tracked-period average monthly saving x gap months), not
+  // left at zero. Only applied to Payback Progress, never blended into Layer
+  // 1 / ROI Layers (those stay real-data-only), and self-corrects to null
+  // once ingested data covers the gap.
+  //
+  // basis (config.paybackPreTracking.basis, default 'solar-only'):
+  //  - 'solar-only': strip the battery time-shift + EV load out of Layer 1,
+  //    so backdating a SOLAR-only install period isn't inflated by hardware
+  //    that didn't exist yet. Each solar kWh currently earning the import
+  //    rate because it was battery-shifted or fed the EV would, in a
+  //    solar-only world, have been EXPORTED instead - so we remove
+  //    (evFromPv + batteryDischarge) x (importRate - FiT) from Layer 1. The
+  //    legitimate part (solar directly powering daytime base load) is kept
+  //    from real data, not estimated. batteryDischarge isn't measured
+  //    directly (no whole-house throughput field exists), so it's derived
+  //    from the energy balance on CUMULATIVE totals (noise averages out):
+  //    (Sigma solar - Sigma export - Sigma ownConsumption) is the battery
+  //    round-trip loss, so discharge ~= that x eff/(1-eff). Assumptions:
+  //    round-trip efficiency (default 0.9) + representative tariff rates.
+  //  - 'layer1': use the raw tracked-period average Layer 1 (solar+battery,
+  //    EV load in the baseline) - overstates a solar-only gap.
   const preTrackingCfg = config?.paybackPreTracking;
+  const basis = preTrackingCfg?.basis ?? 'solar-only';
+  const tariffs = config?.tariffs;
+  const importRate = tariffs?.usageRateCPerKwh != null ? tariffs.usageRateCPerKwh / 100 : null;
+  const fitRate = tariffs?.debsPeakCPerKwh != null ? tariffs.debsPeakCPerKwh / 100 : null;
+  const eff = preTrackingCfg?.batteryRoundTripEfficiency ?? 0.9;
+
+  // Solar-only breakdown (only meaningful when we have tariff rates to value
+  // kWh with). batteryDischargeKwh + the two stripped $ amounts are surfaced
+  // for transparency in the UI.
+  let batteryDischargeKwhEst = null;
+  let evAdjustmentAud = null;
+  let batteryAdjustmentAud = null;
+  let solarOnlyAvgMonthly = null;
+  if (importRate != null && fitRate != null && importRate > fitRate && monthsWithLayer1 > 0) {
+    const roundTripLossKwh = Math.max(0, (energy.solarProductionKwh ?? 0) - (energy.gridExportKwh ?? 0) - (energy.ownConsumptionKwh ?? 0));
+    batteryDischargeKwhEst = eff < 1 ? round(roundTripLossKwh * (eff / (1 - eff))) : 0;
+    const strippedKwh = (fromPv ?? 0) + batteryDischargeKwhEst; // EV-direct solar + battery-shifted energy
+    evAdjustmentAud = round((fromPv ?? 0) * (importRate - fitRate));
+    batteryAdjustmentAud = round(batteryDischargeKwhEst * (importRate - fitRate));
+    const solarOnlyTotal = Math.max(0, layer1Total - strippedKwh * (importRate - fitRate));
+    solarOnlyAvgMonthly = solarOnlyTotal / monthsWithLayer1;
+  }
+
+  // The monthly rate the estimate extrapolates from: solar-only when asked
+  // for and computable, else the raw Layer 1 average (with a note recording
+  // which was used and why, if a solar-only request had to fall back).
+  const canSolarOnly = solarOnlyAvgMonthly != null;
+  const useSolarOnly = basis === 'solar-only' && canSolarOnly;
+  const rateUsed = useSolarOnly ? solarOnlyAvgMonthly : avgLayer1PerMonth;
+
   let preTrackingEstimateAud = 0;
   let paybackPreTracking = null;
-  if (preTrackingCfg?.installDate && first && avgLayer1PerMonth != null) {
+  if (preTrackingCfg?.installDate && first && rateUsed != null) {
     const installIdx = monthIndex(preTrackingCfg.installDate);
     const gapMonths = monthIndex(first) - installIdx;
     if (gapMonths > 0) {
-      preTrackingEstimateAud = round(avgLayer1PerMonth * gapMonths, 2);
+      preTrackingEstimateAud = round(rateUsed * gapMonths, 2);
       paybackPreTracking = {
         installDate: preTrackingCfg.installDate,
         fromMonth: monthFromIndex(installIdx),
         toMonth: monthFromIndex(monthIndex(first) - 1),
         gapMonths,
-        avgMonthlyRateUsedAud: round(avgLayer1PerMonth, 2),
+        basis: useSolarOnly ? 'solar-only' : 'layer1',
+        avgMonthlyRateUsedAud: round(rateUsed, 2),
+        avgMonthlyLayer1Aud: round(avgLayer1PerMonth ?? 0, 2),
+        batteryDischargeKwhEst,
+        batteryRoundTripEfficiency: useSolarOnly ? eff : null,
+        evAdjustmentAud: useSolarOnly ? evAdjustmentAud : null,
+        batteryAdjustmentAud: useSolarOnly ? batteryAdjustmentAud : null,
         estimatedAud: preTrackingEstimateAud,
-        method: 'extrapolated-from-tracked-average'
+        method: useSolarOnly
+          ? 'solar-only (battery time-shift + EV load stripped from tracked Layer 1)'
+          : (basis === 'solar-only'
+              ? 'tracked Layer 1 average (solar-only requested but tariff rates unavailable to strip)'
+              : 'tracked Layer 1 average (solar + battery)')
       };
     }
   }

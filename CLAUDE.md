@@ -188,25 +188,53 @@ recompute — keep that override if you touch the dashboard filtering.
 Some hardware (e.g. the solar system) can predate ALL smart-meter data, not
 just the earliest ingested month — there's no Fronius/Wattpilot history to
 backfill because none was ever captured. `config.paybackPreTracking.
-installDate` lets a household flag this; `compute.js:recomputeCumulative`
-fills the `installDate` → earliest-tracked-month gap with an **extrapolated
-estimate** (tracked-period average Layer 1/month × gap months) and credits
-it toward Payback Progress only, via `payback[].recoveredPreTrackingAud` and
+installDate` lets a household flag this (edited in-app via **Ingest →
+Payback**, `components/Ingest/PaybackSettingsEditor.jsx`);
+`compute.js:recomputeCumulative` fills the `installDate` →
+earliest-tracked-month gap with an **extrapolated estimate** (an average
+monthly saving × gap months) and credits it toward Payback Progress only,
+via `payback[].recoveredPreTrackingAud` and
 `cumulativeTotals.paybackPreTracking` — same chronological cascade order as
 the tracked pool (solar → charger → battery), consumed first since it's the
-earliest money. **This was an explicit, deliberately-accepted trade-off**:
+earliest money. Never blended into Layer 1 or ROI Layers' data-derived
+totals — those stay real-data-only. Self-corrects to a no-op
+(`paybackPreTracking: null`) once ingested data actually reaches back to
+`installDate`, recomputed live from the current earliest digest every time,
+never stored as a fixed snapshot.
+
+**Basis** (`config.paybackPreTracking.basis`, default `'solar-only'`)
+controls *which* monthly rate is extrapolated:
+
+- `'solar-only'` (v1.13+): strips the battery time-shift + EV load out of the
+  tracked-period Layer 1 average, so backdating a solar-only install period
+  isn't inflated by hardware that didn't exist yet. Each solar kWh currently
+  earning the import rate because it was battery-shifted or fed the EV would,
+  in a solar-only world, have been *exported* — so the estimate removes
+  `(evFromPv + batteryDischarge) × (importRate − FiT)` from Layer 1. The
+  legitimate part (solar directly powering daytime base load) is **kept from
+  real data, not estimated**. `batteryDischarge` has no whole-house
+  throughput field (only `evFromBatteryKwh`, the EV's slice, is recorded), so
+  it's derived from the energy balance on **cumulative** totals (noise
+  averages out): `Σsolar − Σexport − ΣownConsumption` is the battery
+  round-trip loss, so discharge ≈ that × `eff/(1−eff)`, `eff` =
+  `batteryRoundTripEfficiency` (default 0.9). Assumptions: round-trip
+  efficiency + representative tariff rates (`config.tariffs.usageRateCPerKwh`
+  / `debsPeakCPerKwh`). If those rates are absent it **falls back** to the
+  `'layer1'` rate and records why in the result's `method` string. Still an
+  estimate — it assumes daytime solar self-use back then resembled now.
+- `'layer1'`: the raw tracked-period Layer 1 average (solar + battery, EV
+  load in the baseline). Overstates a solar-only gap; kept as an explicit
+  opt-out.
+
+**This whole feature was an explicit, deliberately-accepted trade-off**:
 extrapolating from later data is exactly the kind of "guess dressed up as a
 number" this app avoids everywhere else (see Plan Comparison's scope notes),
 but here the alternative — a real multi-year gap with a hard `null`/zero —
-was judged less useful than a clearly-labeled rough estimate. It WILL
-overstate the gap if `installDate` predates the battery or EV (their
-savings get baked into the average), which is why it's surfaced with an
-explicit caveat in `PaybackProgress.jsx`'s InfoPopover and never blended
-into Layer 1 or ROI Layers' data-derived totals — those stay real-data-only.
-Self-corrects to a no-op (`paybackPreTracking: null`) once ingested data
-actually reaches back to `installDate`, since the gap is recomputed live
-from the current earliest digest every time, never stored as a fixed
-snapshot.
+was judged less useful than a clearly-labeled rough estimate. The
+`paybackPreTracking` result object carries the full breakdown
+(`avgMonthlyLayer1Aud`, `evAdjustmentAud`, `batteryAdjustmentAud`,
+`batteryDischargeKwhEst`, `basis`, `method`) so `PaybackProgress.jsx`'s
+InfoPopover and the editor can show exactly what was stripped and assumed.
 
 ## Null convention
 

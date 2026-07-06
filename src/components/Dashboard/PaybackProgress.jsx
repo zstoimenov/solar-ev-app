@@ -112,13 +112,23 @@ export default function PaybackProgress({ state }) {
             This system was installed on {preTracking.installDate}, {preTracking.gapMonths} months
             before your earliest tracked data ({formatMonth(preTracking.toMonth)} was the last
             month without a digest). There's no Fronius/Wattpilot data for that gap - it was never
-            captured, not just un-ingested - so it's filled with an estimate: your tracked period's
-            average Layer 1 saving (${preTracking.avgMonthlyRateUsedAud}/month) × the gap in months.
-            This is rougher than every other figure in this app: if the gap predates your battery
-            or EV, their savings are baked into that average and this will overstate what
-            solar-only was actually saving back then. It only affects Payback Progress - the ROI
-            Layers tile's Layer 1 total stays exactly what your tracked data shows, no estimate
-            included.
+            captured, not just un-ingested - so it's filled with an estimate: an average monthly
+            saving (${preTracking.avgMonthlyRateUsedAud}/month) × the gap in months.
+            {preTracking.basis === 'solar-only' ? (
+              <> That rate is <strong>solar-only</strong>: since this period predated your battery
+                and EV, their contribution is stripped out of your tracked savings (raw Layer 1
+                averaged ${preTracking.avgMonthlyLayer1Aud}/month; −{money(preTracking.evAdjustmentAud)}
+                {' '}EV-charged solar and −{money(preTracking.batteryAdjustmentAud)} battery time-shift
+                were removed, the latter derived from your energy balance assuming ~
+                {Math.round((preTracking.batteryRoundTripEfficiency ?? 0.9) * 100)}% battery
+                efficiency). It still assumes your daytime solar self-use back then resembled now.</>
+            ) : (
+              <> That rate is your <strong>current system's</strong> full saving (solar + battery,
+                EV load included), so it will overstate a solar-only install period - switch on
+                "Estimate solar-only" on the Ingest → Payback page to strip the battery and EV out.</>
+            )}
+            {' '}It only affects Payback Progress - the ROI Layers tile's Layer 1 total stays exactly
+            what your tracked data shows, no estimate included.
           </InfoPopover>
         </p>
       )}
