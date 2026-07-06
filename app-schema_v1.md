@@ -54,6 +54,21 @@ Six blocks:
 - **`lease`** - provider, term, rate, residual, FBT status, `fortnightlyPreTaxAud` breakdown, net salary impact, `annualAud` figures. `vehicleReturnOption: false` (residual must be paid to own). Optional `taxSavingAudPerYr` - the fixed Layer 3 annual figure shown on the Dashboard; when absent the app falls back to its built-in constant ($5,378/yr, `data/compute.js:layer3AnnualAud`).
 - **`counterfactual`** - petrol baseline vehicle. Holds **both** service costs (`serviceToJun2026`, `serviceFromJul2026`) for the Jul-2026 step-change. `layer2ScopeTotalAudPerYr` = fuel + service scope used in the model.
 - **`baselines`** - confirmed pre/post solar + battery consumption/import/export. Do not re-derive without new data.
+- **`paybackPreTracking`** *(optional; absent = no pre-tracking estimate)* -
+  `{ installDate (YYYY-MM-DD) }`. Set this when a hardware component (e.g.
+  solar) was installed **before any smart-meter data exists** - not just
+  before the earliest ingested month, but before Fronius/Wattpilot tracking
+  was possible at all, so there is no real data to ingest for that gap. When
+  set, `data/compute.js:recomputeCumulative` fills the `installDate` →
+  earliest-tracked-month gap with an estimate (the tracked period's average
+  Layer 1 saving/month × the gap in months) and credits it toward Payback
+  Progress only (`cumulativeTotals.paybackPreTracking`, and
+  `payback[].recoveredPreTrackingAud`) - it never touches Layer
+  1/ROI Layers' data-derived totals. Self-corrects to no-op once ingested
+  data actually covers the gap (recomputed live from `installDate` +
+  the current earliest digest, not a stored one-time snapshot). See
+  CLAUDE.md "Pre-tracking payback estimate" for the known overstatement risk
+  when the install date predates the battery/EV.
 - **`tariffSchedule`** *(optional; absent = no history yet, static `tariffs.*` values apply)* -
   `{ import: [], export: [] }`, dated rate-change entries edited via the Ingest
   tab's Import Tariff / Feed-in Tariff sub-tabs (see `src/data/tariffSchedule.js`).
@@ -192,8 +207,9 @@ older digests may carry `"Pass"`/`"Pending"` from when this was hardcoded) ·
 | `quality` | avg self-sufficiency %, avg self-consumption %, zero-production days, `batteryShortfallDays: null` (retired metric). |
 | `ev` | all-time charged kWh + source split, away-charging cost, total EV cost, grid-charging days. |
 | `financial` | Layer 1, Layer 2, combined. Layer 3 is time-based (note only). |
-| `payback[]` | per-component OOP / recovered / remaining / est. payback year. From v1.10, recovered/remaining/est-year are **derived**: cumulative Layer 1 is allocated across components in array order (solar → charger → battery), clamped at each `oopAud`; only `component`/`oopAud` (and the array order) are authored data. |
-| `paybackTotals` | rolled-up OOP / recovered / remaining + allocation order (rolled up from `payback[]` from v1.10). |
+| `payback[]` | per-component OOP / recovered / remaining / est. payback year. From v1.10, recovered/remaining/est-year are **derived**: cumulative Layer 1 is allocated across components in array order (solar → charger → battery), clamped at each `oopAud`; only `component`/`oopAud` (and the array order) are authored data. `recoveredPreTrackingAud` (from v1.11, optional, `null` unless nonzero) is the slice of `recoveredAud` sourced from the `config.paybackPreTracking` estimate rather than real tracked-period data. |
+| `paybackTotals` | rolled-up OOP / recovered / remaining + allocation order (rolled up from `payback[]` from v1.10), plus `recoveredPreTrackingAud` rollup (v1.11). |
+| `paybackPreTracking` | *(optional, `null` when `config.paybackPreTracking` is absent or the gap is already covered by data)* `{ installDate, fromMonth, toMonth, gapMonths, avgMonthlyRateUsedAud, estimatedAud, method }` - see `config.paybackPreTracking` above. |
 | `crossValFlags[]` | months breaching the dual threshold (>5% AND >2 kWh). Empty to date. |
 
 ---

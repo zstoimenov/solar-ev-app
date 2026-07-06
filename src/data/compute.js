@@ -19,6 +19,14 @@ export function layer3AnnualAud(config) {
 const round = (n, dp = 2) =>
   n == null ? null : Math.round((n + Number.EPSILON) * 10 ** dp) / 10 ** dp;
 
+// "YYYY-MM" (or "YYYY-MM-DD", only the first 7 chars are read) -> a single
+// monotonic integer, for month-count arithmetic (e.g. "2023-03" -> 24278).
+const monthIndex = (yyyymm) => {
+  const [y, m] = yyyymm.slice(0, 7).split('-').map(Number);
+  return y * 12 + (m - 1);
+};
+const monthFromIndex = (idx) => `${Math.floor(idx / 12)}-${String((idx % 12) + 1).padStart(2, '0')}`;
+
 // Cross-validation flag rule (brief §5): flag a month only when the Fronius
 // vs Synergy grid-import divergence is >5% AND >2 kWh absolute. If Synergy is
 // pending (null), the month cannot be cross-validated -> not flagged here.
@@ -131,22 +139,73 @@ export function recomputeCumulative(digests, prevCumulative, config) {
     const [ly, lm] = last.split('-').map(Number);
     return Math.floor((ly * 12 + (lm - 1) + monthsToGo) / 12);
   };
-  let pool = layer1Total;
+
+  // Pre-tracking estimate: config.paybackPreTracking.installDate lets a
+  // household backdate payback to a hardware install date that predates ALL
+  // smart-meter data (no Fronius/Wattpilot history exists for that gap - it
+  // isn't a matter of ingesting more months, the data was never captured).
+  // Per explicit product decision this gap is filled with an EXTRAPOLATED
+  // estimate (the tracked-period average Layer 1/month x gap months), not
+  // left at zero. This is deliberately a rougher estimate than anything else
+  // in the app: if the install date predates the battery/EV, it bakes their
+  // later contribution into the average and OVERSTATES the gap - surfaced
+  // via paybackPreTracking below and the Payback Progress UI, never silently
+  // blended into Layer 1's data-derived figures elsewhere (ROI Layers stays
+  // untouched). Only applied to Payback Progress, and only while the real
+  // gap remains (self-corrects to null once ingested data covers it).
+  const preTrackingCfg = config?.paybackPreTracking;
+  let preTrackingEstimateAud = 0;
+  let paybackPreTracking = null;
+  if (preTrackingCfg?.installDate && first && avgLayer1PerMonth != null) {
+    const installIdx = monthIndex(preTrackingCfg.installDate);
+    const gapMonths = monthIndex(first) - installIdx;
+    if (gapMonths > 0) {
+      preTrackingEstimateAud = round(avgLayer1PerMonth * gapMonths, 2);
+      paybackPreTracking = {
+        installDate: preTrackingCfg.installDate,
+        fromMonth: monthFromIndex(installIdx),
+        toMonth: monthFromIndex(monthIndex(first) - 1),
+        gapMonths,
+        avgMonthlyRateUsedAud: round(avgLayer1PerMonth, 2),
+        estimatedAud: preTrackingEstimateAud,
+        method: 'extrapolated-from-tracked-average'
+      };
+    }
+  }
+
+  // Pre-tracking dollars are chronologically the earliest, so they're
+  // consumed from each component's OOP before tracked-period dollars -
+  // same cascade order (solar -> charger -> battery) as the tracked pool.
+  // recoveredPreTrackingAud is tracked separately per component so the UI
+  // can show the estimate as its own line rather than blending it silently
+  // into "recovered".
+  let preTrackingPool = preTrackingEstimateAud;
+  let trackedPool = layer1Total;
   let cumOopAud = 0;
   const payback = (prevCumulative?.payback ?? []).map((p) => {
     const oop = p.oopAud ?? 0;
-    const recovered = round(Math.min(oop, Math.max(0, pool)), 2);
-    pool -= oop;
+    const fromPreTracking = round(Math.min(oop, Math.max(0, preTrackingPool)), 2);
+    preTrackingPool -= fromPreTracking;
+    const fromTracked = round(Math.min(oop - fromPreTracking, Math.max(0, trackedPool)), 2);
+    trackedPool -= fromTracked;
+    const recovered = round(fromPreTracking + fromTracked, 2);
     cumOopAud += oop;
     const remaining = round(oop - recovered, 2);
     const estPaybackYear =
       remaining <= 0 ? 'Paid off' : projectYear(cumOopAud) ?? p.estPaybackYear ?? null;
-    return { ...p, recoveredAud: recovered, remainingAud: remaining, estPaybackYear };
+    return {
+      ...p,
+      recoveredAud: recovered,
+      recoveredPreTrackingAud: fromPreTracking || null,
+      remainingAud: remaining,
+      estPaybackYear
+    };
   });
   const paybackTotals = payback.length
     ? {
         oopAud: round(payback.reduce((a, p) => a + (p.oopAud ?? 0), 0)),
         recoveredAud: round(payback.reduce((a, p) => a + (p.recoveredAud ?? 0), 0)),
+        recoveredPreTrackingAud: round(payback.reduce((a, p) => a + (p.recoveredPreTrackingAud ?? 0), 0)) || null,
         remainingAud: round(payback.reduce((a, p) => a + (p.remainingAud ?? 0), 0)),
         allocationOrder: prevCumulative?.paybackTotals?.allocationOrder ??
           payback.map((p) => p.component).join(' → ')
@@ -173,6 +232,7 @@ export function recomputeCumulative(digests, prevCumulative, config) {
     financial,
     payback,
     paybackTotals,
+    paybackPreTracking,
     crossValFlags,
     crossValNote:
       prevCumulative?.crossValNote ??
