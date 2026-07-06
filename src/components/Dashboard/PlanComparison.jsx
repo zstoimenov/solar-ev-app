@@ -21,6 +21,15 @@ function money(n) {
   return n == null ? '—' : `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// "FY2025-26" -> "25/26" - the table column needs to fit a 412px-wide
+// screen alongside the Plan and cost columns; the full "FYyyyy-yy" form is
+// kept everywhere else (Ingest tab's Tariff Plans catalog, this tile's own
+// coverage-warning sentence) since those aren't column-width constrained.
+function shortFy(fy) {
+  const m = /^FY\d{2}(\d{2})-(\d{2})$/.exec(fy ?? '');
+  return m ? `${m[1]}/${m[2]}` : fy;
+}
+
 // Flattens the (planName, financialYear, bandLabel) rows from
 // config.tariffPlans back into one object per plan-year, each carrying its
 // full band list.
@@ -90,8 +99,10 @@ export default function PlanComparison({ state }) {
     <>
       <p className="small">
         Estimated cost of just your EV's charging (
-        <strong>{totalSessionKwh.toLocaleString('en-AU', { maximumFractionDigits: 1 })} kWh</strong> across{' '}
-        {sessions.length} session{sessions.length === 1 ? '' : 's'} in range) under each
+        <strong className="nowrap">
+          {totalSessionKwh.toLocaleString('en-AU', { maximumFractionDigits: 1 })} kWh
+        </strong>{' '}
+        across {sessions.length} session{sessions.length === 1 ? '' : 's'} in range) under each
         plan's usage rates - cheapest per financial year highlighted.
         <InfoPopover label="What this does and doesn't cover" className="section-info">
           Covers EV charging only, not your whole electricity bill - general home usage
@@ -110,7 +121,7 @@ export default function PlanComparison({ state }) {
               const isCheapest = r.costAud === cheapestByFy.get(r.financialYear);
               return (
                 <tr key={`${r.planName}-${r.financialYear}`}>
-                  <td>{r.financialYear}</td>
+                  <td>{shortFy(r.financialYear)}</td>
                   <td>{r.planName}{r.coverageMin !== 1440 ? ' ⚠' : ''}</td>
                   <td className={isCheapest ? 'digest-ok' : ''}>
                     <strong>{money(r.costAud)}</strong>{isCheapest ? ' ✓' : ''}
