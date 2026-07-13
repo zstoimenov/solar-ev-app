@@ -160,6 +160,21 @@ before touching it — the scope limitation is load-bearing, not a footnote:
   the general-usage split in alongside the EV-session split rather than
   replacing it — they answer related but different questions.
 
+## Layer 3 is the lease-vs-loan advantage (since v1.13)
+
+The Jul-2026 Layer 3 re-audit rebased the figure: it is now the **after-tax
+advantage of the novated lease over a 7% private car loan** ($3,275/yr,
+$16,374 over the 5-year term — pre-tax packaging at the 32% marginal rate +
+GST credits outweigh the lease's 12.82% effective finance rate), not the old
+"novated lease tax saving" ($5,378/yr, May-2026 basis, superseded).
+`data/compute.js:layer3AnnualAud` reads the override from
+`config.lease.leaseVsLoanAdvantageAudPerYr` and **deliberately ignores** the
+legacy `config.lease.taxSavingAudPerYr` key — a pre-re-audit backup carrying
+$5,378 must not pin the dashboard to a figure the canonical audit replaced.
+Don't "fix" that by falling back to the legacy key. Layer 3 remains a fixed
+$/yr constant, never derived from energy data, and never summed into the
+accrued Layer 1+2 totals.
+
 ## Layer 2 charges the EV for home energy (since v1.10)
 
 `layer2SavingAud` = petrol counterfactual − paid public charging − **home

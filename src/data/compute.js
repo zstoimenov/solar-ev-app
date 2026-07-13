@@ -8,12 +8,18 @@
 const sum = (arr, key) =>
   arr.reduce((acc, d) => (d[key] == null ? acc : (acc ?? 0) + d[key]), null);
 
-// The fixed Layer 3 (novated lease tax saving) annual figure. Read from
-// config.lease.taxSavingAudPerYr when the backup carries it; the constant
-// fallback matches the household's current lease terms for older backups.
-const DEFAULT_LAYER3_ANNUAL_AUD = 5378;
+// The fixed Layer 3 annual figure: the after-tax advantage of the novated
+// lease over a private car loan (7% counterfactual), per the Jul-2026 Layer 3
+// re-audit — pre-tax packaging at the 32% marginal rate + GST credits
+// outweigh the lease's 12.82% effective finance rate. Read from
+// config.lease.leaseVsLoanAdvantageAudPerYr when the backup carries it.
+// The legacy config.lease.taxSavingAudPerYr key is deliberately NOT read:
+// it holds the superseded May-2026 "tax saving" figure ($5,378, computed on
+// a different basis), and honoring it would pin old backups to a number the
+// re-audit explicitly replaced.
+const DEFAULT_LAYER3_ANNUAL_AUD = 3275;
 export function layer3AnnualAud(config) {
-  return config?.lease?.taxSavingAudPerYr ?? DEFAULT_LAYER3_ANNUAL_AUD;
+  return config?.lease?.leaseVsLoanAdvantageAudPerYr ?? DEFAULT_LAYER3_ANNUAL_AUD;
 }
 
 const round = (n, dp = 2) =>
@@ -120,8 +126,11 @@ export function recomputeCumulative(digests, prevCumulative, config) {
     layer2SavingAud: layer2,
     combinedLayer12SavingAud:
       layer1 == null && layer2 == null ? null : round((layer1 ?? 0) + (layer2 ?? 0)),
-    layer3Note: prevCumulative?.financial?.layer3Note ??
-      `Layer 3 (novated lease tax saving) is time-based ($${layer3AnnualAud(config).toLocaleString('en-AU')}/yr fixed), not derived from energy data.`
+    // Regenerated on every recompute (no prevCumulative fallback): the note
+    // embeds the current dollar figure, so carrying a stale one forward would
+    // keep showing the superseded pre-re-audit value in exports.
+    layer3Note:
+      `Layer 3 (novated lease vs private loan advantage) is time-based ($${layer3AnnualAud(config).toLocaleString('en-AU')}/yr fixed), not derived from energy data.`
   };
 
   // Payback: component OOP + allocation order come from the stored/seed
