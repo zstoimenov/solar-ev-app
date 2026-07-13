@@ -34,7 +34,7 @@ npm run preview  # serve the production build locally
 ## What the app does
 
 - **First run** seeds from `public/seed-data_v1.json`, validates, and persists.
-- **Dashboards:** ROI Layers (1 solar+battery, 2 EV vs Cerato, 3 fixed lease tax),
+- **Dashboards:** ROI Layers (1 solar+battery, 2 EV vs Cerato, 3 lease vs loan),
   Payback Progress, Energy Trends, EV Charging Split, and a Data Notes panel.
 - **Monthly ingest:** upload Fronius + Wattpilot XLSX + Synergy CSV, enter
   away-charging, preview the computed month + updated totals, then confirm to

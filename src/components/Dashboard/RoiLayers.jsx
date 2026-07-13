@@ -2,7 +2,8 @@
 //  Layer 1: solar + battery (grid cost avoided + export credit) - accrued.
 //  Layer 2: EV vs Kia Cerato counterfactual - HEADLINE = accrued cumulative;
 //           the annual scope figure is shown only as a labelled sub-metric.
-//  Layer 3: novated lease tax saving - FIXED $/yr constant, never recomputed.
+//  Layer 3: novated lease vs private loan advantage (Jul-2026 re-audit) -
+//           FIXED $/yr constant, never recomputed from energy data.
 // Combined household benefit is shown as a breakdown, not a single blended number.
 
 import React from 'react';
@@ -66,12 +67,16 @@ export default function RoiLayers({ state }) {
           </InfoPopover>
         </div>
         <div className="metric">
-          <div className="label">Layer 3 — Lease tax saving</div>
+          <div className="label">Layer 3 — Lease vs loan</div>
           <div className="value blue nowrap">{money(layer3Annual)}/yr</div>
           <div className="sub">Fixed yearly amount, every year</div>
           <InfoPopover label="What Layer 3 means" className="metric-info">
-            The income-tax saving from paying for the EV lease out of pre-tax
-            salary (novated lease). This is a fixed yearly figure set by the
+            The after-tax advantage of financing the EV through the novated
+            lease instead of a private car loan at 7%. Paying the lease and
+            running costs from pre-tax salary (32% marginal rate) plus GST
+            credits outweighs the lease&apos;s higher effective finance rate
+            (12.82% effective p.a. vs the stated 9.39%) — worth about $16,374
+            over the 5-year term. This is a fixed yearly figure set by the
             lease terms, not something that changes with energy usage.
           </InfoPopover>
         </div>
@@ -81,8 +86,9 @@ export default function RoiLayers({ state }) {
         Combined household benefit for <span className="nowrap">{period}</span> (breakdown, not blended)
         <InfoPopover label="How these layers relate" className="section-info">
           Layers are kept separate to avoid double-counting: 1 &amp; 2 are
-          running totals from energy data; 3 is a fixed annual tax figure and
-          is not summed into the accrued total.
+          running totals from energy data; 3 is a fixed annual figure from
+          the lease-vs-loan comparison and is not summed into the accrued
+          total.
         </InfoPopover>
       </h3>
       <div className="table-scroll">
