@@ -255,6 +255,10 @@ table.digest th:first-child, table.digest td:first-child { text-align: left; }
    fixed columns forcing headers/values to wrap and overlap neighboring cells. */
 table.digest.table-nowrap { table-layout: auto; }
 .table-nowrap td, .table-nowrap th { white-space: nowrap; }
+/* Summary rows (12-Month Comparison's Total / Avg): set apart from the data
+   rows above them so a long column of numbers doesn't read as 14 equal rows. */
+table.digest tfoot td { font-weight: 600; border-bottom: none; }
+table.digest tfoot tr:first-child td { border-top: 2px solid var(--border); }
 /* Ingest preview: red/yellow/green severity per field, so an actual
    cross-validation problem stands out from the wall of numbers instead of
    reading the same as everything else. */
