@@ -1,12 +1,14 @@
 // ExportRestore - one-click full-store export (download + copy) with the
 // anti-truncation guard, paste/file restore with validation + confirm,
-// optional passphrase encryption (AES-GCM via data/crypto.js), and a
-// destructive "delete all data" reset.
+// optional passphrase encryption (AES-GCM via data/crypto.js), a device
+// storage-durability readout, and a destructive "delete all data" reset.
 
-import React, { useState } from 'react';
-import { getState, importState, parseBackup, setLastExportedCount, resetState, putState, SchemaError } from '../data/db.js';
+import React, { useState, useEffect } from 'react';
+import { getState, importState, parseBackup, recordExport, resetState, putState, SchemaError } from '../data/db.js';
 import { encryptJson, decryptJson, isEncryptedEnvelope } from '../data/crypto.js';
 import { recomputeCumulative, recomputeMeta } from '../data/compute.js';
+import { getStorageStatus, ensurePersisted, formatBytes, daysSince } from '../data/storage.js';
+import InfoPopover from './InfoPopover.jsx';
 
 function download(filename, text) {
   const blob = new Blob([text], { type: 'application/json' });
@@ -17,7 +19,10 @@ function download(filename, text) {
   URL.revokeObjectURL(url);
 }
 
-export default function ExportRestore({ state, lastExportedCount, onChange }) {
+export default function ExportRestore({ state, appMeta, onChange }) {
+  const lastExportedCount = appMeta?.lastExportedCount ?? null;
+  const lastExportedAt = appMeta?.lastExportedAt ?? null;
+  const [storage, setStorage] = useState(null);
   const [msg, setMsg] = useState(null);
   const [restoreText, setRestoreText] = useState('');
   const [encryptOn, setEncryptOn] = useState(false);
@@ -25,6 +30,27 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
   const [pendingEnvelope, setPendingEnvelope] = useState(null);
   const [restorePassphrase, setRestorePassphrase] = useState('');
   const [monthToDelete, setMonthToDelete] = useState('');
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const s = await getStorageStatus();
+      if (live) setStorage(s);
+    })();
+    return () => { live = false; };
+  }, []);
+
+  // Re-asks for the persistent bucket on an explicit user gesture. Chrome
+  // decides from its own heuristics either way, so this can legitimately be
+  // refused twice - the message says what actually shifts the heuristic
+  // rather than inviting the user to keep clicking.
+  async function handleRequestPersist() {
+    const mode = await ensurePersisted();
+    setStorage(await getStorageStatus());
+    setMsg(mode === 'persistent'
+      ? { type: 'ok', text: 'Storage is now persistent — the browser will not clear this data to reclaim space.' }
+      : { type: 'warn', text: 'The browser declined persistent storage. Install the app to your home screen (browser menu → "Install app"), then try again.' });
+  }
 
   async function handleExport() {
     if (encryptOn && !passphrase.trim()) {
@@ -55,7 +81,7 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
     const suffix = encryptOn ? '.encrypted' : '';
     download(`roi-backup_${current.meta?.dateRange?.last ?? 'export'}${suffix}.json`, json);
     try { await navigator.clipboard.writeText(json); } catch { /* clipboard optional */ }
-    await setLastExportedCount(count);
+    await recordExport(count);
     onChange?.();
     setMsg({
       type: 'ok',
@@ -155,10 +181,80 @@ export default function ExportRestore({ state, lastExportedCount, onChange }) {
     setMonthToDelete('');
   }
 
+  // A store written before `lastExportedAt` was tracked still has a count, so
+  // the two are reported independently rather than treating a missing date as
+  // "never backed up".
+  const backupAgeDays = daysSince(lastExportedAt);
+  let lastBackupText;
+  if (lastExportedAt) {
+    const ago = backupAgeDays === 0 ? 'today' : `${backupAgeDays} day${backupAgeDays === 1 ? '' : 's'} ago`;
+    lastBackupText = `${lastExportedAt.slice(0, 10)} (${ago}) · ${lastExportedCount} month${lastExportedCount === 1 ? '' : 's'}`;
+  } else if (lastExportedCount != null) {
+    lastBackupText = `${lastExportedCount} month${lastExportedCount === 1 ? '' : 's'} (date not recorded)`;
+  } else {
+    lastBackupText = 'Never exported from this browser';
+  }
+
   return (
     <div className="panel">
       <h2>Export / Restore</h2>
       {msg && <div className={`banner ${msg.type}`}>{msg.text}</div>}
+
+      <div className="field-section">
+        <h3>
+          Device storage
+          <InfoPopover label="About device storage">
+            <p>
+              This app stores everything in this browser's IndexedDB. By default that
+              sits in the browser's <em>best-effort</em> bucket, which Android may clear
+              when the device runs low on space — silently, with no warning and no error.
+              That is the most common way a populated app comes back empty.
+            </p>
+            <p>
+              Requesting <em>persistent</em> storage moves the data out of that automatic
+              eviction path. Chrome grants it from engagement heuristics, and the
+              strongest signal by far is the app being installed to the home screen.
+            </p>
+            <p>
+              Persistent storage still does not survive you clearing the browser's site
+              data, uninstalling the app, or switching to a different phone or browser —
+              so it reduces how often you need a backup, it never replaces one.
+            </p>
+          </InfoPopover>
+        </h3>
+        <p className="small">
+          Whether this browser is allowed to clear your data on its own.
+        </p>
+        <table className="digest">
+            <tbody>
+              <tr>
+                <th>Eviction protection</th>
+                <td>
+                  {storage == null && 'Checking…'}
+                  {storage?.mode === 'persistent' && 'Protected — will not be cleared automatically'}
+                  {storage?.mode === 'best-effort' && (
+                    <>
+                      <strong>At risk</strong> — may be cleared when storage runs low{' '}
+                      <button className="ghost" onClick={handleRequestPersist}>Request protection</button>
+                    </>
+                  )}
+                  {storage?.mode === 'unsupported' && 'Unknown — this browser does not report storage persistence'}
+                </td>
+              </tr>
+              <tr>
+                <th>Data stored</th>
+                <td>
+                  {formatBytes(storage?.usageBytes)}
+                  {storage?.quotaBytes != null && ` of ~${formatBytes(storage.quotaBytes)} available`}
+                </td>
+              </tr>
+              <tr>
+                <th>Last backup</th>
+                <td>{lastBackupText}</td>
+              </tr>
+            </tbody>
+        </table>
+      </div>
 
       <div className="field-section">
         <h3>Export (backup to Notion)</h3>

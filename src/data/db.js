@@ -10,7 +10,7 @@ const DB_NAME = 'roi-app';
 const DB_VERSION = 1;
 const STORE = 'state';
 const STATE_KEY = 'current';
-const META_KEY = 'appMeta'; // holds { lastExportedCount } - guard input
+const META_KEY = 'appMeta'; // holds { lastExportedCount, lastExportedAt } - guard input
 
 let _dbp = null;
 function db() {
@@ -39,13 +39,22 @@ export async function hasState() {
 }
 
 // --- Export guard bookkeeping (persisted in IndexedDB, not localStorage) ---
+// Spread over the defaults rather than returning the stored record directly,
+// so a record written before `lastExportedAt` existed reads back as null
+// (per the app's null convention) instead of undefined.
 export async function getAppMeta() {
-  return (await (await db()).get(STORE, META_KEY)) ?? { lastExportedCount: null };
+  const stored = await (await db()).get(STORE, META_KEY);
+  return { lastExportedCount: null, lastExportedAt: null, ...(stored ?? {}) };
 }
 
-export async function setLastExportedCount(count) {
+// Stamps both the month count (input to the anti-truncation guard) and the
+// time of the export (input to the stale-backup warning). Called only on a
+// completed export - never on a restore, which would falsely mark the store
+// as backed up.
+export async function recordExport(count) {
   const meta = await getAppMeta();
   meta.lastExportedCount = count;
+  meta.lastExportedAt = new Date().toISOString();
   await (await db()).put(STORE, meta, META_KEY);
   return meta;
 }

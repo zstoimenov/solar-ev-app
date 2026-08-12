@@ -36,7 +36,9 @@ recreating the repository (see git history around 2026-07 for the precedent).
 ```
 src/
   data/       schema.js (contract + validate()), db.js (IndexedDB, the ONLY
-              persistence layer), seed.js (first-run loader), compute.js
+              persistence layer), storage.js (browser storage DURABILITY -
+              persist()/estimate() + backup staleness, see below), seed.js
+              (first-run loader), compute.js
               (recompute cumulativeTotals from the digest array), tariffSchedule.js
               (resolve a dated rate schedule for a month + sum the charging log),
               evTimeOfUseSplit.js (bucket EV charging sessions into time-of-day
@@ -47,7 +49,8 @@ src/
               see "EV time-of-day data" below), buildDigest.js (merges parsed +
               manual input into one monthlyDigests entry + computes the financial
               layers)
-  components/ HealthBanner, DataNotes, Collapsible, Modal, ExportRestore,
+  components/ HealthBanner, StorageHealth, DataNotes, Collapsible, Modal,
+              ExportRestore,
               IngestWizard (+ Ingest/{TariffScheduleEditor,ChargingLogEditor,
               TariffPlanEditor,EvSessionsUploader} - a 2-level nav of nested
               sub-tabs, not top-level tabs: see "Ingest tab navigation" below),
@@ -222,6 +225,51 @@ Self-corrects to a no-op (`paybackPreTracking: null`) once ingested data
 actually reaches back to `installDate`, since the gap is recomputed live
 from the current earliest digest every time, never stored as a fixed
 snapshot.
+
+## Storage durability (since v1.14)
+
+A populated store came back **empty** on the user's phone with no user action
+— the browser had evicted it. IndexedDB defaults to the *best-effort* bucket,
+which Android Chrome may clear under storage pressure (and which OEM storage
+cleaners wipe outright), silently and without an error. `data/storage.js`
+addresses that:
+
+- `ensurePersisted()` requests the *persistent* bucket via
+  `navigator.storage.persist()`. It is fired **automatically** on mount by
+  `components/StorageHealth.jsx` — Chrome grants or refuses it silently from
+  engagement heuristics with **no prompt**, so there is nothing to ask the
+  user first (Firefox does prompt). Only the refusal is surfaced. The
+  strongest heuristic by far is the PWA being installed, which is why
+  StorageHealth captures `beforeinstallprompt` and offers an Install button
+  next to the warning, then re-asks immediately after an install.
+- `backupStaleness()` is the **mirror image** of `HealthBanner`'s existing
+  guard. HealthBanner catches the store having *fewer* months than the last
+  export (data lost); this catches it having *more* (new months never backed
+  up). Don't merge the two — they're different failures with different fixes.
+- `db.js:recordExport()` (renamed from `setLastExportedCount`) stamps
+  `lastExportedAt` alongside the count. Call it **only on a completed
+  export** — calling it on restore would falsely mark the store as backed up.
+  `getAppMeta()` spreads over `{lastExportedCount: null, lastExportedAt:
+  null}` so pre-v1.14 records read back as `null`, not `undefined`.
+
+Persistent storage is **not** a backup. It does not survive clearing site
+data, uninstalling, or moving to another phone/browser — it only removes the
+*automatic* eviction path. The export flow remains the real durability story,
+which is why the stale-backup nag exists at all.
+
+**Related, not yet fixed:** `vite.config.js`'s `BASE` puts the app on
+`zstoimenov.github.io/solar-ev-app/`. Storage quota and eviction are
+per-**origin**, so every project on that github.io host shares one quota
+bucket and one "clear site data" action. A custom domain (the user has
+Cloudflare Pages available) would give the app its own origin. Deliberately
+not done yet — it needs a domain decision and a data migration, since moving
+origin leaves the old IndexedDB behind (export first, restore after).
+
+Cloud sync was explicitly **considered and declined** (2026-08) in favour of
+local hardening. If it's ever revisited: the bundle is public, so it can
+never carry an API token; encrypt client-side with the existing
+`data/crypto.js` so the backend only ever holds ciphertext, and gate access
+with a real identity login rather than a bundled secret.
 
 ## Null convention
 

@@ -4,6 +4,7 @@ import { getState, getAppMeta } from './data/db.js';
 import { recomputeCumulative } from './data/compute.js';
 import { APP_VERSION } from './version.js';
 import HealthBanner from './components/HealthBanner.jsx';
+import StorageHealth from './components/StorageHealth.jsx';
 import DataNotes from './components/DataNotes.jsx';
 import Collapsible from './components/Collapsible.jsx';
 import Modal from './components/Modal.jsx';
@@ -143,7 +144,8 @@ export default function App() {
           personal data. Paste your private JSON backup below to load your dataset —
           it is then stored only in this browser (IndexedDB) and never uploaded.
         </div>
-        <ExportRestore state={state} lastExportedCount={appMeta.lastExportedCount} onChange={refresh} />
+        <StorageHealth state={state} appMeta={appMeta} onBackup={() => {}} />
+        <ExportRestore state={state} appMeta={appMeta} onChange={refresh} />
         <div className="bottom-bar"><span className="sub">{APP_VERSION}</span></div>
       </div>
     );
@@ -161,6 +163,8 @@ export default function App() {
         lastExportedCount={appMeta.lastExportedCount}
         onRestore={() => setTab('Backup')}
       />
+
+      <StorageHealth state={state} appMeta={appMeta} onBackup={() => setTab('Backup')} />
 
       {tab === 'Dashboard' && (
         <>
@@ -209,7 +213,7 @@ export default function App() {
       )}
 
       {tab === 'Backup' && (
-        <ExportRestore state={state} lastExportedCount={appMeta.lastExportedCount} onChange={refresh} />
+        <ExportRestore state={state} appMeta={appMeta} onChange={refresh} />
       )}
 
       <div className="bottom-bar">
