@@ -47,6 +47,15 @@ export function PlugIcon(props) {
   );
 }
 
+export function TableIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 9h18M9 9v11M15 9v11" />
+    </svg>
+  );
+}
+
 export function ScaleIcon(props) {
   return (
     <svg {...common} {...props}>

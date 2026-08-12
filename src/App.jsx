@@ -11,16 +11,17 @@ import Modal from './components/Modal.jsx';
 import RoiLayers from './components/Dashboard/RoiLayers.jsx';
 import PaybackProgress from './components/Dashboard/PaybackProgress.jsx';
 import EnergyTrends from './components/Dashboard/EnergyTrends.jsx';
+import MonthlyComparison from './components/Dashboard/MonthlyComparison.jsx';
 import EvChargingSplit from './components/Dashboard/EvChargingSplit.jsx';
 import PlanComparison from './components/Dashboard/PlanComparison.jsx';
 import DateRangeFilter from './components/Dashboard/DateRangeFilter.jsx';
-import { LayersIcon, TargetIcon, TrendIcon, PlugIcon, ScaleIcon } from './components/Dashboard/icons.jsx';
+import { LayersIcon, TargetIcon, TrendIcon, TableIcon, PlugIcon, ScaleIcon } from './components/Dashboard/icons.jsx';
 import { filterSessionsByMonthRange } from './data/evTimeOfUseSplit.js';
 import IngestWizard from './components/IngestWizard.jsx';
 import ExportRestore from './components/ExportRestore.jsx';
 
 const TABS = ['Dashboard', 'Ingest', 'Backup'];
-const PANEL_KEYS = ['roi', 'payback', 'energy', 'ev', 'planComparison'];
+const PANEL_KEYS = ['roi', 'payback', 'energy', 'monthlyComparison', 'ev', 'planComparison'];
 
 // Once there's more than this many months of data, the dashboard defaults to
 // showing only the most recent window (still overridable via the date range
@@ -65,7 +66,7 @@ export default function App() {
   const [tab, setTab] = useState('Dashboard');
   const [notesOpen, setNotesOpen] = useState(false);
   const [panelsOpen, setPanelsOpen] = useState({
-    roi: false, payback: false, energy: false, ev: false, planComparison: false
+    roi: false, payback: false, energy: false, monthlyComparison: false, ev: false, planComparison: false
   });
   const [fromMonth, setFromMonth] = useState(null);
   const [toMonth, setToMonth] = useState(null);
@@ -188,6 +189,14 @@ export default function App() {
           </Collapsible>
           <Collapsible title="Energy Trends" icon={<TrendIcon />} open={panelsOpen.energy} onToggle={() => togglePanel('energy')}>
             <EnergyTrends state={filteredState} />
+          </Collapsible>
+          <Collapsible
+            title="12-Month Comparison"
+            icon={<TableIcon />}
+            open={panelsOpen.monthlyComparison}
+            onToggle={() => togglePanel('monthlyComparison')}
+          >
+            <MonthlyComparison state={filteredState} />
           </Collapsible>
           <Collapsible title="EV Charging Split" icon={<PlugIcon />} open={panelsOpen.ev} onToggle={() => togglePanel('ev')}>
             <EvChargingSplit state={filteredState} />

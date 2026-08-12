@@ -54,8 +54,8 @@ src/
               IngestWizard (+ Ingest/{TariffScheduleEditor,ChargingLogEditor,
               TariffPlanEditor,EvSessionsUploader} - a 2-level nav of nested
               sub-tabs, not top-level tabs: see "Ingest tab navigation" below),
-              Dashboard/{RoiLayers,PaybackProgress,EnergyTrends,EvChargingSplit,
-              PlanComparison}
+              Dashboard/{RoiLayers,PaybackProgress,EnergyTrends,MonthlyComparison,
+              EvChargingSplit,PlanComparison}
   version.js  APP_VERSION shown in the header - bump on every change (see below)
 ```
 
@@ -293,6 +293,16 @@ new features or field changes, major only for a `schemaVersion` bump.
   panels should follow the same pattern: the panel component itself renders
   only its *content* (no outer `.panel`/`<h2>` — `Collapsible` supplies
   both), and `App.jsx` wraps it with a title.
+- **The 12-Month Comparison tile** (`Dashboard/MonthlyComparison.jsx`) is the
+  one deliberately *tabular* dashboard panel — exact per-month numbers for the
+  four headline flows (solar production / export / grid import / EV-from-solar),
+  where Energy Trends answers the shape-over-time question. It renders the last
+  12 months of whatever range `App.jsx` passes it, so the date filter still
+  applies. Its column headers are terse (`Import`, `EV solar`, `Avg/mo`, short
+  `Jul '25` row labels) purely so all five columns clear 412px without a
+  sideways swipe — the long-form wording lives in its `InfoPopover`. If you add
+  a column, re-check that width before merging; the fallback is a horizontal
+  scroll, which hides the rightmost metric by default.
 - `table.digest` is a generic key/value or small tabular table style. It
   wraps by default (`table-layout: fixed`) so long labels don't force a
   scroll on narrow screens. If a table specifically benefits from staying on
