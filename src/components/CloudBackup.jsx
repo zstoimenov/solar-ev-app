@@ -13,7 +13,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   getUser, onAuthChange, sendSignInLink, completeSignInFromLink, signOut,
   listSnapshots, uploadSnapshot, fetchSnapshot, deleteSnapshot, pruneSnapshots,
-  SNAPSHOTS_KEPT
+  SNAPSHOTS_KEPT, MAX_UPLOAD_BYTES
 } from '../data/cloud.js';
 import { cloudEnabled } from '../data/supabaseConfig.js';
 import { encryptJson, decryptJson } from '../data/crypto.js';
@@ -43,6 +43,7 @@ export default function CloudBackup({ state, onChange }) {
   const [pastedLink, setPastedLink] = useState('');
 
   const [passphrase, setPassphrase] = useState('');
+  const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [snapshots, setSnapshots] = useState([]);
 
   const refreshSnapshots = useCallback(async () => {
@@ -103,11 +104,19 @@ export default function CloudBackup({ state, onChange }) {
   const handleSignOut = () => run(async () => {
     await signOut();
     setPassphrase('');
+    setConfirmPassphrase('');
     setMsg({ type: 'ok', text: 'Signed out. Your local data is untouched.' });
   });
 
   const handleUpload = () => run(async () => {
     if (!passphrase.trim()) throw new Error('Enter a passphrase - cloud backups are always encrypted.');
+    // A mistyped passphrase produces a perfectly valid backup that nothing
+    // can ever open, and you find out on the day you need it - by which
+    // point the phone it came from may be gone. Cheap to prevent, so the
+    // confirmation is required rather than advisory.
+    if (passphrase !== confirmPassphrase) {
+      throw new Error('The two passphrases do not match.');
+    }
     const current = await getState();
     const count = current.monthlyDigests.length;
     if (count === 0) throw new Error('There is nothing to back up yet.');
@@ -130,6 +139,17 @@ export default function CloudBackup({ state, onChange }) {
       meta: { ...current.meta, exportedAt: new Date().toISOString(), monthCount: count }
     };
     const envelope = await encryptJson(stamped, passphrase);
+
+    // Caught here with a readable message rather than as an opaque database
+    // constraint error after a long upload on a phone connection.
+    const bytes = new Blob([JSON.stringify(envelope)]).size;
+    if (bytes > MAX_UPLOAD_BYTES) {
+      throw new Error(
+        `This backup is ${(bytes / 1048576).toFixed(1)} MB, over the ${MAX_UPLOAD_BYTES / 1048576} MB ` +
+        `cloud limit. Export it to a file instead.`
+      );
+    }
+
     await uploadSnapshot(envelope, {
       monthCount: count,
       firstMonth: current.meta?.dateRange?.first ?? null,
@@ -284,6 +304,20 @@ export default function CloudBackup({ state, onChange }) {
             <span className="hint">
               Used to encrypt an upload and to decrypt a restore. Not your account login —
               if it is lost, the cloud backups are unrecoverable.
+            </span>
+          </label>
+
+          <label className="field">
+            <span>Confirm passphrase</span>
+            <input
+              type="password"
+              value={confirmPassphrase}
+              onChange={(e) => setConfirmPassphrase(e.target.value)}
+              placeholder="Type it again"
+              autoComplete="off"
+            />
+            <span className="hint">
+              Checked on upload only — a restore just needs the field above.
             </span>
           </label>
 

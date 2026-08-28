@@ -291,6 +291,16 @@ that matter for future changes:
   app start — only when the user presses the button. An unattended upload of
   a half-restored store is exactly the failure the export truncation guards
   exist to prevent, so don't "helpfully" wire an autosave in.
+- **The passphrase is now the whole defence, so the KDF was re-costed.**
+  `crypto.js` moved from 150k to 600k PBKDF2 iterations in v1.16.1 (the
+  current OWASP figure). While an encrypted export only sat in the user's
+  own Downloads folder, iteration count mattered against a stolen laptop;
+  once a copy is hosted, a database breach hands an attacker the ciphertext
+  to grind offline. Envelopes are versioned (`v: 2`) and carry their own
+  `iterations`, so pre-v1.16.1 backups still open - `decryptJson()` falls
+  back to 150k when the field is absent. Don't drop that fallback, and keep
+  the `MAX_PBKDF2_ITERATIONS` clamp: without it a hostile backup file could
+  name a billion iterations and hang the tab of whoever opens it.
 - **Ciphertext only, enforced twice.** `uploadSnapshot()` throws unless the
   payload passes `isEncryptedEnvelope()`, and the `backups` table carries a
   matching CHECK constraint server-side. A cloud backup therefore *always*
@@ -309,6 +319,12 @@ that matter for future changes:
   `to authenticated` and keyed on `auth.uid()`, verified by simulating the
   `anon` and JWT-less `authenticated` roles (both denied read and write).
   A service-role key would be a secret and must never appear here.
+- **Least privilege on the table, not just RLS.** Supabase grants anon and
+  authenticated every privilege on a new table by default and leans entirely
+  on RLS. `anon` now holds none, and `authenticated` exactly SELECT/INSERT/
+  DELETE. TRUNCATE matters most of those: row-level security does not apply
+  to TRUNCATE at all, so the grant would have been the only thing in the way
+  if it were ever reachable. Re-granting to widen this needs a reason.
 - **Snapshots are append-only**, keeping the most recent
   `SNAPSHOTS_KEPT` (10) and pruning after — never before — a successful
   upload. One-row-per-user would reintroduce the truncated-backup overwrite
@@ -337,6 +353,24 @@ Redirect URLs must be allow-listed in Supabase (Authentication → URL
 Configuration) or the emailed link bounces to the project's Site URL; the
 README lists the two this app needs. That is dashboard state, not code, so
 it does not travel with a fork.
+
+**Two risks that live outside this repo and cannot be fixed from it:**
+
+1. **Open sign-up.** `sendSignInLink()` uses the default
+   `shouldCreateUser: true`, which it must until the household's own account
+   exists - there was no user at all when this shipped. Until sign-ups are
+   turned off in the dashboard, anyone who reads the public bundle can
+   create an account on the project and store rows in `backups`. RLS keeps
+   them out of the household's data; it does not stop them using the
+   project's storage or email quota.
+2. **The shared `github.io` origin, which is now worse than the v1.14 note
+   says.** Storage is per-origin, so every project published under
+   `zstoimenov.github.io` shares one IndexedDB namespace. That already meant
+   another page on that host could read the household's data; since v1.16 it
+   can also read the Supabase session token out of `authStorage` and delete
+   every cloud snapshot (encryption protects confidentiality, not
+   availability). The custom-domain migration the v1.14 note calls
+   "deliberately not done yet" is now a security fix, not just hygiene.
 
 ## Null convention
 

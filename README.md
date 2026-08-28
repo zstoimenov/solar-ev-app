@@ -69,6 +69,10 @@ covers that gap.
   so the restore list can be shown before anything is decrypted.
 - Sign-in is a Supabase emailed magic link. The most recent 10 snapshots are
   kept; older ones are pruned after each upload.
+- Encryption is AES-GCM-256 with a 600,000-iteration PBKDF2-SHA256 key. Your
+  passphrase is the only thing protecting a hosted copy, so make it a long
+  one — and keep the local JSON export as well, since anyone who gets hold of
+  your session can delete cloud snapshots even though they cannot read them.
 - Schema and policies: [`supabase/migrations/`](./supabase/migrations).
 
 **One-time Supabase setup** (already done for the project this repo points at —
@@ -81,6 +85,10 @@ needed only for a fork, or if the app URL changes). In the Supabase dashboard:
 3. Apply the SQL in `supabase/migrations/` in filename order.
 4. Point the app at the project by editing `src/data/supabaseConfig.js`, or by
    setting `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` at build time.
+5. **After your first successful sign-in**, turn off **Authentication →
+   Sign-Ups → Allow new users to sign up**. Until you do, anyone reading the
+   public bundle can create an account on the project. They cannot reach your
+   data (row-level security), but they can consume its storage and email quota.
 
 If the emailed link opens in a different browser than the installed PWA (common
 on Android), copy the link out of the email and paste it into the box the app

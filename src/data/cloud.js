@@ -34,6 +34,9 @@ import { authStorage } from './db.js';
 import { isEncryptedEnvelope } from './crypto.js';
 
 const SNAPSHOTS_KEPT = 10;
+// Mirrors the table's own size constraint, so the client can refuse an
+// oversized payload with a readable message instead of a constraint error.
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 let _client = null;
 
@@ -221,4 +224,4 @@ export async function pruneSnapshots(keep = SNAPSHOTS_KEPT) {
   return surplus.length;
 }
 
-export { SNAPSHOTS_KEPT };
+export { SNAPSHOTS_KEPT, MAX_UPLOAD_BYTES };
