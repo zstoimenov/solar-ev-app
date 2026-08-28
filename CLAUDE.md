@@ -5,9 +5,12 @@ back up. Read this before making changes.
 
 ## What this is
 
-A **local-only** PWA that tracks a Perth household's solar/battery/EV ROI.
+A **local-first** PWA that tracks a Perth household's solar/battery/EV ROI.
 Vite + React (JS, no TypeScript). Deployed to GitHub Pages via GitHub Actions.
-No backend, no auth, no server — all data lives in the browser's IndexedDB.
+All data lives in the browser's IndexedDB and is computed there; the only
+server anywhere near it is the opt-in encrypted backup slot added in v1.16
+(see "Encrypted cloud backup" below), which holds ciphertext and nothing
+else.
 
 Full data contract: [`app-schema_v1.md`](./app-schema_v1.md). Read it before
 touching anything under `src/data/` or `src/ingest/`.
@@ -42,7 +45,9 @@ src/
               (recompute cumulativeTotals from the digest array), tariffSchedule.js
               (resolve a dated rate schedule for a month + sum the charging log),
               evTimeOfUseSplit.js (bucket EV charging sessions into time-of-day
-              bands for Dashboard/PlanComparison.jsx)
+              bands for Dashboard/PlanComparison.jsx), crypto.js (AES-GCM
+              passphrase encryption for backups), cloud.js + supabaseConfig.js
+              (the opt-in encrypted cloud backup - see below)
   ingest/     parseFronius.js, parseWattpilot.js, parseSynergy.js (client-side
               XLSX/CSV parsing), parseWattpilotSessions.js (the Wattpilot MOBILE
               APP's charging-session JSON - different file, different granularity,
@@ -50,13 +55,17 @@ src/
               manual input into one monthlyDigests entry + computes the financial
               layers)
   components/ HealthBanner, StorageHealth, DataNotes, Collapsible, Modal,
-              ExportRestore,
+              ExportRestore, CloudBackup (lazy-loaded by ExportRestore),
               IngestWizard (+ Ingest/{TariffScheduleEditor,ChargingLogEditor,
               TariffPlanEditor,EvSessionsUploader} - a 2-level nav of nested
               sub-tabs, not top-level tabs: see "Ingest tab navigation" below),
               Dashboard/{RoiLayers,PaybackProgress,EnergyTrends,MonthlyComparison,
               EvChargingSplit,PlanComparison}
   version.js  APP_VERSION shown in the header - bump on every change (see below)
+supabase/
+  migrations/ SQL of record for the cloud-backup table + RLS policies. Applied
+              to the live project already; kept here so the schema is
+              reviewable and a fork can recreate it.
 ```
 
 State shape: one JS object per `app-schema_v1.md`, validated by
@@ -265,11 +274,69 @@ Cloudflare Pages available) would give the app its own origin. Deliberately
 not done yet — it needs a domain decision and a data migration, since moving
 origin leaves the old IndexedDB behind (export first, restore after).
 
-Cloud sync was explicitly **considered and declined** (2026-08) in favour of
-local hardening. If it's ever revisited: the bundle is public, so it can
-never carry an API token; encrypt client-side with the existing
-`data/crypto.js` so the backend only ever holds ciphertext, and gate access
-with a real identity login rather than a bundled secret.
+Cloud *sync* is still declined. What shipped in v1.16 instead is cloud
+**backup** — see the next section.
+
+## Encrypted cloud backup (since v1.16)
+
+The v1.14 note above declined cloud sync in favour of local hardening, and
+set the conditions for revisiting it: the public bundle can never carry an
+API token, the backend must only ever hold ciphertext, and access must be
+gated by a real identity login. v1.16 revisits it **only as backup**, under
+exactly those conditions. `data/cloud.js` has the full reasoning; the parts
+that matter for future changes:
+
+- **This is not sync, and must not quietly become sync.** IndexedDB stays
+  the single source of truth. Nothing uploads on a timer, on an edit, or on
+  app start — only when the user presses the button. An unattended upload of
+  a half-restored store is exactly the failure the export truncation guards
+  exist to prevent, so don't "helpfully" wire an autosave in.
+- **Ciphertext only, enforced twice.** `uploadSnapshot()` throws unless the
+  payload passes `isEncryptedEnvelope()`, and the `backups` table carries a
+  matching CHECK constraint server-side. A cloud backup therefore *always*
+  needs a passphrase — unlike the local export, where encryption is a
+  checkbox. Don't add an "unencrypted, just this once" path; that would put
+  household financial data on someone else's disk in the clear.
+  The constraint went through two corrections worth remembering: matching
+  the literal text `"encrypted":true` depended on `JSON.stringify` key
+  order, and the structural replacement was initially **NULL-unsafe** — a
+  CHECK passes when its expression is NULL, so a plaintext object with no
+  `encrypted` key sailed through until the whole expression was wrapped in
+  `coalesce(..., false)`. Both are in `supabase/migrations/`.
+- **The publishable key in `data/supabaseConfig.js` is committed on
+  purpose** and is not the "API token" the v1.14 note rules out. It
+  identifies the project and grants nothing; the `backups` policies are
+  `to authenticated` and keyed on `auth.uid()`, verified by simulating the
+  `anon` and JWT-less `authenticated` roles (both denied read and write).
+  A service-role key would be a secret and must never appear here.
+- **Snapshots are append-only**, keeping the most recent
+  `SNAPSHOTS_KEPT` (10) and pruning after — never before — a successful
+  upload. One-row-per-user would reintroduce the truncated-backup overwrite
+  the local export guard exists to catch. The upload path applies the same
+  truncation warning against the newest cloud snapshot.
+- **A completed upload calls `recordExport()`**, so it satisfies the
+  stale-backup nag exactly as a downloaded export does. That is the intended
+  reading of the v1.14 rule ("only on a completed export") — a cloud backup
+  is a completed backup. A *restore* still must not call it.
+- **Auth is the implicit flow, not PKCE**, and that is deliberate: PKCE
+  needs the emailed link opened in the browser context that requested it,
+  which an installed PWA on Android cannot guarantee. The implicit flow lets
+  `completeSignInFromLink()` finish sign-in from a link the user pastes back
+  into the app. Keep that paste path if you touch auth — on the phone it is
+  the path that actually works.
+- The session lives in IndexedDB via `db.js:authStorage`, not localStorage,
+  to keep the "IndexedDB only" rule intact. `resetState()` deliberately does
+  **not** clear it: "delete all my data" means the household's numbers, not
+  a silent sign-out.
+- `CloudBackup.jsx` is loaded with `React.lazy` from `ExportRestore.jsx`.
+  The Supabase client is ~230 KB — a third of the bundle — for a screen most
+  visits never open, so keep it behind the split rather than importing
+  `data/cloud.js` from anything that loads eagerly.
+
+Redirect URLs must be allow-listed in Supabase (Authentication → URL
+Configuration) or the emailed link bounces to the project's Site URL; the
+README lists the two this app needs. That is dashboard state, not code, so
+it does not travel with a fork.
 
 ## Null convention
 

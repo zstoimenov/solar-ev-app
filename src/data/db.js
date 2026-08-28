@@ -11,6 +11,7 @@ const DB_VERSION = 1;
 const STORE = 'state';
 const STATE_KEY = 'current';
 const META_KEY = 'appMeta'; // holds { lastExportedCount, lastExportedAt } - guard input
+const AUTH_PREFIX = 'auth:'; // supabase-js session records (see authStorage below)
 
 let _dbp = null;
 function db() {
@@ -95,6 +96,29 @@ export async function resetState() {
   await (await db()).delete(STORE, META_KEY);
   return empty;
 }
+
+// --- Cloud sign-in session storage ---
+// supabase-js keeps its session in localStorage by default. This module is
+// the app's only persistence layer, and the brief rules out
+// localStorage/sessionStorage, so the client is handed this adapter instead
+// and the session lives in the same IndexedDB store as everything else
+// (namespaced by AUTH_PREFIX so it can never collide with STATE_KEY or
+// META_KEY). GoTrue accepts an async adapter, so the promises are fine.
+//
+// Note this is a session, not app data: resetState() deliberately does NOT
+// clear it - "delete all my data" is about the household's numbers, not
+// about silently signing you out of the account holding the cloud backups.
+export const authStorage = {
+  async getItem(key) {
+    return (await (await db()).get(STORE, AUTH_PREFIX + key)) ?? null;
+  },
+  async setItem(key, value) {
+    await (await db()).put(STORE, value, AUTH_PREFIX + key);
+  },
+  async removeItem(key) {
+    await (await db()).delete(STORE, AUTH_PREFIX + key);
+  }
+};
 
 // Parse a JSON string into an object, surfacing a clean SchemaError on
 // malformed JSON so callers can show one consistent message.

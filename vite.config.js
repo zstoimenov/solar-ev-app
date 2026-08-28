@@ -29,7 +29,9 @@ export default defineConfig({
       },
       workbox: {
         // Offline app shell only. No data is precached beyond the shell +
-        // the shipped seed file; the app never makes data network calls.
+        // the shipped seed file, and no runtime caching is configured: the
+        // one network call the app makes (the optional cloud backup, to the
+        // Supabase origin) must always hit the network, never a stale copy.
         globPatterns: ['**/*.{js,css,html,png,svg,json,webmanifest}'],
         navigateFallback: `${BASE}index.html`
       }

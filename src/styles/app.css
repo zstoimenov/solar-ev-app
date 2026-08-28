@@ -184,6 +184,9 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .field-section { padding-top: 1rem; margin-top: 1rem; border-top: 1px solid var(--border); }
 .field-section:first-of-type { padding-top: 0; margin-top: .75rem; border-top: none; }
 .field-section h3 { margin-top: 0; }
+/* One step quieter than h3, for a sub-heading inside a section (e.g. the
+   Backup tab's cloud snapshot list) without opening a new .field-section. */
+.field-section h4 { margin: 0 0 .4rem; font-size: .85rem; color: var(--muted); }
 
 /* Sub-navigation within a tab (e.g. Ingest: Monthly Upload / Tariffs & Rates /
    EV Charging Data) - distinct from the top-level hamburger menu, but the
@@ -234,7 +237,8 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .tile-footnote { display: flex; justify-content: flex-end; margin-top: .4rem; }
 
 textarea { width: 100%; min-height: 140px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .6rem; font-family: ui-monospace, monospace; font-size: .8rem; }
-input[type="text"], input[type="number"], input[type="file"], input[type="date"], input[type="time"], select {
+input[type="text"], input[type="number"], input[type="file"], input[type="date"], input[type="time"],
+input[type="password"], input[type="email"], select {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
   border-radius: 8px; padding: .45rem .6rem; font-size: .9rem; max-width: 100%;
 }

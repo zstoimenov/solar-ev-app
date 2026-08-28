@@ -1,14 +1,21 @@
 // ExportRestore - one-click full-store export (download + copy) with the
 // anti-truncation guard, paste/file restore with validation + confirm,
 // optional passphrase encryption (AES-GCM via data/crypto.js), a device
-// storage-durability readout, and a destructive "delete all data" reset.
+// storage-durability readout, the optional encrypted cloud backup
+// (CloudBackup.jsx), and a destructive "delete all data" reset.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { getState, importState, parseBackup, recordExport, resetState, putState, SchemaError } from '../data/db.js';
 import { encryptJson, decryptJson, isEncryptedEnvelope } from '../data/crypto.js';
 import { recomputeCumulative, recomputeMeta } from '../data/compute.js';
 import { getStorageStatus, ensurePersisted, formatBytes, daysSince } from '../data/storage.js';
 import InfoPopover from './InfoPopover.jsx';
+
+// Lazily loaded: CloudBackup pulls in the Supabase client, which is ~230 KB
+// of the bundle on its own. Statically imported it would be paid on every
+// cold start of the app, including the offline dashboard-only visits that
+// are the common case, for a feature reached only by opening this tab.
+const CloudBackup = lazy(() => import('./CloudBackup.jsx'));
 
 function download(filename, text) {
   const blob = new Blob([text], { type: 'application/json' });
@@ -284,6 +291,10 @@ export default function ExportRestore({ state, appMeta, onChange }) {
           </span>
         </div>
       </div>
+
+      <Suspense fallback={<div className="field-section"><h3>Cloud backup</h3><p className="small">Loading…</p></div>}>
+        <CloudBackup state={state} onChange={onChange} />
+      </Suspense>
 
       <div className="field-section">
         <h3>Restore (paste or file)</h3>
