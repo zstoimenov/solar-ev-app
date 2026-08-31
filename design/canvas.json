@@ -2,7 +2,7 @@
   "artboards": [
     { "file": "Main.dc.html", "x": 0, "y": 0, "w": 412, "h": 915, "title": "New UI - clickable", "is_interactive": true },
     { "file": "Before.dc.html", "x": 532, "y": 0, "w": 412, "h": 915, "title": "Today's app (v1.15)" },
-    { "file": "DataModel.dc.html", "x": 1064, "y": 0, "w": 900, "h": 1560, "title": "The data rethink" }
+    { "file": "DataModel.dc.html", "x": 1064, "y": 0, "w": 900, "h": 1620, "title": "The data rethink" }
   ],
   "annotations": [
     { "id": "n-main", "x": 0, "y": -132, "w": 412, "text": "Tap the bottom bar. Five screens replace six collapsed panels: Today answers 'how am I doing' before you touch anything.\n\nNumbers are plausible samples, not the real household data." },

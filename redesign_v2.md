@@ -43,7 +43,9 @@ data model.
 `ingest/parseFronius.js` reads the Fronius "Energy balance total" export, which
 is **one row per day** — production, consumption, energy to grid, energy from
 grid. It sums the columns, derives `zeroProductionDays`, and discards every
-row. `ingest/parseWattpilot.js` does the same to daily EV charging.
+row. `ingest/parseWattpilot.js` does the same to daily EV charging, which it
+reads **split by source** (PV / battery / grid), keeping only the month's
+totals and `evGridChargingDays`.
 
 That is roughly 300 numbers per month parsed and dropped; on the order of
 9,000 across the tracked period. No new file, no new upload step, no new
@@ -55,7 +57,8 @@ New optional top-level array, one entry per day:
 
 ```
 { date: "2026-08-15",      // YYYY-MM-DD
-  solarKwh, consumptionKwh, gridImportKwh, gridExportKwh, evChargedKwh }
+  solarKwh, consumptionKwh, gridImportKwh, gridExportKwh,
+  evPvKwh, evBatteryKwh, evGridKwh }
 ```
 
 Properties that keep it safe:
@@ -68,6 +71,9 @@ Properties that keep it safe:
   this change, so no re-audit is triggered.
 - **Null convention preserved.** A day the file does not cover is absent, not
   a row of zeros. A zero-production day is a real `0`.
+- **Keeps the source split.** The EV columns are per-source in the file, so
+  they stay per-source here — flattening them to one `evChargedKwh` would
+  throw away the very thing that makes the daily rows worth keeping.
 - **Cheap.** ~365 rows/year, ~11,000 over a decade. Trivial for IndexedDB and
   it round-trips through the existing export/restore untouched.
 - **Backfillable.** Re-uploading an old month's original XLSX fills that

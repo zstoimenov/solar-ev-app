@@ -53,7 +53,7 @@
       </span>
       <div style="flex: 1 1 auto;">
         <div style="font-size: 1.05rem; font-weight: 700; color: #fde68a;">Thrown away on every upload</div>
-        <p style="margin: 0.35rem 0 0.9rem; font-size: 0.88rem; color: #fde68a; opacity: 0.9; max-width: 74ch; text-wrap: pretty;">Both monthly exports are already one row per day. <code>parseFronius.js</code> and <code>parseWattpilot.js</code> sum the columns, keep the totals plus a zero-production day count, and discard every daily row. That is roughly 300 numbers a month, about 9,000 across the tracked period, read and dropped.</p>
+        <p style="margin: 0.35rem 0 0.9rem; font-size: 0.88rem; color: #fde68a; opacity: 0.9; max-width: 74ch; text-wrap: pretty;">Both monthly exports are already one row per day. <code>parseFronius.js</code> and <code>parseWattpilot.js</code> sum the columns, keep the totals plus one derived day count each, and discard every daily row. That is roughly 300 numbers a month, about 9,000 across the tracked period, read and dropped.</p>
         <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem;">
           <div style="background: rgba(0,0,0,0.22); border-radius: 10px; padding: 0.7rem 0.85rem;">
             <div style="font-size: 0.78rem; font-weight: 600; color: #fde68a;">Fronius &ldquo;Energy balance total&rdquo;</div>
@@ -78,7 +78,9 @@
   consumptionKwh: 18.1,
   gridImportKwh: 4.2,
   gridExportKwh: 15.5,
-  evChargedKwh: 11.0 }</div>
+  evPvKwh: 8.1,
+  evBatteryKwh: 2.9,
+  evGridKwh: 0.0 }</div>
       <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.9rem;">
         <div style="display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.82rem;">
           <span style="flex: 0 0 auto; color: #34d399; margin-top: 2px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"></polyline></svg></span>
@@ -168,7 +170,7 @@
 </div>
 </x-dc>
 
-<script data-dc-script data-props='{"$preview":{"width":900,"height":1560}}'>
+<script data-dc-script data-props='{"$preview":{"width":900,"height":1620}}'>
 class Component extends DCLogic {
 }
 </script>
