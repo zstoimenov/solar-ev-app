@@ -4,6 +4,7 @@
 // located by SCANNING the header row for keywords - their positions are NOT fixed.
 
 import * as XLSX from 'xlsx';
+import { toIsoDate } from './parseFronius.js';
 
 function sheetRows(fileBuf) {
   const wb = XLSX.read(fileBuf, { type: 'array' });
@@ -43,6 +44,16 @@ function unitScale(unitsRow, idx) {
 const colSum = (rows, idx, scale = 1) =>
   idx < 0 ? null : rows.reduce((a, r) => a + (Number(r[idx]) || 0), 0) * scale;
 
+// One cell, scaled to kWh, preserving null for a blank (see parseFronius.js
+// cellKwh - same null convention, a day with no reading is not a zero).
+function cellKwh(row, idx, scale) {
+  if (idx < 0) return null;
+  const raw = row[idx];
+  if (raw == null || String(raw).trim() === '') return null;
+  const n = Number(raw);
+  return Number.isNaN(n) ? null : Math.round(n * scale * 1000) / 1000;
+}
+
 // Count days on which the grid-source column was > 0 (EV grid charging days).
 function daysWithGrid(rows, idx) {
   if (idx < 0) return null;
@@ -50,7 +61,11 @@ function daysWithGrid(rows, idx) {
 }
 
 // Returns { evTotalChargedKwh, evFromPvKwh, evFromBatteryKwh,
-//           evFromHomeGridKwh, evGridChargingDays }
+//           evFromHomeGridKwh, evGridChargingDays, daily }
+// `daily` keeps the per-day PV/battery/grid split the file already carries
+// (the "Date and time" column holds a DATE only - confirmed against a real
+// 2026-06 export). Flattening it to one total would throw away the very
+// thing that makes the rows worth keeping.
 export async function parseWattpilot(file) {
   const buf = await file.arrayBuffer();
   const rows = sheetRows(new Uint8Array(buf));
@@ -71,11 +86,28 @@ export async function parseWattpilot(file) {
     0
   );
 
+  const pvScale = unitScale(unitsRow, pvCol);
+  const batteryScale = unitScale(unitsRow, batteryCol);
+  const gridScale = unitScale(unitsRow, gridCol);
+  const daily = data
+    .map((r) => {
+      const date = toIsoDate(r[0]);
+      if (!date) return null;
+      return {
+        date,
+        evPvKwh: cellKwh(r, pvCol, pvScale),
+        evBatteryKwh: cellKwh(r, batteryCol, batteryScale),
+        evGridKwh: cellKwh(r, gridCol, gridScale)
+      };
+    })
+    .filter(Boolean);
+
   return {
     evTotalChargedKwh: total,
     evFromPvKwh: fromPv,
     evFromBatteryKwh: fromBattery,
     evFromHomeGridKwh: fromHomeGrid,
-    evGridChargingDays: daysWithGrid(data, gridCol)
+    evGridChargingDays: daysWithGrid(data, gridCol),
+    daily
   };
 }

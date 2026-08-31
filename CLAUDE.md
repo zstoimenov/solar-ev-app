@@ -38,7 +38,9 @@ src/
   data/       schema.js (contract + validate()), db.js (IndexedDB, the ONLY
               persistence layer), storage.js (browser storage DURABILITY -
               persist()/estimate() + backup staleness, see below), seed.js
-              (first-run loader), compute.js
+              (first-run loader), daily.js (helpers over the optional
+              dailySeries[] - month-to-date, pace, typical-for-month,
+              seasonal check; see "Daily series" below), compute.js
               (recompute cumulativeTotals from the digest array), tariffSchedule.js
               (resolve a dated rate schedule for a month + sum the charging log),
               evTimeOfUseSplit.js (bucket EV charging sessions into time-of-day
@@ -51,11 +53,14 @@ src/
               layers)
   components/ HealthBanner, StorageHealth, DataNotes, Collapsible, Modal,
               ExportRestore,
+              Screens/{Today,Energy,Car,Money,DataScreen} - the five bottom-nav
+              screens (see "Screens" below); the Dashboard/* tiles below are
+              now composed BY these rather than listed flat in App.jsx,
               IngestWizard (+ Ingest/{TariffScheduleEditor,ChargingLogEditor,
               TariffPlanEditor,EvSessionsUploader} - a 2-level nav of nested
               sub-tabs, not top-level tabs: see "Ingest tab navigation" below),
               Dashboard/{RoiLayers,PaybackProgress,EnergyTrends,MonthlyComparison,
-              EvChargingSplit,PlanComparison}
+              EvChargingSplit,PlanComparison,DailyCalendar}
   version.js  APP_VERSION shown in the header - bump on every change (see below)
 ```
 
@@ -271,6 +276,44 @@ never carry an API token; encrypt client-side with the existing
 `data/crypto.js` so the backend only ever holds ciphertext, and gate access
 with a real identity login rather than a bundled secret.
 
+## Daily series (since v2.0)
+
+`dailySeries[]` is an **optional** top-level array, one row per day:
+`{ date, solarKwh, consumptionKwh, gridImportKwh, gridExportKwh,
+evPvKwh, evBatteryKwh, evGridKwh }`.
+
+Both monthly XLSX exports were **always** one row per day - `parseFronius.js`
+and `parseWattpilot.js` summed the columns, kept the totals plus one derived
+day count each (`zeroProductionDays`, `evGridChargingDays`), and discarded
+every row. v2 keeps them. Both parsers now also return `daily`, and
+`buildDigest.js:buildDailySeries()` joins the two on date.
+
+Rules that must not be broken:
+
+- **Energy only.** Nothing in `data/daily.js` computes a dollar figure.
+  `monthlyDigests[]` remains the single source of truth for every financial
+  number, which is why adding this could not move any stored figure and did
+  not need a `schemaVersion` bump.
+- **Optional forever.** It is NOT in `DIGEST_FIELDS`; `schema.js` only checks
+  it is an array of dated rows *if present*. Pre-v2 backups validate
+  unchanged, and months ingested before v2 simply have no day view - the UI
+  must degrade to the monthly figures, never throw. Re-uploading an old
+  month's original XLSX backfills it.
+- **Null convention applies per field.** A blank cell is `null` (no reading),
+  not `0`. The parsers' `cellKwh()` deliberately differs from `colSum()`'s
+  `|| 0`, which is correct only for a total.
+- **Re-ingest replaces a month wholesale.** `mergeDailySeries()` drops every
+  existing row for that month before appending, so a re-run can't leave half
+  the old month behind.
+
+`seasonalCheck()` is the one genuinely actionable output: it flags production
+running below what that time of year normally gives. It **returns null unless
+there is at least a full year of daily history** plus enough same-time-of-year
+samples. Do not relax that gate to make the alert appear sooner - a "seasonal
+band" from six months of data is exactly the guess-dressed-up-as-a-number this
+app refuses everywhere else (see Plan Comparison's scope note). Showing the
+raw numbers with no verdict is the correct degraded state.
+
 ## Null convention
 
 Absent numeric/text values are always `null`, never `0` or `""` — this is
@@ -287,12 +330,28 @@ new features or field changes, major only for a `schemaVersion` bump.
 
 ## UI conventions
 
-- Dashboard panels are wrapped in `<Collapsible>` (`src/components/
-  Collapsible.jsx`) and collapsed by default — the Dashboard tab should read
-  as a scannable list of headings, not a wall of charts. New dashboard
-  panels should follow the same pattern: the panel component itself renders
-  only its *content* (no outer `.panel`/`<h2>` — `Collapsible` supplies
-  both), and `App.jsx` wraps it with a title.
+- **Five screens on a fixed bottom nav** (`App.jsx`'s `SCREENS`): Today,
+  Energy, Car, Money, Data. Bottom rather than top because this is a phone
+  app and the top-right corner is the hardest place to reach one-handed.
+  Content on a screen is **visible on arrival** — the pre-v2 dashboard
+  collapsed all six panels by default, so opening the app showed six
+  headings and no answer, which was the single biggest reason it felt
+  useless. Don't reintroduce collapse-by-default on Today.
+  `Collapsible.jsx` is still available for genuinely secondary content.
+- **Today shows nothing it cannot derive.** Each block (attention item,
+  payback ring, month-to-date, milestones) renders only when its inputs
+  exist. Never fill a gap with an estimate to keep the layout even — the
+  one sanctioned estimate in the app is `paybackPreTracking`, and it is
+  labelled as one.
+- Screen scoping: Today and Money read **all-time** state; Energy and Car
+  read the date-filtered view. Energy owns its own range chips, so
+  `RANGE_SCOPED` in `App.jsx` deliberately excludes it — rendering the
+  header filter there too asked the same question twice.
+- **Layer names are plain language in the UI, unchanged in the model.**
+  Layer 1 → "Solar and battery", Layer 2 → "Driving electric", Layer 3 →
+  "Lease over a loan", with the layer number kept as a secondary label in
+  the breakdown table. Field names, `compute.js`, and the no-double-counting
+  rule are untouched.
 - **The 12-Month Comparison tile** (`Dashboard/MonthlyComparison.jsx`) is the
   one deliberately *tabular* dashboard panel — exact per-month numbers for the
   four headline flows (solar production / export / grid import / EV-from-solar),

@@ -9,6 +9,37 @@ import { resolveScheduleEntry, sumChargingLogForMonth, financialYearLabel } from
 const round = (n, dp = 2) =>
   n == null ? null : Math.round((n + Number.EPSILON) * 10 ** dp) / 10 ** dp;
 
+// Build the month's dailySeries[] rows by joining the two parsers' per-day
+// output on date. Both files are one row per day; either may be missing a
+// given date, so this is an outer join and every field stays independently
+// nullable (null = no reading, never a confirmed zero).
+//
+// Purely energy - no financial field is derived here. Rows outside `month`
+// are dropped: a stray row cannot quietly write into a neighbouring month.
+export function buildDailySeries(parsed, month) {
+  const byDate = new Map();
+  const take = (rows, assign) => {
+    for (const r of rows ?? []) {
+      if (!r.date || r.date.slice(0, 7) !== month) continue;
+      const row = byDate.get(r.date) ?? { date: r.date };
+      assign(row, r);
+      byDate.set(r.date, row);
+    }
+  };
+  take(parsed.fronius?.daily, (row, r) => {
+    row.solarKwh = r.solarKwh;
+    row.consumptionKwh = r.consumptionKwh;
+    row.gridImportKwh = r.gridImportKwh;
+    row.gridExportKwh = r.gridExportKwh;
+  });
+  take(parsed.wattpilot?.daily, (row, r) => {
+    row.evPvKwh = r.evPvKwh;
+    row.evBatteryKwh = r.evBatteryKwh;
+    row.evGridKwh = r.evGridKwh;
+  });
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function daysInMonth(month) {
   const [y, m] = month.split('-').map(Number);
   return new Date(y, m, 0).getDate();

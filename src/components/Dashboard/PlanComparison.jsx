@@ -1,5 +1,5 @@
 // PlanComparison - estimated EV-charging-only cost under each cataloged
-// tariff plan (config.tariffPlans, see the Ingest tab's Tariff Plans
+// tariff plan (config.tariffPlans, see the Data screen's Tariff Plans
 // sub-tab), for the active date range's uploaded charging sessions.
 //
 // Scope, spelled out because it's easy to overstate: this compares plans
@@ -23,7 +23,7 @@ function money(n) {
 
 // "FY2025-26" -> "25/26" - the table column needs to fit a 412px-wide
 // screen alongside the Plan and cost columns; the full "FYyyyy-yy" form is
-// kept everywhere else (Ingest tab's Tariff Plans catalog, this tile's own
+// kept everywhere else (the Data screen's Tariff Plans catalog, this tile's own
 // coverage-warning sentence) since those aren't column-width constrained.
 function shortFy(fy) {
   const m = /^FY\d{2}(\d{2})-(\d{2})$/.exec(fy ?? '');
@@ -74,7 +74,7 @@ export default function PlanComparison({ state }) {
     return (
       <p className="small">
         Needs at least one plan in the <strong>Tariff Plans</strong> catalog and some
-        uploaded <strong>EV Sessions</strong> data (both on the Ingest tab) for the
+        uploaded <strong>EV Sessions</strong> data (both on the Data screen) for the
         active date range. {plans.length === 0 && 'No plans logged yet. '}
         {sessions.length === 0 && 'No charging sessions uploaded yet.'}
       </p>
@@ -138,7 +138,7 @@ export default function PlanComparison({ state }) {
           this plan's time bands cover {coverageWarnings[0].coverageMin < 1440 ? 'less' : 'more'} than
           the full 24h day — energy in uncovered gaps is not priced (and overlapping bands
           double-price it), so its estimate is unreliable. Check the plan's band times on the
-          Ingest tab's Tariff Plans page.
+          Data screen's Tariff Plans page.
         </p>
       )}
     </>
