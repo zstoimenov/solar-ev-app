@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    a { color: #60a5fa; } a:hover { color: #93c5fd; }
+    * { box-sizing: border-box; min-width: 0; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
+</helmet>
+
+<div style="width: 900px; min-height: 1120px; background: #0f172a; color: #e2e8f0; line-height: 1.5; padding: 2rem 2.25rem 2.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+
+  <div>
+    <div style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;">The data behind the screens</div>
+    <h1 style="margin: 0.3rem 0 0; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em;">One change unlocks most of the new UI</h1>
+    <p style="margin: 0.5rem 0 0; font-size: 0.95rem; color: #94a3b8; max-width: 62ch; text-wrap: pretty;">The app already reads every number it needs for day-level insight. It adds them up, keeps the total, and drops the rest on the floor.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem;">
+    <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 0.85rem 0.95rem;">
+      <div style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em;">Kept today</div>
+      <div style="font-size: 0.9rem; font-weight: 600; margin-top: 0.25rem;"><code>monthlyDigests[]</code></div>
+      <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.3rem;">33 fields, one row per month. The canonical money record.</div>
+    </div>
+    <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 0.85rem 0.95rem;">
+      <div style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em;">Kept today</div>
+      <div style="font-size: 0.9rem; font-weight: 600; margin-top: 0.25rem;"><code>config</code></div>
+      <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.3rem;">Hardware, tariff schedule, plans, lease, counterfactual.</div>
+    </div>
+    <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 0.85rem 0.95rem;">
+      <div style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em;">Kept today</div>
+      <div style="font-size: 0.9rem; font-weight: 600; margin-top: 0.25rem;"><code>chargingLog[]</code></div>
+      <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.3rem;">One row per paid public charge, with a date.</div>
+    </div>
+    <div style="background: #1e293b; border: 1px solid #1f6b4f; border-radius: 12px; padding: 0.85rem 0.95rem;">
+      <div style="font-size: 0.72rem; color: #a7f3d0; text-transform: uppercase; letter-spacing: 0.04em;">Kept today</div>
+      <div style="font-size: 0.9rem; font-weight: 600; margin-top: 0.25rem;"><code>evChargingSessions[]</code></div>
+      <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.3rem;">Real start and end timestamps. The only sub-daily source in the app.</div>
+    </div>
+  </div>
+
+  <div style="background: #3a2a10; border: 1px solid #a16207; border-radius: 12px; padding: 1.1rem 1.25rem;">
+    <div style="display: flex; align-items: flex-start; gap: 0.85rem;">
+      <span style="flex: 0 0 auto; color: #fde68a; margin-top: 2px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"></path><path d="M10 11v6M14 11v6"></path></svg>
+      </span>
+      <div style="flex: 1 1 auto;">
+        <div style="font-size: 1.05rem; font-weight: 700; color: #fde68a;">Thrown away on every upload</div>
+        <p style="margin: 0.35rem 0 0.9rem; font-size: 0.88rem; color: #fde68a; opacity: 0.9; max-width: 74ch; text-wrap: pretty;">Both monthly exports are already one row per day. <code>parseFronius.js</code> and <code>parseWattpilot.js</code> sum the columns, keep the totals plus a zero-production day count, and discard every daily row. That is roughly 300 numbers a month, about 9,000 across the tracked period, read and dropped.</p>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem;">
+          <div style="background: rgba(0,0,0,0.22); border-radius: 10px; padding: 0.7rem 0.85rem;">
+            <div style="font-size: 0.78rem; font-weight: 600; color: #fde68a;">Fronius &ldquo;Energy balance total&rdquo;</div>
+            <div style="font-size: 0.76rem; color: #fde68a; opacity: 0.8; margin-top: 0.2rem;">~30 rows &times; production, consumption, to grid, from grid</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.22); border-radius: 10px; padding: 0.7rem 0.85rem;">
+            <div style="font-size: 0.78rem; font-weight: 600; color: #fde68a;">Wattpilot &ldquo;Energy balance&rdquo;</div>
+            <div style="font-size: 0.76rem; color: #fde68a; opacity: 0.8; margin-top: 0.2rem;">~30 rows of daily EV charging, by source</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1.15fr 1fr; gap: 1rem;">
+
+    <div style="background: #1e293b; border: 1px solid #1f6b4f; border-radius: 12px; padding: 1.1rem 1.25rem;">
+      <div style="font-size: 0.72rem; color: #a7f3d0; text-transform: uppercase; letter-spacing: 0.04em;">Add one array</div>
+      <div style="font-size: 1.05rem; font-weight: 700; margin-top: 0.2rem;"><code>dailySeries[]</code></div>
+      <div style="background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 0.8rem 0.9rem; margin-top: 0.75rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.76rem; color: #a7f3d0; white-space: pre-line; line-height: 1.7;">{ date: "2026-08-15",
+  solarKwh: 29.4,
+  consumptionKwh: 18.1,
+  gridImportKwh: 4.2,
+  gridExportKwh: 15.5,
+  evChargedKwh: 11.0 }</div>
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.9rem;">
+        <div style="display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.82rem;">
+          <span style="flex: 0 0 auto; color: #34d399; margin-top: 2px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"></polyline></svg></span>
+          <span>Free. The parsers already build these rows.</span>
+        </div>
+        <div style="display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.82rem;">
+          <span style="flex: 0 0 auto; color: #34d399; margin-top: 2px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"></polyline></svg></span>
+          <span>Optional and additive, so pre-v2 backups still validate. Months without it simply have no day view.</span>
+        </div>
+        <div style="display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.82rem;">
+          <span style="flex: 0 0 auto; color: #34d399; margin-top: 2px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"></polyline></svg></span>
+          <span>Energy only. <code>monthlyDigests</code> stays the single source of truth for every dollar figure.</span>
+        </div>
+        <div style="display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.82rem;">
+          <span style="flex: 0 0 auto; color: #34d399; margin-top: 2px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"></polyline></svg></span>
+          <span>About 11,000 rows over ten years. Trivial for IndexedDB, and it re-exports with the backup.</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.1rem 1.25rem;">
+      <div style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em;">Derive, never store</div>
+      <div style="font-size: 1.05rem; font-weight: 700; margin-top: 0.2rem;">Rates, not just totals</div>
+      <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.85rem;">
+        <div style="border-left: 2px solid #facc15; padding-left: 0.7rem;">
+          <div style="font-size: 0.84rem; font-weight: 600;">Specific yield</div>
+          <div style="font-size: 0.78rem; color: #94a3b8;">kWh per kW per day. The one number that says whether the array is underperforming.</div>
+        </div>
+        <div style="border-left: 2px solid #facc15; padding-left: 0.7rem;">
+          <div style="font-size: 0.84rem; font-weight: 600;">Seasonal expectation band</div>
+          <div style="font-size: 0.78rem; color: #94a3b8;">A normal range per day of year, from your own history. Turns soiling and shading into an alert instead of a shrug.</div>
+        </div>
+        <div style="border-left: 2px solid #facc15; padding-left: 0.7rem;">
+          <div style="font-size: 0.84rem; font-weight: 600;">Month-to-date pace</div>
+          <div style="font-size: 0.78rem; color: #94a3b8;">A reason to open the app between uploads, which today there is not.</div>
+        </div>
+        <div style="border-left: 2px solid #facc15; padding-left: 0.7rem;">
+          <div style="font-size: 0.84rem; font-weight: 600;">Cost per day, cost per 100 km</div>
+          <div style="font-size: 0.78rem; color: #94a3b8;">Units a household argues about, rather than cumulative layer totals.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.1rem 1.25rem;">
+    <div style="font-size: 1.05rem; font-weight: 700;">What that turns on</div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.85rem;">
+      <div style="background: #273449; border-radius: 10px; padding: 0.75rem 0.85rem;">
+        <div style="font-size: 0.8rem; font-weight: 600; color: #facc15;">Today</div>
+        <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.25rem;">Month-to-date pace, the daily sparkline, the under-range alert, milestone countdowns.</div>
+      </div>
+      <div style="background: #273449; border-radius: 10px; padding: 0.75rem 0.85rem;">
+        <div style="font-size: 0.8rem; font-weight: 600; color: #facc15;">Energy</div>
+        <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.25rem;">The day calendar, best and worst days, yield against season instead of a flat monthly average.</div>
+      </div>
+      <div style="background: #273449; border-radius: 10px; padding: 0.75rem 0.85rem;">
+        <div style="font-size: 0.8rem; font-weight: 600; color: #facc15;">Car</div>
+        <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.25rem;">Daily EV kWh alongside session timestamps, which narrows the plan comparison from a gross guess toward a real one.</div>
+      </div>
+      <div style="background: #273449; border-radius: 10px; padding: 0.75rem 0.85rem;">
+        <div style="font-size: 0.8rem; font-weight: 600; color: #facc15;">Money</div>
+        <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.25rem;">Unchanged. Every dollar still comes from the monthly digests, so no financial figure moves.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem;">
+    <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1rem 1.15rem;">
+      <div style="font-size: 0.95rem; font-weight: 700;">Retire while you are in there</div>
+      <div style="display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.7rem; font-size: 0.8rem; color: #94a3b8;">
+        <div><code style="color: #e2e8f0;">crossValExport</code> &mdash; permanently &ldquo;n/a&rdquo;; there is no export cross-check source. Move it into a validation sub-object rather than sitting among real metrics.</div>
+        <div><code style="color: #e2e8f0;">batteryShortfallDays</code> &mdash; always null, already marked retired in <code style="color: #e2e8f0;">compute.js</code>.</div>
+      </div>
+    </div>
+    <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1rem 1.15rem;">
+      <div style="font-size: 0.95rem; font-weight: 700;">Rename in the UI only</div>
+      <div style="display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.7rem; font-size: 0.8rem;">
+        <div style="display: flex; gap: 0.5rem; align-items: baseline;"><span style="color: #94a3b8; flex: 0 0 5.6rem;">Layer 1</span><span>Solar and battery</span></div>
+        <div style="display: flex; gap: 0.5rem; align-items: baseline;"><span style="color: #94a3b8; flex: 0 0 5.6rem;">Layer 2</span><span>Driving electric</span></div>
+        <div style="display: flex; gap: 0.5rem; align-items: baseline;"><span style="color: #94a3b8; flex: 0 0 5.6rem;">Layer 3</span><span>Lease over a loan</span></div>
+        <div style="color: #94a3b8; margin-top: 0.15rem;">Field names, the audit trail and the no-double-counting rule all stay exactly as they are. Only the words on screen change.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":900,"height":1560}}'>
+class Component extends DCLogic {
+}
+</script>
+</body>
+</html>
