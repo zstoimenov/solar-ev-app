@@ -7,7 +7,7 @@
 // A flat plan (e.g. A1) is one row with no time window. A time-of-day plan
 // (EV Add On) is one row per band (Peak, Off Peak, ...) - rows sharing the
 // same plan name + financial year form that plan's full rate card. This
-// mirrors the simple flat add/remove list used by the other Ingest tabs
+// mirrors the simple flat add/remove list used by the other Ingest pages
 // rather than a nested plan->bands editor, since re-entering this table is a
 // rare, one-off task.
 //

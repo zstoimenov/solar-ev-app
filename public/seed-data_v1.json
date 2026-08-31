@@ -26,5 +26,6 @@
   "monthlyDigests": [],
   "cumulativeTotals": {},
   "chargingLog": [],
-  "evChargingSessions": []
+  "evChargingSessions": [],
+  "dailySeries": []
 }

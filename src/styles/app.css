@@ -8,6 +8,7 @@
   --green: #34d399;
   --blue: #60a5fa;
   --red: #f87171;
+  --purple: #a78bfa;
   --border: #334155;
 }
 
@@ -23,6 +24,8 @@ body {
 a { color: var(--blue); }
 
 .app { max-width: 1100px; margin: 0 auto; padding: 1rem 1rem 4rem; overflow-x: hidden; }
+/* Bottom nav is fixed, so screens need room to scroll clear of it. */
+.app.has-nav { padding-bottom: 5.5rem; }
 header.top { display: flex; align-items: center; gap: .75rem; flex-wrap: nowrap; position: relative; }
 header.top h1 {
   font-size: 1.35rem; margin: .25rem 0; flex: 1 1 auto; min-width: 0;
@@ -61,30 +64,6 @@ header.top h1 {
   .date-range-filter label span { display: none; } /* keep just the selects on very narrow screens */
   .date-range-filter select { max-width: 5.4rem; padding: .3rem; }
 }
-
-/* Hamburger menu (replaces the old tab-button row) */
-.hamburger-wrap { margin-left: auto; position: relative; }
-.hamburger {
-  background: var(--panel); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: .4rem .65rem; cursor: pointer; font-size: 1.1rem; line-height: 1;
-  transition: background-color .15s ease, transform .1s ease;
-}
-.hamburger:active { transform: scale(.94); }
-.hamburger-menu {
-  position: absolute; right: 0; top: calc(100% + .4rem); z-index: 20;
-  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-  padding: .35rem; display: flex; flex-direction: column; gap: .25rem; min-width: 140px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.35);
-  opacity: 0; transform: translateY(-6px) scale(.98); pointer-events: none;
-  transition: opacity .16s ease, transform .16s ease;
-}
-.hamburger-menu.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
-.hamburger-menu button {
-  background: transparent; color: var(--text); border: none; border-radius: 6px;
-  padding: .5rem .7rem; text-align: left; cursor: pointer; font-size: .9rem;
-  transition: background-color .12s ease;
-}
-.hamburger-menu button.active { background: var(--accent); color: #1a1a1a; font-weight: 600; }
 
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; max-width: 100%; }
 .panel h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
@@ -304,4 +283,196 @@ table.digest tfoot tr:first-child td { border-top: 2px solid var(--border); }
 @media (max-width: 600px) {
   .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
   .chart-wrap { height: 240px; }
+}
+
+
+/* ==========================================================================
+   v2 screens: a bottom tab bar and five content screens, replacing the
+   hamburger + six-collapsed-panel dashboard. See redesign_v2.md.
+   ========================================================================== */
+
+/* Fixed bottom navigation. Five targets across 412px is ~82px each, and each
+   button is 60px tall - comfortably over the 44px minimum for a thumb. */
+.bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  margin: 0 auto; max-width: 1100px; width: 100%;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--panel); border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.bottom-nav button {
+  min-height: 60px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  background: transparent; border: none; border-top: 2px solid transparent;
+  color: var(--muted); font: inherit; font-size: .65rem;
+  padding: .4rem .2rem; cursor: pointer;
+}
+.bottom-nav button.active { color: var(--accent); border-top-color: var(--accent); }
+.bottom-nav button:active:not(:disabled) { transform: none; background: rgba(255,255,255,.04); }
+
+.screen { display: flex; flex-direction: column; gap: 0; }
+.screen-foot { margin-top: -.25rem; }
+
+/* Header: title on the left, one optional control on the right (Notes on
+   Today, the date range on the range-scoped screens). */
+header.top .notes-trigger { flex-shrink: 0; font-size: .78rem; padding: .35rem .6rem; }
+header.top .date-range-filter { flex-shrink: 0; }
+
+/* --- Headline panel: the one big number a screen is about --- */
+.headline-panel { position: relative; }
+.headline-value {
+  font-size: 2.4rem; font-weight: 700; letter-spacing: -.02em;
+  color: var(--green); margin-top: .15rem; line-height: 1.1;
+}
+.headline-value.accent { color: var(--accent); }
+.headline-value.green { color: var(--green); }
+.headline-value .unit,
+.stat-value .unit,
+.mini-value .unit {
+  font-size: .8rem; font-weight: 500; color: var(--muted); margin-left: .2rem;
+}
+.panel .label {
+  color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em;
+}
+.mini-grid { display: flex; gap: .5rem; margin-top: .85rem; flex-wrap: wrap; }
+.mini-metric {
+  flex: 1 1 8rem; background: var(--panel-2); border-radius: 10px; padding: .6rem .7rem; min-width: 0;
+}
+.mini-metric .label { font-size: .68rem; }
+.mini-value { font-size: 1.15rem; font-weight: 700; margin-top: .1rem; }
+.mini-value.green { color: var(--green); }
+.mini-metric .sub { color: var(--muted); font-size: .7rem; }
+
+/* --- Attention card: shown only when something genuinely needs action --- */
+.attention {
+  display: flex; gap: .65rem; align-items: flex-start;
+  background: #3a2a10; border: 1px solid #a16207; border-radius: 10px;
+  padding: .7rem .85rem; margin-bottom: 1rem;
+}
+.attention-icon { flex: 0 0 auto; color: #fde68a; margin-top: 1px; display: inline-flex; }
+.attention-body { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.attention-title { font-size: .86rem; color: #fde68a; font-weight: 600; }
+.attention-text { margin: 0; font-size: .78rem; color: #fde68a; opacity: .85; }
+.attention-actions { display: flex; align-items: center; gap: .5rem; margin-top: .15rem; }
+.attention .small-btn {
+  font-size: .75rem; padding: .3rem .6rem;
+  border-color: #a16207; color: #fde68a;
+}
+.attention .small-btn:hover { background: rgba(255,255,255,.06); }
+
+/* --- Payback ring --- */
+.payback-panel { display: flex; gap: 1rem; align-items: center; }
+.payback-ring-wrap { flex: 0 0 auto; position: relative; width: 96px; height: 96px; }
+.payback-ring-label {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.payback-pct { font-size: 1.3rem; font-weight: 700; line-height: 1; }
+.payback-ring-label .label { font-size: .62rem; }
+.payback-copy { flex: 1 1 auto; min-width: 0; }
+.payback-headline { font-size: .95rem; font-weight: 600; }
+.payback-copy .small { margin: .25rem 0 0; }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .45rem; }
+.chip {
+  font-size: .68rem; border-radius: 6px; padding: .1rem .4rem;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+}
+.chip.ok { background: #14322a; color: #a7f3d0; border-color: #1f6b4f; }
+
+/* --- Panel head / title / footnote, shared by every screen --- */
+.panel-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: .5rem; margin-bottom: .6rem;
+}
+.panel-title { margin: 0 0 .6rem; font-size: .95rem; font-weight: 600; color: var(--text); }
+.panel-head .panel-title { margin: 0; }
+.panel-foot {
+  border-top: 1px solid var(--border); margin: .75rem 0 0; padding-top: .6rem;
+  font-size: .78rem; color: var(--muted);
+}
+.panel-foot strong { color: var(--text); }
+
+/* --- Stat row (Today's month-in-progress) --- */
+.stat-row { display: flex; gap: 1.2rem; margin-top: .65rem; flex-wrap: wrap; }
+.stat-value { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+.stat-value.accent { color: var(--accent); }
+.stat-value.purple { color: var(--purple); }
+.stat-value.red { color: var(--red); }
+.stat .label { font-size: .72rem; text-transform: none; letter-spacing: 0; }
+
+/* --- Daily sparkline --- */
+.sparkline {
+  display: flex; align-items: flex-end; gap: 2px; height: 54px; margin-top: .9rem;
+}
+.spark-bar {
+  flex: 1 1 0; min-width: 0; border-radius: 2px 2px 0 0; background: var(--accent);
+}
+.spark-bar.empty { height: 4px; background: var(--border); }
+.sparkline-axis {
+  display: flex; justify-content: space-between;
+  font-size: .68rem; color: var(--muted); margin-top: .3rem;
+}
+
+/* --- Milestones --- */
+.milestone-list { display: flex; flex-direction: column; gap: .55rem; }
+.milestone { display: flex; gap: .6rem; align-items: center; font-size: .82rem; }
+.milestone-icon { flex: 0 0 auto; color: var(--muted); display: inline-flex; }
+.milestone-icon.done { color: var(--green); }
+.milestone-icon.warn { color: var(--accent); }
+.linkish {
+  background: none; border: none; padding: 0; font: inherit;
+  color: var(--blue); text-decoration: underline; cursor: pointer;
+}
+
+/* --- Range chips + chart/table toggle (Energy) --- */
+.range-filter-row { display: flex; justify-content: flex-end; margin: -.5rem 0 1rem; }
+.range-chips { display: flex; gap: .4rem; margin-bottom: 1rem; }
+.range-chips button {
+  flex: 1 1 0; min-height: 44px; min-width: 0;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: .4rem .5rem; font: inherit; font-size: .8rem; cursor: pointer;
+}
+.range-chips button.active {
+  background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 600;
+}
+.mini-toggle { display: flex; gap: .25rem; flex-shrink: 0; }
+.mini-toggle button {
+  min-height: 32px; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: .25rem .55rem; font: inherit; font-size: .72rem; cursor: pointer;
+}
+.mini-toggle button.active {
+  background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 600;
+}
+
+/* --- Daily calendar heatmap --- */
+.calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.calendar-head { margin-bottom: 4px; }
+.calendar-weekday { font-size: .6rem; color: var(--muted); text-align: center; }
+.calendar-cell {
+  aspect-ratio: 1 / 1; border-radius: 6px; background: var(--panel-2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 0;
+}
+.calendar-cell.pad { background: transparent; }
+.calendar-cell.nodata { background: transparent; border: 1px solid var(--border); }
+.calendar-cell.lvl-0 { background: var(--panel-2); }
+.calendar-cell.lvl-1 { background: #4a4222; }
+.calendar-cell.lvl-2 { background: #8a7420; }
+.calendar-cell.lvl-3 { background: var(--accent); }
+.calendar-day { font-size: .58rem; color: rgba(226,232,240,.75); line-height: 1; }
+.calendar-cell.lvl-0 .calendar-day { color: var(--muted); }
+.calendar-cell.lvl-3 .calendar-day { color: #4a3f08; }
+.calendar-kwh { font-size: .6rem; font-weight: 700; line-height: 1.2; color: var(--text); }
+.calendar-cell.lvl-3 .calendar-kwh { color: #1a1a1a; }
+.calendar-legend { display: flex; align-items: center; gap: .4rem; margin-top: .7rem; }
+.calendar-ramp {
+  flex: 1 1 auto; height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--panel-2), #8a7420, var(--accent));
+}
+
+@media (max-width: 600px) {
+  .payback-panel { gap: .85rem; }
+  .headline-value { font-size: 2.1rem; }
 }

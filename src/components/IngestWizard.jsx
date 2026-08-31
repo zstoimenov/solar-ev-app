@@ -7,7 +7,8 @@ import React, { useState } from 'react';
 import { parseFronius } from '../ingest/parseFronius.js';
 import { parseWattpilot } from '../ingest/parseWattpilot.js';
 import { parseSynergy } from '../ingest/parseSynergy.js';
-import { buildDigest } from '../ingest/buildDigest.js';
+import { buildDigest, buildDailySeries } from '../ingest/buildDigest.js';
+import { mergeDailySeries } from '../data/daily.js';
 import { recomputeCumulative, recomputeMeta } from '../data/compute.js';
 import { putState } from '../data/db.js';
 import TariffScheduleEditor from './Ingest/TariffScheduleEditor.jsx';
@@ -125,9 +126,24 @@ export default function IngestWizard({ state, onChange, onIngested }) {
       const nextCumulative = recomputeCumulative(nextDigests, state.cumulativeTotals, state.config);
       const nextMeta = recomputeMeta(state.meta, nextDigests, APP_VERSION);
 
+      // Keep the per-day rows both files already contain, instead of
+      // discarding them after summing (redesign_v2.md). Energy only - the
+      // digest above remains the sole source of every dollar figure, so
+      // this cannot move a financial number. Re-ingesting a month replaces
+      // that month's rows wholesale rather than merging into stale ones.
+      const monthDaily = buildDailySeries({ fronius, wattpilot }, manual.month);
+      const nextDaily = mergeDailySeries(state.dailySeries, monthDaily, manual.month);
+
       setPreview({
         digest,
-        next: { ...state, meta: nextMeta, monthlyDigests: nextDigests, cumulativeTotals: nextCumulative },
+        dailyRows: monthDaily.length,
+        next: {
+          ...state,
+          meta: nextMeta,
+          monthlyDigests: nextDigests,
+          cumulativeTotals: nextCumulative,
+          dailySeries: nextDaily
+        },
         replaced: exists
       });
     } catch (e) {

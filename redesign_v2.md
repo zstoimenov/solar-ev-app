@@ -1,8 +1,13 @@
 # Redesign v2 — screens and data
 
-Status: **proposal**, not implemented. Nothing in `src/` has changed.
+Status: **implemented in v2.0.0.** This document is kept as the rationale
+behind the change — what was wrong, what was decided, and what was
+deliberately left alone. For how to maintain the result, see `CLAUDE.md`
+("Daily series", "Screens" under UI conventions) and `app-schema_v1.md`
+(`dailySeries[]`).
+
 Companion design canvas: three artboards (the new UI as a clickable prototype,
-the app as it stands at v1.15, and the data change behind it).
+the app as it stood at v1.15, and the data change behind it).
 
 Read `CLAUDE.md` first. Every constraint in it still holds — this proposal
 does not relax the local-only rule, the empty-public-bundle rule, the null
@@ -160,17 +165,30 @@ Principles:
 - No `schemaVersion` bump. `dailySeries[]` is additive and optional, so v1
   backups keep validating. Bump only if a required digest field changes.
 
-## 5. Suggested sequence
+## 5. What shipped in v2.0.0
 
-1. Persist `dailySeries[]` from the existing parsers; leave the UI alone.
-   Ship it and let daily history accumulate — everything downstream is more
-   useful the longer this has been running.
-2. Rebuild navigation as the five-screen bottom bar over the existing panel
-   components, renaming the layers.
-3. Build Today from the day-level data.
-4. Add the seasonal band and its alert, gated on having a full year.
-5. Fold the ingest pages into Data.
+All five steps of the original plan, in one change:
 
-Step 1 is worth doing on its own even if the rest is never built: the data is
-being read and discarded right now, and a month not captured is a month that
-cannot be recovered later.
+1. `dailySeries[]` persisted from the existing parsers (`parseFronius.js`
+   and `parseWattpilot.js` now return `daily`; `buildDailySeries()` joins
+   them; `mergeDailySeries()` handles re-ingest).
+2. Navigation rebuilt as the five-screen bottom bar, layers renamed in the
+   UI only.
+3. Today built from the day-level data — attention item, headline, payback
+   ring, month-to-date with sparkline, milestones.
+4. The seasonal check, gated on a full year of daily history.
+5. Ingest and Backup folded into Data.
+
+### Known limitation
+
+Months ingested before v2.0.0 have no daily rows, because the data was
+discarded at the time. Energy and Today say so plainly rather than hiding
+the gap, and re-uploading an old month's original XLSX backfills it. Until
+a household has a full year of daily history the seasonal alert stays
+silent by design.
+
+Specific yield (kWh per kW per day) was in the proposal and is **not**
+implemented: it needs the array's kW rating from `config.hardware`, whose
+key names no code in this repo has ever read. Rather than guess a key and
+render a wrong number, it was left out. Wire it up once the real
+`config.hardware` shape is confirmed against a live backup.

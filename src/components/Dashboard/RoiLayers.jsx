@@ -41,20 +41,20 @@ export default function RoiLayers({ state }) {
       <p className="small nowrap">{totalMonths} month{totalMonths === 1 ? '' : 's'} of data</p>
       <div className="grid cols-3">
         <div className="metric">
-          <div className="label">Layer 1 — Solar + Battery</div>
+          <div className="label">Solar and battery</div>
           <div className="value green">{money(layer1)}</div>
           <div className="sub">Total for <span className="nowrap">{period}</span></div>
-          <InfoPopover label="What Layer 1 means" className="metric-info">
+          <InfoPopover label="What the solar and battery saving means" className="metric-info">
             Money saved because your solar panels and battery cover most of
             your home's own electricity use instead of buying it all from the
             grid, plus credit for any excess exported back to the grid.
           </InfoPopover>
         </div>
         <div className="metric">
-          <div className="label">Layer 2 — EV vs Cerato</div>
+          <div className="label">Driving electric</div>
           <div className="value green">{money(layer2Accrued)}</div>
           <div className="sub">Total for <span className="nowrap">{period}</span></div>
-          <InfoPopover label="What Layer 2 means" className="metric-info">
+          <InfoPopover label="What the driving saving means" className="metric-info">
             Money saved by driving an EV instead of the old petrol car — fuel +
             servicing you'd have paid for the petrol car, minus what it
             actually costs to charge the EV: paid public charging, plus home
@@ -67,10 +67,10 @@ export default function RoiLayers({ state }) {
           </InfoPopover>
         </div>
         <div className="metric">
-          <div className="label">Layer 3 — Lease vs loan</div>
+          <div className="label">Lease over a loan</div>
           <div className="value blue nowrap">{money(layer3Annual)}/yr</div>
           <div className="sub">Fixed yearly amount, every year</div>
-          <InfoPopover label="What Layer 3 means" className="metric-info">
+          <InfoPopover label="What the lease advantage means" className="metric-info">
             The after-tax advantage of financing the EV through the novated
             lease instead of a private car loan at 7%. Paying the lease and
             running costs from pre-tax salary (32% marginal rate) plus GST
@@ -94,10 +94,10 @@ export default function RoiLayers({ state }) {
       <div className="table-scroll">
         <table className="digest">
           <tbody>
-            <tr><td>Layer 1 (this period)</td><td>{money(layer1)}</td></tr>
-            <tr><td>Layer 2 (this period)</td><td>{money(layer2Accrued)}</td></tr>
-            <tr><td><strong>Layers 1+2 total</strong></td><td><strong>{money(combined12)}</strong></td></tr>
-            <tr><td>Layer 3 (fixed, per year)</td><td>{money(layer3Annual)}/yr</td></tr>
+            <tr><td>Solar and battery (Layer 1)</td><td>{money(layer1)}</td></tr>
+            <tr><td>Driving electric (Layer 2)</td><td>{money(layer2Accrued)}</td></tr>
+            <tr><td><strong>Energy savings to date</strong></td><td><strong>{money(combined12)}</strong></td></tr>
+            <tr><td>Lease over a loan (Layer 3, fixed per year)</td><td>{money(layer3Annual)}/yr</td></tr>
           </tbody>
         </table>
       </div>

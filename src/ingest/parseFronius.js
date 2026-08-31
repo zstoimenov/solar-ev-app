@@ -55,16 +55,38 @@ function countZeroProductionDays(rows, idx, scale) {
   return rows.reduce((a, r) => a + ((Number(r[idx]) || 0) * scale < 0.01 ? 1 : 0), 0);
 }
 
-// First data row's date ("01.06.2026", dd.MM.yyyy) -> "2026-06", so the
-// Ingest Wizard can auto-fill the month field from the file itself.
+// A daily row's date cell ("01.06.2026", dd.MM.yyyy) -> "2026-06-01".
+// Returns null for anything that isn't that exact shape, so a stray footer
+// row can never become a bogus date.
+export function toIsoDate(cell) {
+  const d = String(cell ?? '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  return d ? `${d[3]}-${d[2].padStart(2, '0')}-${d[1].padStart(2, '0')}` : null;
+}
+
+// First data row's date -> "2026-06", so the Ingest Wizard can auto-fill the
+// month field from the file itself.
 function monthFromFirstRow(rows) {
-  const d = String(rows?.[0]?.[0] ?? '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  return d ? `${d[3]}-${d[2].padStart(2, '0')}` : null;
+  const iso = toIsoDate(rows?.[0]?.[0]);
+  return iso ? iso.slice(0, 7) : null;
+}
+
+// One cell, scaled to kWh. Unlike colSum's `|| 0` (correct for a total), a
+// blank/absent cell stays NULL here - per the app's null convention a day
+// with no reading is "no data", not a confirmed zero.
+function cellKwh(row, idx, scale) {
+  if (idx < 0) return null;
+  const raw = row[idx];
+  if (raw == null || String(raw).trim() === '') return null;
+  const n = Number(raw);
+  return Number.isNaN(n) ? null : Math.round(n * scale * 1000) / 1000;
 }
 
 // Returns { solarProductionKwh, ownConsumptionKwh, gridExportKwh,
 //           gridImportFroniusKwh, totalConsumptionKwh, days,
-//           zeroProductionDays, month }
+//           zeroProductionDays, month, daily }
+// `daily` is the per-day rows the file already contains, kept rather than
+// discarded after summing - see data/daily.js and redesign_v2.md. The
+// monthly totals above stay the canonical figures; `daily` is additive.
 // Column keywords are best-effort against Fronius export headers; adjust
 // keyword lists here if a future export renames columns.
 export async function parseFronius(file) {
@@ -85,6 +107,20 @@ export async function parseFronius(file) {
   const exp = colSum(data, feedIn, unitScale(unitsRow, feedIn));
   const imp = colSum(data, fromGrid, unitScale(unitsRow, fromGrid));
 
+  const daily = data
+    .map((r) => {
+      const date = toIsoDate(r[0]);
+      if (!date) return null;
+      return {
+        date,
+        solarKwh: cellKwh(r, production, productionScale),
+        consumptionKwh: cellKwh(r, consumption, unitScale(unitsRow, consumption)),
+        gridExportKwh: cellKwh(r, feedIn, unitScale(unitsRow, feedIn)),
+        gridImportKwh: cellKwh(r, fromGrid, unitScale(unitsRow, fromGrid))
+      };
+    })
+    .filter(Boolean);
+
   return {
     solarProductionKwh: solar,
     totalConsumptionKwh: cons,
@@ -94,6 +130,7 @@ export async function parseFronius(file) {
     days: data.length,
     _rows: data.length,
     zeroProductionDays: countZeroProductionDays(data, production, productionScale),
-    month: monthFromFirstRow(data)
+    month: monthFromFirstRow(data),
+    daily
   };
 }

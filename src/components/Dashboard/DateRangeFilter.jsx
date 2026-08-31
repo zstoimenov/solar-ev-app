@@ -1,5 +1,5 @@
 // DateRangeFilter - "From" / "To" month selectors that scope the whole
-// Dashboard tab to a sub-range of the loaded months. Options are constrained
+// Energy and Car screens to a sub-range of the loaded months. Options are constrained
 // so From can never be pushed past To (and vice versa) - no clamping logic
 // needed elsewhere.
 

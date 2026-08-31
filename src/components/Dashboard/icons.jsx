@@ -65,3 +65,64 @@ export function ScaleIcon(props) {
     </svg>
   );
 }
+
+// --- Bottom-nav icons (v2). Same 24px grid / 1.6 stroke as the tile icons
+// above, so the two sets read as one family. ---
+
+export function SunIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  );
+}
+
+export function CarIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <path d="M5 16h14" />
+      <path d="M6.5 16V9.5l1.8-3.6a1.5 1.5 0 0 1 1.3-.9h4.8a1.5 1.5 0 0 1 1.3.9L17.5 9.5V16" />
+      <path d="M6.5 9.5h11" />
+      <circle cx="8.5" cy="16.5" r="1.6" />
+      <circle cx="15.5" cy="16.5" r="1.6" />
+    </svg>
+  );
+}
+
+export function UploadIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <path d="M12 15V3" />
+      <polyline points="8 7 12 3 16 7" />
+      <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+    </svg>
+  );
+}
+
+export function AlertIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <path d="M12 9v4M12 17h.01" />
+      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+    </svg>
+  );
+}
+
+export function CheckCircleIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="8 12 11 15 16 9" />
+    </svg>
+  );
+}
+
+export function ClockIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="12 7 12 12 15 14" />
+    </svg>
+  );
+}

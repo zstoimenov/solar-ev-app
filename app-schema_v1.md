@@ -28,6 +28,7 @@ starting data before the first live monthly upload.
 | `monthlyDigests` | array | One object per month, chronological. 33 fields each. |
 | `cumulativeTotals` | object | All-time aggregates, payback progress, cross-validation flags. |
 | `chargingLog` | array | *Optional* (absent in pre-v1.5 backups; treat as `[]`). Paid public-charging sessions - see below. |
+| `dailySeries` | array | *Optional* (absent in pre-v2.0 backups; treat as `[]`). One row per day - see below. |
 
 ---
 
@@ -158,6 +159,42 @@ wall-clock **timestamps**, not just a daily/monthly total.
   known (only as a daily total, from the Energy Balance XLSX, with no per-session
   attribution). Treat it as "the most EV charging could have cost under each plan," not
   a real bill.
+
+---
+
+## `dailySeries[]`
+
+*(optional; absent = `[]`)* One entry per **day**, added in v2.0. Both monthly
+XLSX exports are already one row per day; before v2.0 the parsers summed those
+rows and threw them away, keeping only the monthly totals plus one derived day
+count each.
+
+`{ date (YYYY-MM-DD), solarKwh, consumptionKwh, gridImportKwh, gridExportKwh,
+evPvKwh, evBatteryKwh, evGridKwh }`
+
+- Built by `ingest/buildDigest.js:buildDailySeries()`, an outer join of
+  `parseFronius.js`'s and `parseWattpilot.js`'s new `daily` output on `date`.
+  Rows outside the target month are dropped, so a stray row cannot write into
+  a neighbouring month.
+- **Every field is independently nullable.** A blank cell is `null` (no
+  reading), never `0` - the same null convention as everywhere else. Note this
+  differs deliberately from the monthly `colSum()`, whose `|| 0` is correct
+  only for a total.
+- **Energy only.** No financial field is derived from these rows;
+  `monthlyDigests[]` remains the sole source of truth for every dollar figure.
+  That is why adding this array moved no stored number and needed no
+  `schemaVersion` bump.
+- **Optional, and validated only if present** (`schema.js` checks it is an
+  array whose entries carry a string `date`). It is NOT in `DIGEST_FIELDS`, so
+  every pre-v2.0 backup still validates. Months ingested before v2.0 have no
+  rows; the UI degrades to the monthly figures rather than erroring.
+  Re-uploading such a month's original XLSX backfills it.
+- Re-ingesting a month **replaces** that month's rows wholesale
+  (`data/daily.js:mergeDailySeries`), never merges into stale ones.
+- Consumed by `data/daily.js` (month-to-date, pace, typical-for-month, best
+  day, `seasonalCheck`) and rendered by `Screens/Today.jsx` and
+  `Dashboard/DailyCalendar.jsx`. `seasonalCheck()` returns `null` unless there
+  is at least a full year of daily history - see CLAUDE.md "Daily series".
 
 ---
 

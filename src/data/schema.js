@@ -61,6 +61,20 @@ export function validate(obj) {
   if (!Array.isArray(obj.monthlyDigests)) {
     throw new SchemaError('Rejected: "monthlyDigests" must be an array.');
   }
+  // dailySeries[] is OPTIONAL (absent on every pre-v2 backup, and on months
+  // ingested before it existed), so its absence is never an error - but if a
+  // backup carries one it must at least be an array of dated rows, or the
+  // day-level views would fail far from here with a useless message.
+  if ('dailySeries' in obj) {
+    if (!Array.isArray(obj.dailySeries)) {
+      throw new SchemaError('Rejected: "dailySeries" must be an array when present.');
+    }
+    obj.dailySeries.forEach((r, i) => {
+      if (r == null || typeof r !== 'object' || typeof r.date !== 'string') {
+        throw new SchemaError(`Rejected: dailySeries[${i}] is missing a string "date".`);
+      }
+    });
+  }
   // Shape-check each digest for the full field set so historical months
   // render as richly as future ingested ones.
   obj.monthlyDigests.forEach((d, i) => {

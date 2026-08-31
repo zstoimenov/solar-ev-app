@@ -45,7 +45,7 @@ export async function ensurePersisted() {
 // { mode, usageBytes, quotaBytes }. usage/quota are null where estimate() is
 // unimplemented or throws; they are advisory everywhere (Chrome deliberately
 // rounds them to blunt cross-site fingerprinting), so they are shown as
-// context in the Backup tab and never used to gate behaviour.
+// context on the Data screen and never used to gate behaviour.
 export async function getStorageStatus() {
   const mode = await readMode();
   let usageBytes = null;

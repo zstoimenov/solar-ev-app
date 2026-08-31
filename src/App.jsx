@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { loadOrSeed } from './data/seed.js';
 import { getState, getAppMeta } from './data/db.js';
 import { recomputeCumulative } from './data/compute.js';
@@ -6,68 +6,48 @@ import { APP_VERSION } from './version.js';
 import HealthBanner from './components/HealthBanner.jsx';
 import StorageHealth from './components/StorageHealth.jsx';
 import DataNotes from './components/DataNotes.jsx';
-import Collapsible from './components/Collapsible.jsx';
 import Modal from './components/Modal.jsx';
-import RoiLayers from './components/Dashboard/RoiLayers.jsx';
-import PaybackProgress from './components/Dashboard/PaybackProgress.jsx';
-import EnergyTrends from './components/Dashboard/EnergyTrends.jsx';
-import MonthlyComparison from './components/Dashboard/MonthlyComparison.jsx';
-import EvChargingSplit from './components/Dashboard/EvChargingSplit.jsx';
-import PlanComparison from './components/Dashboard/PlanComparison.jsx';
 import DateRangeFilter from './components/Dashboard/DateRangeFilter.jsx';
-import { LayersIcon, TargetIcon, TrendIcon, TableIcon, PlugIcon, ScaleIcon } from './components/Dashboard/icons.jsx';
+import Today from './components/Screens/Today.jsx';
+import Energy from './components/Screens/Energy.jsx';
+import Car from './components/Screens/Car.jsx';
+import Money from './components/Screens/Money.jsx';
+import DataScreen from './components/Screens/DataScreen.jsx';
+import {
+  SunIcon, TrendIcon, CarIcon, LayersIcon, UploadIcon
+} from './components/Dashboard/icons.jsx';
 import { filterSessionsByMonthRange } from './data/evTimeOfUseSplit.js';
-import IngestWizard from './components/IngestWizard.jsx';
 import ExportRestore from './components/ExportRestore.jsx';
 
-const TABS = ['Dashboard', 'Ingest', 'Backup'];
-const PANEL_KEYS = ['roi', 'payback', 'energy', 'monthlyComparison', 'ev', 'planComparison'];
+// Five screens on a bottom bar, replacing the old Dashboard / Ingest /
+// Backup hamburger. Bottom rather than top because this is a phone app -
+// the top-right corner is the hardest place to reach one-handed.
+const SCREENS = [
+  { key: 'Today', icon: SunIcon },
+  { key: 'Energy', icon: TrendIcon },
+  { key: 'Car', icon: CarIcon },
+  { key: 'Money', icon: LayersIcon },
+  { key: 'Data', icon: UploadIcon }
+];
 
-// Once there's more than this many months of data, the dashboard defaults to
-// showing only the most recent window (still overridable via the date range
-// filter) - both because a running household ROI story is about "lately",
-// and because cramming years of bars/points into one chart on a phone-width
-// screen stops being readable.
+// Screens whose numbers are scoped by the date range. Money is deliberately
+// absent: payback and accrued savings are all-time concepts. Energy is also
+// absent here: it owns its own range control (chips), and rendering a second
+// one in the header alongside them just asks the same question twice.
+const RANGE_SCOPED = new Set(['Car']);
+
+// Once there's more than this many months of data, the range-scoped screens
+// default to the most recent window (still overridable via the filter) -
+// both because a running household ROI story is about "lately", and because
+// cramming years of bars into one chart on a phone stops being readable.
 const DEFAULT_MONTH_WINDOW = 12;
-
-function HamburgerMenu({ tab, setTab }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
-  }, [open]);
-
-  return (
-    <div className="hamburger-wrap" ref={ref}>
-      <button className="hamburger" onClick={() => setOpen((o) => !o)} aria-label="Menu">☰</button>
-      <div className={`hamburger-menu ${open ? 'open' : ''}`}>
-        {TABS.map((t) => (
-          <button
-            key={t}
-            className={t === tab ? 'active' : ''}
-            onClick={() => { setTab(t); setOpen(false); }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function App() {
   const [state, setState] = useState(null);
-  const [appMeta, setAppMeta] = useState({ lastExportedCount: null });
+  const [appMeta, setAppMeta] = useState({ lastExportedCount: null, lastExportedAt: null });
   const [loadError, setLoadError] = useState(null);
-  const [tab, setTab] = useState('Dashboard');
+  const [screen, setScreen] = useState('Today');
   const [notesOpen, setNotesOpen] = useState(false);
-  const [panelsOpen, setPanelsOpen] = useState({
-    roi: false, payback: false, energy: false, monthlyComparison: false, ev: false, planComparison: false
-  });
   const [fromMonth, setFromMonth] = useState(null);
   const [toMonth, setToMonth] = useState(null);
 
@@ -88,6 +68,12 @@ export default function App() {
     })();
   }, [refresh]);
 
+  // Moving between screens should start at the top - otherwise you land
+  // mid-panel wherever the previous screen happened to be scrolled to.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [screen]);
+
   if (loadError) {
     return (
       <div className="app">
@@ -98,12 +84,27 @@ export default function App() {
   if (!state) return <div className="app"><p>Loading…</p></div>;
 
   const isEmpty = state.monthlyDigests.length === 0;
-  const allPanelsOpen = PANEL_KEYS.every((k) => panelsOpen[k]);
-  const toggleAllPanels = () => {
-    const next = !allPanelsOpen;
-    setPanelsOpen(Object.fromEntries(PANEL_KEYS.map((k) => [k, next])));
-  };
-  const togglePanel = (key) => setPanelsOpen((p) => ({ ...p, [key]: !p[key] }));
+
+  // First-run / empty store: the public bundle ships an EMPTY starter (no
+  // personal data). Prompt the user to restore their private backup before
+  // anything else, and do not attempt to render screens against no data.
+  if (isEmpty) {
+    return (
+      <div className="app">
+        <header className="top">
+          <h1>Solar, Battery &amp; EV</h1>
+        </header>
+        <div className="banner warn">
+          <strong>No data yet.</strong> This public build ships empty and contains no
+          personal data. Paste your private JSON backup below to load your dataset —
+          it is then stored only in this browser (IndexedDB) and never uploaded.
+        </div>
+        <StorageHealth state={state} appMeta={appMeta} onBackup={() => {}} />
+        <ExportRestore state={state} appMeta={appMeta} onChange={refresh} />
+        <div className="bottom-bar"><span className="sub">{APP_VERSION}</span></div>
+      </div>
+    );
+  }
 
   const allMonths = state.monthlyDigests.map((d) => d.month);
   const effectiveTo = toMonth && allMonths.includes(toMonth) ? toMonth : allMonths[allMonths.length - 1];
@@ -112,7 +113,7 @@ export default function App() {
   const filteredDigests = state.monthlyDigests.filter(
     (d) => d.month >= effectiveFrom && d.month <= effectiveTo
   );
-  // Dashboard panels read this scoped view; HealthBanner still reads the
+  // Range-scoped screens read this view; HealthBanner still reads the
   // unfiltered `state` so it always reflects the real data integrity.
   // Payback is the exception: it's an all-time concept, so it comes from a
   // full-history recompute (also keeps it live for backups exported by app
@@ -130,49 +131,43 @@ export default function App() {
     },
     evChargingSessions: filterSessionsByMonthRange(state.evChargingSessions, effectiveFrom, effectiveTo)
   };
-
-  // First-run / empty store: the public bundle ships an EMPTY starter (no
-  // personal data). Prompt the user to restore their private backup before
-  // anything else, and do not attempt to render dashboards against no data.
-  if (isEmpty) {
-    return (
-      <div className="app">
-        <header className="top">
-          <h1>☀️ Solar, Battery &amp; EV ROI</h1>
-        </header>
-        <div className="banner warn">
-          <strong>No data yet.</strong> This public build ships empty and contains no
-          personal data. Paste your private JSON backup below to load your dataset —
-          it is then stored only in this browser (IndexedDB) and never uploaded.
-        </div>
-        <StorageHealth state={state} appMeta={appMeta} onBackup={() => {}} />
-        <ExportRestore state={state} appMeta={appMeta} onChange={refresh} />
-        <div className="bottom-bar"><span className="sub">{APP_VERSION}</span></div>
-      </div>
-    );
-  }
+  // Today and Money are all-time: they read the full history, not the window.
+  const allTimeState = { ...state, cumulativeTotals: fullCumulative };
 
   return (
-    <div className="app">
+    <div className="app has-nav">
       <header className="top">
-        <h1>☀️ Solar, Battery &amp; EV ROI</h1>
-        <HamburgerMenu tab={tab} setTab={setTab} />
+        <h1>{screen === 'Today' ? 'Solar, Battery & EV' : screen}</h1>
+        {screen === 'Today' && (
+          <button className="ghost notes-trigger" onClick={() => setNotesOpen(true)}>
+            ⓘ Notes
+          </button>
+        )}
+        {RANGE_SCOPED.has(screen) && (
+          <DateRangeFilter
+            months={allMonths}
+            from={effectiveFrom}
+            to={effectiveTo}
+            onFromChange={setFromMonth}
+            onToChange={setToMonth}
+          />
+        )}
       </header>
 
       <HealthBanner
         state={state}
         lastExportedCount={appMeta.lastExportedCount}
-        onRestore={() => setTab('Backup')}
+        onRestore={() => setScreen('Data')}
       />
 
-      <StorageHealth state={state} appMeta={appMeta} onBackup={() => setTab('Backup')} />
-
-      {tab === 'Dashboard' && (
-        <>
-          <div className="dashboard-controls">
-            <button className="ghost expand-all" onClick={toggleAllPanels}>
-              {allPanelsOpen ? '⊟ Collapse' : '⊞ Expand'}
-            </button>
+      {screen === 'Today' && (
+        <Today state={allTimeState} appMeta={appMeta} onGoTo={setScreen} />
+      )}
+      {screen === 'Energy' && (
+        <Energy
+          state={filteredState}
+          fullState={state}
+          rangeFilter={
             <DateRangeFilter
               months={allMonths}
               from={effectiveFrom}
@@ -180,57 +175,39 @@ export default function App() {
               onFromChange={setFromMonth}
               onToChange={setToMonth}
             />
-          </div>
-          <Collapsible title="ROI Layers" icon={<LayersIcon />} open={panelsOpen.roi} onToggle={() => togglePanel('roi')}>
-            <RoiLayers state={filteredState} />
-          </Collapsible>
-          <Collapsible title="Payback Progress" icon={<TargetIcon />} open={panelsOpen.payback} onToggle={() => togglePanel('payback')}>
-            <PaybackProgress state={filteredState} />
-          </Collapsible>
-          <Collapsible title="Energy Trends" icon={<TrendIcon />} open={panelsOpen.energy} onToggle={() => togglePanel('energy')}>
-            <EnergyTrends state={filteredState} />
-          </Collapsible>
-          <Collapsible
-            title="12-Month Comparison"
-            icon={<TableIcon />}
-            open={panelsOpen.monthlyComparison}
-            onToggle={() => togglePanel('monthlyComparison')}
+          }
+        />
+      )}
+      {screen === 'Car' && <Car state={filteredState} />}
+      {screen === 'Money' && <Money state={allTimeState} />}
+      {screen === 'Data' && (
+        <DataScreen
+          state={state}
+          appMeta={appMeta}
+          onChange={refresh}
+          onIngested={() => setScreen('Today')}
+        />
+      )}
+
+      {notesOpen && (
+        <Modal title="Data Notes" onClose={() => setNotesOpen(false)}>
+          <DataNotes state={state} />
+        </Modal>
+      )}
+
+      <nav className="bottom-nav" aria-label="Main">
+        {SCREENS.map(({ key, icon: Icon }) => (
+          <button
+            key={key}
+            className={key === screen ? 'active' : ''}
+            onClick={() => setScreen(key)}
+            aria-current={key === screen ? 'page' : undefined}
           >
-            <MonthlyComparison state={filteredState} />
-          </Collapsible>
-          <Collapsible title="EV Charging Split" icon={<PlugIcon />} open={panelsOpen.ev} onToggle={() => togglePanel('ev')}>
-            <EvChargingSplit state={filteredState} />
-          </Collapsible>
-          <Collapsible
-            title="Plan Comparison"
-            icon={<ScaleIcon />}
-            open={panelsOpen.planComparison}
-            onToggle={() => togglePanel('planComparison')}
-          >
-            <PlanComparison state={filteredState} />
-          </Collapsible>
-          {notesOpen && (
-            <Modal title="Data Notes" onClose={() => setNotesOpen(false)}>
-              <DataNotes state={state} />
-            </Modal>
-          )}
-        </>
-      )}
-
-      {tab === 'Ingest' && (
-        <IngestWizard state={state} onChange={refresh} onIngested={() => setTab('Dashboard')} />
-      )}
-
-      {tab === 'Backup' && (
-        <ExportRestore state={state} appMeta={appMeta} onChange={refresh} />
-      )}
-
-      <div className="bottom-bar">
-        <span className="sub">{APP_VERSION}</span>
-        {tab === 'Dashboard' && (
-          <button className="ghost notes-trigger" onClick={() => setNotesOpen(true)}>ⓘ Data notes</button>
-        )}
-      </div>
+            <Icon width={22} height={22} />
+            <span>{key}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
