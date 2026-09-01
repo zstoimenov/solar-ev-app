@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background: #0f172a; color: #e2e8f0; -webkit-font-smoothing: antialiased; }
+    a { color: #facc15; } a:hover { color: #fde68a; }
+  </style>
+</helmet>
+<div style="padding: 12px 12px 20px; background: #0f172a;">
+
+  <div style="font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin-bottom: 10px;">State · No kWh fit yet</div>
+
+  <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px 17.6px;">
+
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9.6px;">
+      <h3 style="margin: 0; font-size: 15.2px; font-weight: 600; color: #e2e8f0;">Next 7 days</h3>
+      <span style="font-size: 12.8px; color: #94a3b8;">11:47 am</span>
+    </div>
+
+    <p style="margin: 0 0 14px; font-size: 14.7px; color: #e2e8f0; line-height: 1.45; text-wrap: pretty;">
+      <strong style="font-weight: 700;">Thursday</strong> is the sunniest day this week —
+      <strong style="font-weight: 700;">9 hours</strong> of sun against 6 on the other days.
+    </p>
+
+    <!-- Sunshine hours carry the ranking; no kWh anywhere, and the gap is named. -->
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; height: 84px; border-bottom: 1px solid #334155;">
+      <div style="position: relative; height: 100%;"><div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 0; height: 42%; background: rgba(250,204,21,.30); border-radius: 7px 7px 0 0;"></div></div>
+      <div style="position: relative; height: 100%;"><div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 0; height: 71%; background: rgba(250,204,21,.30); border-radius: 7px 7px 0 0;"></div></div>
+      <div style="position: relative; height: 100%;"><div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 0; height: 47%; background: rgba(250,204,21,.30); border-radius: 7px 7px 0 0;"></div></div>
+      <div style="position: relative; height: 100%;"><div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 0; height: 100%; background: #facc15; border-radius: 7px 7px 0 0;"></div></div>
+      <div style="position: relative; height: 100%;"><div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 0; height: 58%; background: rgba(250,204,21,.30); border-radius: 7px 7px 0 0;"></div></div>
+      <div style="position: relative; height: 100%;"><div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 0; height: 64%; background: rgba(250,204,21,.30); border-radius: 7px 7px 0 0;"></div></div>
+      <div style="position: relative; height: 100%;"><div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 0; height: 61%; background: rgba(250,204,21,.30); border-radius: 7px 7px 0 0;"></div></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 7px;">
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #e2e8f0;">Today</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">4 h</div><div style="font-size: 10px; color: #64748b;">9–18°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #94a3b8;">Tue</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">6 h</div><div style="font-size: 10px; color: #64748b;">8–19°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #94a3b8;">Wed</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">4 h</div><div style="font-size: 10px; color: #64748b;">12–23°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #facc15; font-weight: 600;">Thu</div><div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">9 h</div><div style="font-size: 10px; color: #64748b;">8–19°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #94a3b8;">Fri</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">5 h</div><div style="font-size: 10px; color: #64748b;">7–18°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #94a3b8;">Sat</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">6 h</div><div style="font-size: 10px; color: #64748b;">12–23°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #94a3b8;">Sun</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">6 h</div><div style="font-size: 10px; color: #64748b;">10–21°</div></div>
+    </div>
+
+    <!-- The missing number is named, with what would fill it. Never invented. -->
+    <div style="margin-top: 14px; background: #273449; border-radius: 10px; padding: 11px 13px;">
+      <div style="font-size: 12.5px; color: #e2e8f0; line-height: 1.5; text-wrap: pretty;">
+        No kWh estimate yet.
+      </div>
+      <div style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-top: 4px; text-wrap: pretty;">
+        It is fitted from what your own roof produced on past days with known sunlight —
+        <strong style="color: #e2e8f0;">2 of the 6 months</strong> needed are matched so far.
+        Each monthly upload brings it closer.
+      </div>
+      <div style="height: 6px; border-radius: 3px; background: #1e293b; margin-top: 9px; overflow: hidden;">
+        <div style="width: 33%; height: 100%; background: rgba(250,204,21,.55); border-radius: 3px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <p style="margin: 12px 2px 0; font-size: 12px; color: #64748b; line-height: 1.5; text-wrap: pretty;">
+    The panel keeps its shape and its usefulness without inventing a number: sunshine hours
+    still rank the week, and the missing piece is stated with progress toward it.
+  </p>
+</div>
+</x-dc>
+</body>
+</html>

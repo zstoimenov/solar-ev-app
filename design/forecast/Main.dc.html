@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background: #0f172a; color: #e2e8f0; -webkit-font-smoothing: antialiased; }
+    a { color: #facc15; } a:hover { color: #fde68a; }
+  </style>
+</helmet>
+<div style="padding: 12px 12px 20px; background: #0f172a;">
+
+  <div style="font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin-bottom: 10px;">Concept A · Week shape</div>
+
+  <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px 17.6px;">
+
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9.6px;">
+      <h3 style="margin: 0; font-size: 15.2px; font-weight: 600; color: #e2e8f0;">Next 7 days</h3>
+      <button style="background: transparent; color: #94a3b8; border: 1px solid #334155; border-radius: 8px; padding: 4px 9px; font: inherit; font-size: 11.5px; cursor: pointer;">Refresh</button>
+    </div>
+
+    <p style="margin: 0 0 14px; font-size: 14.7px; color: #e2e8f0; line-height: 1.45; text-wrap: pretty;">
+      <strong style="font-weight: 700;">Thursday</strong> is the best solar day this week —
+      about <strong style="font-weight: 700;">31 kWh</strong>, half as much again as the other days.
+    </p>
+
+    <!-- plot: one vertical range bar per day. Height = kWh, extent = the likely range. -->
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; height: 175px; border-bottom: 1px solid #334155;">
+
+      <div style="position: relative; height: 100%;">
+        <div style="position: absolute; left: 0; right: 0; bottom: 80px; text-align: center; font-size: 11px; font-weight: 600; color: #94a3b8;">16</div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 42.9px; height: 33.2px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 57.9px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+      </div>
+
+      <div style="position: relative; height: 100%;">
+        <div style="position: absolute; left: 0; right: 0; bottom: 125px; text-align: center; font-size: 11px; font-weight: 600; color: #94a3b8;">26</div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 68.2px; height: 52.9px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 92.1px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+      </div>
+
+      <div style="position: relative; height: 100%;">
+        <div style="position: absolute; left: 0; right: 0; bottom: 86px; text-align: center; font-size: 11px; font-weight: 600; color: #94a3b8;">17</div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 46.1px; height: 35.7px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 62.1px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+      </div>
+
+      <!-- best day: brighter fill, a ring, and a word. Never colour alone. -->
+      <div style="position: relative; height: 100%;">
+        <div style="position: absolute; left: -3px; right: -3px; bottom: 76px; top: 4px; border: 1px solid rgba(250,204,21,.45); border-radius: 10px; background: rgba(250,204,21,.05);"></div>
+        <div style="position: absolute; left: 0; right: 0; bottom: 150px; text-align: center; font-size: 12px; font-weight: 700; color: #facc15;">31</div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 82.5px; height: 63.9px; background: rgba(250,204,21,.34); border-radius: 7px;"></div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 111.4px; height: 3px; background: #facc15; border-radius: 2px;"></div>
+      </div>
+
+      <div style="position: relative; height: 100%;">
+        <div style="position: absolute; left: 0; right: 0; bottom: 103px; text-align: center; font-size: 11px; font-weight: 600; color: #94a3b8;">21</div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 55.4px; height: 43.2px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 75px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+      </div>
+
+      <div style="position: relative; height: 100%;">
+        <div style="position: absolute; left: 0; right: 0; bottom: 114px; text-align: center; font-size: 11px; font-weight: 600; color: #94a3b8;">23</div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 61.8px; height: 48.2px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 83.6px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+      </div>
+
+      <div style="position: relative; height: 100%;">
+        <div style="position: absolute; left: 0; right: 0; bottom: 108px; text-align: center; font-size: 11px; font-weight: 600; color: #94a3b8;">22</div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 58.6px; height: 45.3px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 78.9px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+      </div>
+    </div>
+
+    <!-- day + temperature, deliberately quiet: it is context, not the decision -->
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 7px;">
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #e2e8f0;">Today</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">9–18°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #94a3b8;">Tue</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">8–19°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #94a3b8;">Wed</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">12–23°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #facc15; font-weight: 600;">Thu</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">8–19°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #94a3b8;">Fri</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">7–18°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #94a3b8;">Sat</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">12–23°</div></div>
+      <div style="text-align: center;"><div style="font-size: 11.5px; color: #94a3b8;">Sun</div><div style="font-size: 10px; color: #64748b; margin-top: 2px;">10–21°</div></div>
+    </div>
+
+    <!-- the key to the mark, because the range bar is a new shape in this app -->
+    <div style="display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 11.5px; color: #94a3b8;">
+      <span style="position: relative; display: inline-block; width: 12px; height: 22px; flex: 0 0 auto;">
+        <span style="position: absolute; inset: 0; background: rgba(250,204,21,.20); border-radius: 6px;"></span>
+        <span style="position: absolute; left: 0; right: 0; top: 9px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></span>
+      </span>
+      <span style="text-wrap: pretty;">Bar shows the likely range, line the middle of it.</span>
+    </div>
+
+    <p style="border-top: 1px solid #334155; margin: 12px 0 0; padding-top: 9.6px; font-size: 12.5px; color: #94a3b8; line-height: 1.45; text-wrap: pretty;">
+      Fitted from <strong style="color: #e2e8f0;">43 of your own days</strong> against the sunlight they got.
+      Later in the week is a softer figure than tomorrow. Checked 11:47 am.
+    </p>
+  </div>
+
+  <p style="margin: 12px 2px 0; font-size: 12px; color: #64748b; line-height: 1.5; text-wrap: pretty;">
+    Ranking becomes a shape you read in one glance, and the uncertainty is the mark itself
+    rather than a footnote. Keeps the week in calendar order.
+  </p>
+</div>
+</x-dc>
+</body>
+</html>

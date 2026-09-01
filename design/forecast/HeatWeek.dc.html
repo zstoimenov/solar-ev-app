@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background: #0f172a; color: #e2e8f0; -webkit-font-smoothing: antialiased; }
+    a { color: #facc15; } a:hover { color: #fde68a; }
+  </style>
+</helmet>
+<div style="padding: 12px 12px 20px; background: #0f172a;">
+
+  <div style="font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin-bottom: 10px;">Concept D · Heat week</div>
+
+  <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px 17.6px;">
+
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9.6px;">
+      <h3 style="margin: 0; font-size: 15.2px; font-weight: 600; color: #e2e8f0;">Next 7 days</h3>
+      <span style="font-size: 12.8px; color: #94a3b8;">11:47 am</span>
+    </div>
+
+    <p style="margin: 0 0 14px; font-size: 14.7px; color: #e2e8f0; line-height: 1.45; text-wrap: pretty;">
+      <strong style="font-weight: 700;">Thursday</strong> is the best solar day this week —
+      about <strong style="font-weight: 700;">31 kWh</strong> against 21 on the other days.
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;">
+      <div style="text-align: center; font-size: 10.5px; color: #64748b;">M</div>
+      <div style="text-align: center; font-size: 10.5px; color: #64748b;">T</div>
+      <div style="text-align: center; font-size: 10.5px; color: #64748b;">W</div>
+      <div style="text-align: center; font-size: 10.5px; color: #64748b;">T</div>
+      <div style="text-align: center; font-size: 10.5px; color: #64748b;">F</div>
+      <div style="text-align: center; font-size: 10.5px; color: #64748b;">S</div>
+      <div style="text-align: center; font-size: 10.5px; color: #64748b;">S</div>
+    </div>
+
+    <!-- One hue, dim to bright: the same sequential language as the daily calendar. -->
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 4px;">
+      <div style="aspect-ratio: 1 / 1; border-radius: 6px; background: rgba(250,204,21,.16); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <span style="font-size: 14px; font-weight: 700; color: #e2e8f0;">16</span>
+      </div>
+      <div style="aspect-ratio: 1 / 1; border-radius: 6px; background: rgba(250,204,21,.52); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <span style="font-size: 14px; font-weight: 700; color: #1a1a1a;">26</span>
+      </div>
+      <div style="aspect-ratio: 1 / 1; border-radius: 6px; background: rgba(250,204,21,.22); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <span style="font-size: 14px; font-weight: 700; color: #e2e8f0;">17</span>
+      </div>
+      <div style="aspect-ratio: 1 / 1; border-radius: 6px; background: #facc15; box-shadow: 0 0 0 2px #1e293b, 0 0 0 3px #facc15; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <span style="font-size: 15px; font-weight: 800; color: #1a1a1a;">31</span>
+      </div>
+      <div style="aspect-ratio: 1 / 1; border-radius: 6px; background: rgba(250,204,21,.34); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <span style="font-size: 14px; font-weight: 700; color: #e2e8f0;">21</span>
+      </div>
+      <div style="aspect-ratio: 1 / 1; border-radius: 6px; background: rgba(250,204,21,.43); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <span style="font-size: 14px; font-weight: 700; color: #e2e8f0;">23</span>
+      </div>
+      <div style="aspect-ratio: 1 / 1; border-radius: 6px; background: rgba(250,204,21,.39); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <span style="font-size: 14px; font-weight: 700; color: #e2e8f0;">22</span>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 6px;">
+      <div style="text-align: center; font-size: 9.5px; color: #64748b;">9–18°</div>
+      <div style="text-align: center; font-size: 9.5px; color: #64748b;">8–19°</div>
+      <div style="text-align: center; font-size: 9.5px; color: #64748b;">12–23°</div>
+      <div style="text-align: center; font-size: 9.5px; color: #facc15;">8–19°</div>
+      <div style="text-align: center; font-size: 9.5px; color: #64748b;">7–18°</div>
+      <div style="text-align: center; font-size: 9.5px; color: #64748b;">12–23°</div>
+      <div style="text-align: center; font-size: 9.5px; color: #64748b;">10–21°</div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; font-size: 11px; color: #64748b;">
+      <span>Quiet</span>
+      <span style="flex: 1 1 auto; height: 6px; border-radius: 3px; background: linear-gradient(90deg, rgba(250,204,21,.16), #facc15);"></span>
+      <span>Best</span>
+    </div>
+
+    <p style="border-top: 1px solid #334155; margin: 12px 0 0; padding-top: 9.6px; font-size: 12.5px; color: #94a3b8; line-height: 1.45; text-wrap: pretty;">
+      Thursday is likely <strong style="color: #e2e8f0;">23–41 kWh</strong>; every day here can land
+      about 26% either side. Fitted from 43 of your own days.
+    </p>
+  </div>
+
+  <p style="margin: 12px 2px 0; font-size: 12px; color: #64748b; line-height: 1.5; text-wrap: pretty;">
+    Borrows the daily calendar's own language, so the week reads as one familiar block.
+    The weakest on uncertainty — a tile cannot hold a range, so it stays in the footnote.
+  </p>
+</div>
+</x-dc>
+</body>
+</html>
