@@ -181,7 +181,12 @@ export default function App() {
         <Today state={allTimeState} appMeta={appMeta} onGoTo={setScreen} />
       )}
       {screen === 'Energy' && (
-        <Energy state={scopes.window} fullState={state} rangeFilter={rangeFilter} />
+        <Energy
+          state={scopes.window}
+          fullState={state}
+          rangeFilter={rangeFilter}
+          onConfigChange={refresh}
+        />
       )}
       {screen === 'Car' && (
         <Car
@@ -189,6 +194,7 @@ export default function App() {
           months={allMonths}
           rangeFilter={rangeFilter}
           allDigests={state.monthlyDigests}
+          fullState={state}
         />
       )}
       {screen === 'Money' && (

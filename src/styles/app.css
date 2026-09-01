@@ -595,3 +595,33 @@ header.top .date-range-filter { flex-shrink: 0; }
 .delta-change.good { color: var(--green); }
 .delta-change.bad { color: var(--red); }
 .delta-note { margin: .35rem 0 0; font-size: .72rem; color: var(--muted); }
+
+/* --- 7-day solar forecast -----------------------------------------------
+   Magnitude is sequential: ONE hue, dim to bright, same rule as the daily
+   calendar - the bars mean "more", not "different". The best day is marked
+   by a left rule as well as a brighter bar, so the ranking is never carried
+   by colour intensity alone. */
+.forecast-list { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
+.forecast-day { padding-left: .5rem; border-left: 3px solid transparent; }
+.forecast-day.best { border-left-color: var(--accent); }
+.forecast-row { display: flex; align-items: baseline; gap: .5rem; }
+.forecast-name { flex: 1 1 auto; min-width: 0; font-size: .82rem; }
+.forecast-temp { color: var(--muted); font-size: .76rem; font-variant-numeric: tabular-nums; }
+.forecast-rain { color: var(--blue); }
+.forecast-kwh {
+  min-width: 4.4rem; text-align: right; font-size: .84rem; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.forecast-track {
+  height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin-top: .3rem;
+}
+.forecast-fill { height: 100%; background: var(--accent); opacity: .55; border-radius: 3px; }
+.forecast-day.best .forecast-fill { opacity: 1; }
+.forecast-foot-row {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  margin-top: .75rem; padding-top: .6rem; border-top: 1px solid var(--border); flex-wrap: wrap;
+}
+.forecast-setup { margin-top: .5rem; }
+.forecast-presets { display: flex; flex-wrap: wrap; gap: .4rem; }
+.forecast-presets button { font-size: .78rem; }
+.err-text { color: var(--red); }
