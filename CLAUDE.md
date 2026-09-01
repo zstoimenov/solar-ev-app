@@ -414,6 +414,29 @@ are the same ones that killed cloud sync:
   cached forecast with a warning, failures are rate-limited by a 60s
   cool-down, and `useForecast` de-duplicates the two panels' fetches.
 
+**The panel is arranged around the decision, not the calendar** (v2.6, from
+the design canvas in `design/forecast/`). It leads with a verdict block
+naming the best day, then shows only the days this household acts on:
+
+- **Today, tomorrow, and the coming weekend — always both weekend days**,
+  because Saturday and Sunday are when the car normally goes on the charger.
+  Any 7-day window contains exactly one Saturday and one Sunday, so they are
+  always available; today/tomorrow absorb them when the weekend is that close.
+- **Plus the standout day when it is none of those.** That row is what covers
+  a *rotating weekday off* without the app having to know the roster — the
+  household looks at the panel on whichever day they are home and the best
+  day is already called out. Do not add a shift-scheduling feature to serve
+  this; it was considered and rejected as more configuration than it is worth.
+- The remaining days are behind a "Rest of the week" toggle — one tap away,
+  never gone, and the second place a day off gets looked up.
+- **The range IS the bar**: the dim extent is the fitted 20th-80th percentile
+  band and the bright line is the middle of it, on one shared scale across
+  every row, so uncertainty is never a footnote. A monthly-fitted calibration
+  has no daily band, so those rows draw a plain fill instead and the
+  InfoPopover says why.
+- "Spare for the car" is `typicalHouseLoadPerDay()` subtracted from the day's
+  projection — energy only, a whole-day figure, and labelled as such.
+
 ## Synergy interval data (since v2.4)
 
 Synergy's `MA_IntervalDataHistory.csv` now comes with **one row per 30

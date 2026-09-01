@@ -4,6 +4,12 @@ Mockups for reworking `src/components/Dashboard/SolarForecast.jsx` (the
 "Next 7 days" panel on Energy) and its sibling `BestChargeDay.jsx` on Car.
 Published canvas: https://claude.ai/code/artifact/d62729c3-8476-4180-a31a-1dac909a0c8a
 
+**Outcome: direction B was chosen and built** into
+`src/components/Dashboard/SolarForecast.jsx` (v2.6), with the weekend added
+to the always-visible rows. The artboards below are kept as the record of
+what was proposed at the decision point, so `Main.dc.html` is still direction
+A as drawn - the shipped panel is the code, not this canvas.
+
 Each `.dc.html` is one artboard, 412px wide (the project's acceptance
 width). They reproduce the real components' values rather than approximating
 them — `.panel` at 12px radius and 1rem/1.1rem padding, `.lede` at .92rem,

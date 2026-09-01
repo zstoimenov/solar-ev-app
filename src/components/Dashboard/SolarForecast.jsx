@@ -1,5 +1,12 @@
-// SolarForecast - the next 7 days: temperature, and what this roof should
-// produce on each of them.
+// SolarForecast - the next 7 days, arranged around the decision rather than
+// around the calendar.
+//
+// It leads with the answer (the best solar day and by how much), then shows
+// only the days this household actually acts on: today, tomorrow, and the
+// coming weekend - the days the car normally gets charged. The best day
+// joins them as its own row when it is none of those, which is what covers
+// a rotating weekday off without anyone having to tell the app their roster.
+// The other days are one tap away, never gone.
 //
 // The kWh figures are NOT modelled from panel specs. The forecast supplies
 // daily shortwave radiation; data/forecast.js fits kWh-per-MJ from this
@@ -7,9 +14,10 @@
 // consequences the UI has to be honest about, and does:
 //
 //   1. Until there is enough history to fit that factor, there are no kWh
-//      figures at all - temperature and sunshine only, and a line saying so.
-//   2. The figure is the middle of a range, so the panel states the spread
-//      once rather than printing seven false-precision numbers.
+//      figures at all - the panel ranks the week on sunshine hours instead
+//      and says what is missing.
+//   2. Each figure is the middle of a range, so the range is drawn as the
+//      bar itself rather than described in a footnote.
 //   3. It is a daily total. It does not know when in the day the sun and the
 //      load line up, which is why nothing here is expressed in dollars.
 //
@@ -21,26 +29,28 @@ import React, { useState } from 'react';
 import InfoPopover from '../InfoPopover.jsx';
 import { Lede } from '../Screens/parts.jsx';
 import useForecast from './useForecast.js';
-import { LOCATION_PRESETS, roundCoord, saveForecastLocation } from '../../data/forecast.js';
+import {
+  LOCATION_PRESETS, roundCoord, saveForecastLocation, typicalHouseLoadPerDay
+} from '../../data/forecast.js';
 
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const FULL_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-function dayLabel(dateStr, index) {
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  const name = index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : DAY_NAMES[d.getDay()];
-  return `${name} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
-}
+const dayOf = (dateStr) => new Date(`${dateStr}T00:00:00`);
 
-// The lede names the day the way a person would say it out loud, which is
-// not the same string as the row label ("Fri 4 Sep").
+// How a person says the day out loud. Today and tomorrow win over the
+// weekday name - "Saturday" is useless when Saturday is tomorrow.
 function spokenDay(dateStr, index) {
   if (index === 0) return 'Today';
   if (index === 1) return 'Tomorrow';
-  const d = new Date(`${dateStr}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? dateStr : FULL_DAY_NAMES[d.getDay()];
+  const d = dayOf(dateStr);
+  return Number.isNaN(d.getTime()) ? dateStr : DAY_NAMES[d.getDay()];
+}
+
+function shortDate(dateStr) {
+  const d = dayOf(dateStr);
+  return Number.isNaN(d.getTime()) ? '' : `${SHORT_DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
 const kwh = (n) => (n == null ? '—' : `${Math.round(n)} kWh`);
@@ -115,9 +125,50 @@ function LocationSetup({ onSaved }) {
   );
 }
 
+// One day, as a labelled row: the range bar carries the uncertainty, the
+// caption says what the day is FOR rather than restating the number.
+function DayRow({ day, scaleMax, hasKwh, highlight }) {
+  const pctOf = (v) => (v == null || !(scaleMax > 0) ? 0 : Math.min(100, (v / scaleMax) * 100));
+  const value = hasKwh ? day.kwh : day.sunshineHours;
+  const hasBand = hasKwh && day.kwhLow != null && day.kwhHigh != null;
+
+  return (
+    <div className={`fc-row${highlight ? ' best' : ''}`}>
+      <div className="fc-row-head">
+        <span className="fc-row-name">
+          {day.spoken}
+          <span className="fc-row-date">{day.dateLabel} · {deg(day.tMinC)}–{deg(day.tMaxC)}</span>
+        </span>
+        <span className="fc-row-value">
+          {hasKwh
+            ? kwh(value)
+            : value == null ? '—' : `${Math.round(value)} h sun`}
+        </span>
+      </div>
+
+      <div className="fc-track">
+        {hasBand ? (
+          <>
+            <div
+              className="fc-band"
+              style={{ left: `${pctOf(day.kwhLow)}%`, width: `${pctOf(day.kwhHigh) - pctOf(day.kwhLow)}%` }}
+            />
+            <div className="fc-mark" style={{ left: `${pctOf(day.kwh)}%` }} />
+          </>
+        ) : (
+          <div className="fc-fill" style={{ width: `${pctOf(value)}%` }} />
+        )}
+      </div>
+
+      {day.note && <div className="fc-row-note">{day.note}</div>}
+    </div>
+  );
+}
+
 export default function SolarForecast({ state, onConfigChange }) {
   const { data, loading, reload, hasLocation } = useForecast(state);
   const [changing, setChanging] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   if (!hasLocation || changing) {
     return (
@@ -136,21 +187,64 @@ export default function SolarForecast({ state, onConfigChange }) {
     );
   }
 
-  const days = data?.days ?? [];
+  const raw = data?.days ?? [];
   const cal = data?.calibration;
-  const hasKwh = days.some((d) => d.kwh != null);
-  const maxKwh = hasKwh ? Math.max(...days.filter((d) => d.kwh != null).map((d) => d.kwh)) : null;
-  const maxRadiation = days.length
-    ? Math.max(...days.filter((d) => d.radiationMj != null).map((d) => d.radiationMj), 0)
-    : 0;
+  const hasKwh = raw.some((d) => d.kwh != null);
 
-  // The best day is worth saying in words - it is the one thing on this
-  // panel that changes what a household actually does this week.
-  const ranked = [...days].filter((d) => d.kwh != null).sort((a, b) => b.kwh - a.kwh);
-  const best = ranked[0];
-  const bestIndex = best ? days.findIndex((d) => d.date === best.date) : -1;
+  // What the house itself usually draws in a day, so a day's production can
+  // be reported as what is actually going spare for the car. Energy only.
+  const houseLoad = typicalHouseLoadPerDay(state?.monthlyDigests);
+
+  const days = raw.map((d, i) => ({
+    ...d,
+    index: i,
+    weekday: dayOf(d.date).getDay(),
+    spoken: spokenDay(d.date, i),
+    dateLabel: shortDate(d.date),
+    spareKwh: hasKwh && d.kwh != null && houseLoad != null ? Math.max(0, d.kwh - houseLoad) : null
+  }));
+
+  const ranked = days.filter((d) => (hasKwh ? d.kwh != null : d.radiationMj != null))
+    .sort((a, b) => (hasKwh ? b.kwh - a.kwh : b.radiationMj - a.radiationMj));
+  const best = ranked[0] ?? null;
   const others = ranked.slice(1);
-  const otherAvg = others.length ? others.reduce((a, d) => a + d.kwh, 0) / others.length : null;
+  const otherAvg = hasKwh && others.length
+    ? others.reduce((a, d) => a + d.kwh, 0) / others.length
+    : null;
+  const quietest = ranked.length > 1 ? ranked[ranked.length - 1] : null;
+
+  // The days this household acts on: today, tomorrow, and the coming
+  // weekend - always both, because Saturday and Sunday are when the car
+  // normally goes on the charger. Any 7-day window contains exactly one of
+  // each, so the weekend is always here.
+  const wanted = new Map();
+  for (const d of days) {
+    const isWeekend = d.weekday === 0 || d.weekday === 6;
+    if (d.index <= 1 || isWeekend) wanted.set(d.date, d);
+  }
+  // The standout day, when it is none of the above. This is what answers a
+  // rotating weekday off without the app needing to know the roster.
+  if (best && !wanted.has(best.date)) wanted.set(best.date, best);
+  const featured = [...wanted.values()].sort((a, b) => a.index - b.index);
+  const rest = days.filter((d) => !wanted.has(d.date));
+
+  // One scale for every bar in the panel, so rows are comparable by length.
+  const scaleMax = hasKwh
+    ? Math.max(...days.map((d) => d.kwhHigh ?? d.kwh ?? 0), 0)
+    : Math.max(...days.map((d) => d.sunshineHours ?? 0), 0);
+
+  const noteFor = (d) => {
+    if (!hasKwh) return null;
+    if (best && d.date === best.date) {
+      return d.spareKwh != null
+        ? `Best of the week — about ${kwh(d.spareKwh)} spare for the car.`
+        : 'Best of the week.';
+    }
+    if (quietest && d.date === quietest.date) return 'The quietest day this week.';
+    if (d.spareKwh != null) return `About ${kwh(d.spareKwh)} spare for the car.`;
+    return null;
+  };
+  for (const d of days) d.note = noteFor(d);
 
   const spreadPct =
     cal?.lowRatio != null && cal?.highRatio != null
@@ -175,46 +269,70 @@ export default function SolarForecast({ state, onConfigChange }) {
         </div>
       )}
 
-      {best && otherAvg != null ? (
-        <Lede>
-          <strong>{spokenDay(best.date, bestIndex)}</strong> is the best solar day this
-          week — about <strong>{kwh(best.kwh)}</strong> against{' '}
-          {kwh(otherAvg)} on the other days.
-        </Lede>
-      ) : hasKwh ? null : (
-        <Lede>The week ahead, and how much sun it should bring.</Lede>
+      {/* The answer, at the size of the answer. */}
+      {best && (
+        <div className="fc-verdict">
+          <div className="label">{hasKwh ? 'Best day this week' : 'Sunniest day this week'}</div>
+          <div className="fc-verdict-head">
+            <span className="fc-verdict-day">{best.spoken}</span>
+            {hasKwh && <span className="fc-verdict-value">{kwh(best.kwh)}</span>}
+          </div>
+          <div className="fc-verdict-sub">
+            {hasKwh && otherAvg != null
+              ? <>Against {kwh(otherAvg)} on the other days.
+                  {best.kwhLow != null && best.kwhHigh != null
+                    && ` Likely ${Math.round(best.kwhLow)}–${Math.round(best.kwhHigh)} kWh.`}</>
+              : <>{best.dateLabel}
+                  {best.sunshineHours != null && ` · ${Math.round(best.sunshineHours)} hours of sun`}</>}
+          </div>
+        </div>
       )}
 
-      <div className="forecast-list">
-        {days.map((d, i) => {
-          const width = hasKwh
-            ? d.kwh != null && maxKwh > 0 ? (d.kwh / maxKwh) * 100 : 0
-            : d.radiationMj != null && maxRadiation > 0 ? (d.radiationMj / maxRadiation) * 100 : 0;
-          return (
-            <div className={`forecast-day${i === bestIndex ? ' best' : ''}`} key={d.date}>
-              <div className="forecast-row">
-                <span className="forecast-name">{dayLabel(d.date, i)}</span>
-                <span className="forecast-temp">
-                  {deg(d.tMinC)}–{deg(d.tMaxC)}
-                  {d.rainMm != null && d.rainMm >= 1 && (
-                    <span className="forecast-rain"> · {Math.round(d.rainMm)} mm</span>
-                  )}
-                </span>
-                <span className="forecast-kwh">
-                  {hasKwh
-                    ? kwh(d.kwh)
-                    : d.sunshineHours == null ? '—' : `${Math.round(d.sunshineHours)} h sun`}
-                </span>
-              </div>
-              {/* Sequential magnitude: one hue, dim to bright - never a
-                  rainbow, same rule as the daily calendar. */}
-              <div className="forecast-track">
-                <div className="forecast-fill" style={{ width: `${width}%` }} />
-              </div>
-            </div>
-          );
-        })}
+      <div className="fc-rows">
+        {featured.map((d) => (
+          <DayRow
+            key={d.date}
+            day={d}
+            scaleMax={scaleMax}
+            hasKwh={hasKwh}
+            highlight={best && d.date === best.date}
+          />
+        ))}
       </div>
+
+      {/* The rest of the week: never gone, just not competing for attention.
+          This is also where a day off gets looked up. */}
+      {rest.length > 0 && (
+        <>
+          <button className="fc-more" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll}>
+            <span className="small">{showAll ? 'Hide the other days' : 'Rest of the week'}</span>
+            {!showAll && (
+              <span className="fc-spark" aria-hidden="true">
+                {days.map((d) => {
+                  const v = hasKwh ? d.kwh : d.sunshineHours;
+                  const h = scaleMax > 0 && v != null ? Math.max(8, (v / scaleMax) * 100) : 8;
+                  return (
+                    <span
+                      key={d.date}
+                      className={best && d.date === best.date ? 'best' : ''}
+                      style={{ height: `${h}%` }}
+                    />
+                  );
+                })}
+              </span>
+            )}
+            <span className="small">{showAll ? 'Close' : 'Show'}</span>
+          </button>
+
+          {showAll && (
+            <div className="fc-rows fc-rows-rest">
+              {rest.map((d) => (
+                <DayRow key={d.date} day={d} scaleMax={scaleMax} hasKwh={hasKwh} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       {!hasKwh && (
         <p className="panel-foot">
@@ -223,7 +341,7 @@ export default function SolarForecast({ state, onConfigChange }) {
           {cal?.monthlyPairs != null && cal.monthlyPairs > 0
             ? ` (${cal.monthlyPairs} complete month${cal.monthlyPairs === 1 ? '' : 's'} matched so far, 6 needed)`
             : ''}
-          . Temperature and sunshine are the forecast&apos;s own figures.
+          . The week is ranked on sunshine hours instead.
           <InfoPopover label="Why there is no kWh figure yet" className="section-info">
             The estimate is not modelled from panel specifications — it is fitted from
             what this roof actually produced on past days with known sunlight, which is
@@ -241,7 +359,7 @@ export default function SolarForecast({ state, onConfigChange }) {
             ? `Fitted from ${cal.samples} of your own days against the sunlight they got`
             : `Fitted from ${cal.samples} complete months against the sunlight they got`}
           {spreadPct ? `, and typically lands within about ${spreadPct}% of the figure shown` : ''}.
-          {data?.fetchedAt && ` Forecast as of ${timeLabel(data.fetchedAt)}.`}
+          {data?.fetchedAt && ` Checked ${timeLabel(data.fetchedAt)}.`}
           <InfoPopover label="How these kWh figures are worked out" className="section-info">
             <p>
               The forecast gives the sunlight energy expected on each day. Your own
@@ -252,13 +370,18 @@ export default function SolarForecast({ state, onConfigChange }) {
             </p>
             <p>
               {cal.method === 'monthly'
-                ? 'It is currently fitted on whole-month totals, because there are not yet 30 days of daily readings. Month-to-month scatter is much tighter than day-to-day scatter, so treat a single day as a rougher figure than the fit suggests; it sharpens once daily data builds up.'
-                : 'The spread quoted is the middle 60% of your own days around the fit. It does not include the weather forecast being wrong, which grows through the week — day six or seven is a much softer number than tomorrow.'}
+                ? 'It is currently fitted on whole-month totals, because there are not yet 30 days of daily readings. Month-to-month scatter is much tighter than day-to-day scatter, so a single day is a rougher figure than the fit suggests; it sharpens once daily data builds up, and the bars show no range until then.'
+                : 'The bar is the middle 60% of your own days around the fit, and the line is the middle of it. It does not include the weather forecast itself being wrong, which grows through the week — day six or seven is a much softer number than tomorrow.'}
             </p>
             <p>
-              These are daily totals. The app has no hour-by-hour household usage, so
-              nothing here is converted into dollars — the same limit that keeps Plan
-              Comparison to EV charging only.
+              &quot;Spare for the car&quot; is the day&apos;s expected production less what
+              your house alone has typically drawn per day over recent months. It is a
+              whole-day energy figure, not a plan for the day: it does not know when the
+              sun and your appliances coincide, or where the battery will be sitting.
+            </p>
+            <p>
+              These are daily totals, so nothing here is converted into dollars — the
+              same limit that keeps Plan Comparison to EV charging only.
             </p>
           </InfoPopover>
         </p>

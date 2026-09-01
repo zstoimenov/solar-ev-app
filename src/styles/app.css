@@ -597,26 +597,60 @@ header.top .date-range-filter { flex-shrink: 0; }
 .delta-note { margin: .35rem 0 0; font-size: .72rem; color: var(--muted); }
 
 /* --- 7-day solar forecast -----------------------------------------------
-   Magnitude is sequential: ONE hue, dim to bright, same rule as the daily
-   calendar - the bars mean "more", not "different". The best day is marked
-   by a left rule as well as a brighter bar, so the ranking is never carried
-   by colour intensity alone. */
-.forecast-list { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
-.forecast-day { padding-left: .5rem; border-left: 3px solid transparent; }
-.forecast-day.best { border-left-color: var(--accent); }
-.forecast-row { display: flex; align-items: baseline; gap: .5rem; }
-.forecast-name { flex: 1 1 auto; min-width: 0; font-size: .82rem; }
-.forecast-temp { color: var(--muted); font-size: .76rem; font-variant-numeric: tabular-nums; }
-.forecast-rain { color: var(--blue); }
-.forecast-kwh {
-  min-width: 4.4rem; text-align: right; font-size: .84rem; font-weight: 600;
-  font-variant-numeric: tabular-nums;
+   Arranged around the decision, not the calendar: a verdict block, then only
+   the days this household acts on (today, tomorrow, the weekend, and the
+   standout day when it is none of those). Magnitude is length on a shared
+   scale and the range IS the bar, so uncertainty never has to be a footnote.
+   The best day is marked by a left rule and a word as well as brightness. */
+.fc-verdict {
+  background: var(--panel-2); border: 1px solid rgba(250, 204, 21, .28);
+  border-radius: 10px; padding: .75rem .85rem; margin-bottom: .9rem;
 }
-.forecast-track {
-  height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin-top: .3rem;
+.fc-verdict .label { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
+.fc-verdict-head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin-top: .2rem; }
+.fc-verdict-day { font-size: 1.6rem; font-weight: 700; color: var(--accent); letter-spacing: -.02em; line-height: 1.1; }
+.fc-verdict-value { font-size: .95rem; font-weight: 600; color: var(--text); }
+.fc-verdict-sub { font-size: .8rem; color: var(--muted); margin-top: .3rem; line-height: 1.45; text-wrap: pretty; }
+
+.fc-rows { display: flex; flex-direction: column; gap: .8rem; }
+.fc-rows-rest { margin-top: .8rem; }
+.fc-row { padding-left: .5rem; border-left: 3px solid transparent; }
+.fc-row.best { border-left-color: var(--accent); }
+.fc-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.fc-row-name { font-size: .84rem; font-weight: 600; min-width: 0; }
+.fc-row-date { display: block; font-size: .68rem; font-weight: 400; color: var(--muted); margin-top: .1rem; }
+.fc-row-value { font-size: .84rem; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* The range bar: the dim extent is the likely range, the bright line is the
+   middle of it. One hue throughout - length carries the magnitude. */
+.fc-track {
+  position: relative; height: 10px; border-radius: 5px;
+  background: var(--panel-2); margin-top: .35rem;
 }
-.forecast-fill { height: 100%; background: var(--accent); opacity: .55; border-radius: 3px; }
-.forecast-day.best .forecast-fill { opacity: 1; }
+.fc-band { position: absolute; top: 0; bottom: 0; background: rgba(250, 204, 21, .22); border-radius: 5px; }
+.fc-row.best .fc-band { background: rgba(250, 204, 21, .34); }
+.fc-mark {
+  position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1.5px;
+  background: rgba(250, 204, 21, .8); border-radius: 2px;
+}
+.fc-row.best .fc-mark { background: var(--accent); }
+.fc-fill { height: 100%; background: rgba(250, 204, 21, .5); border-radius: 5px; }
+.fc-row.best .fc-fill { background: var(--accent); }
+.fc-row-note { font-size: .72rem; color: var(--muted); margin-top: .3rem; line-height: 1.4; text-wrap: pretty; }
+
+/* The other days stay one tap away rather than gone - this is also where a
+   rotating day off gets looked up. */
+.fc-more {
+  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  width: 100%; min-height: 44px; margin-top: .9rem; padding: .4rem .75rem;
+  background: transparent; color: var(--text); border: 1px solid var(--border);
+  border-radius: 10px; font: inherit; cursor: pointer;
+}
+.fc-more:hover { background: rgba(255, 255, 255, .04); }
+.fc-spark { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
+.fc-spark span { width: 5px; background: rgba(250, 204, 21, .35); border-radius: 3px; }
+.fc-spark span.best { background: var(--accent); }
+
 .forecast-foot-row {
   display: flex; align-items: center; justify-content: space-between; gap: .5rem;
   margin-top: .75rem; padding-top: .6rem; border-top: 1px solid var(--border); flex-wrap: wrap;
