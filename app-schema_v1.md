@@ -85,31 +85,12 @@ Six blocks:
   - `export[]`: `{ effectiveFrom (YYYY-MM-DD), peakFrom (HH:MM), peakTo (HH:MM),
     peakPriceCentsPerKwh, offPeakPriceCentsPerKwh }` - the feed-in (export)
     credit, split into two time-of-day bands (e.g. DEBS peak/off-peak).
-    **Stored for reference only** - `buildDigest.js` does not yet apply this to
-    `exportCreditAud`, because Fronius only reports a monthly export total (no
-    hour-by-hour split), so there's no reliable way to blend two time-banded
-    rates into one number without assuming a peak-share percentage. The
-    existing single blended `tariffs.debsPeakCPerKwh` keeps being used.
-  - Resolution is **forward-only**: adding/editing entries never recomputes
-    already-ingested historical months, only months ingested from then on.
-- **`tariffPlans`** *(optional; absent = `[]`)* - a catalog of rate-card **options**
-  (e.g. Synergy's A1, EV Add On) to compare against `tariffSchedule.import` (what
-  you're actually billed on), edited via Ingest -> Tariffs & Rates -> Tariff Plans.
-  Pre-populated in `public/seed-data_v1.json` with Synergy's published A1/EV Add On
-  rates (`data/defaultTariffPlans.js`, also loadable on demand via that page's "Load
-  Synergy's published rates" button) - this is public rate-card info, not
-  household-specific, so it's fine to ship. One row per rate band: `{ planName,
-  financialYear, supplyChargeCPerDay, bandLabel, from (HH:MM|null), to (HH:MM|null),
-  priceCentsPerKwh }`. `financialYear` is the Australian FY the price took effect
-  (`"FY2025-26"` etc, via `data/tariffSchedule.js:financialYearLabel`) - **not** a
-  calendar year, since Synergy (like most WA retailers) reprices on 1 July. (Entries
-  saved before this fix used a bare `year` number; `financialYearOf()` reads those as
-  the FY start year for backward compatibility - don't remove that fallback without
-  migrating existing data first.) A flat plan (A1) is one row with `from`/`to` null
-  (all day); a time-of-day plan is several rows sharing the same
-  `planName`+`financialYear`+`supplyChargeCPerDay`. Used by the Dashboard's Plan
-  Comparison tile (`data/evTimeOfUseSplit.js`) - **EV charging only**, not a
-  whole-household bill comparison (see `evChargingSessions` below for why).
+    **Applied since v2.5** by `ingest/exportCredit.js` (used by both
+    `buildDigest.js` and `recomputeFinancials.js`), but only for months that
+    also have an `intervalProfile` - the profile supplies the measured share of
+    export that left inside the peak window. Without one, the credit falls back
+    to the single `tariffs.debsPeakCPerKwh` rate, exactly as before. Which of
+    the two was used is recorded on the digest as `exportCreditBasis`.
 
 ---
 
@@ -159,6 +140,48 @@ wall-clock **timestamps**, not just a daily/monthly total.
   known (only as a daily total, from the Energy Balance XLSX, with no per-session
   attribution). Treat it as "the most EV charging could have cost under each plan," not
   a real bill.
+
+---
+
+## `monthlyDigests[].intervalProfile`
+
+*(optional; absent = no half-hourly data for that month)* Added in v2.4. The
+month's shape at the meter, from a Synergy `MA_IntervalDataHistory.csv` that
+carried 30-minute rows.
+
+`{ source, intervalMinutes, days, intervals, importKwh[48],
+exportKwh[48] | null }`
+
+- **48 half-hourly buckets per direction, labelled by their START**: index 0
+  is 00:00-00:30, index 47 is 23:30-24:00. A row stamped `07:30` covers
+  07:30-08:00.
+- Built by `ingest/parseSynergy.js`, which folds 1,440 raw rows into these 96
+  numbers **at ingest and discards the rows**. Raw intervals are never stored:
+  they would multiply the size of every backup file for data that is only
+  ever read in aggregate.
+- `exportKwh` is `null` when the file had no export column; the whole field is
+  `null` for a month imported from a daily-granularity file.
+- **NOT in `DIGEST_FIELDS`**, so pre-v2.4 backups validate unchanged.
+  Re-ingesting a month from a daily file preserves any profile already stored
+  rather than erasing it.
+- Built from **every in-month row**. The file's `Billing Status` column is
+  ignored: it marks Synergy's invoicing period, not whether a reading is real.
+  `gridImportSynergyKwh` is summed from the same rows, so the two always
+  reconcile.
+- **Energy only.** Nothing financial is derived from it;
+  `monthlyDigests[]` remains the sole source of every dollar figure.
+
+---
+
+## `monthlyDigests[].exportCreditBasis` / `.exportPeakSharePct`
+
+*(optional; added v2.5)* How `exportCreditAud` was priced for that month:
+`'measured-split'` (a two-rate feed-in schedule applied on the month's own
+measured peak share, which `exportPeakSharePct` records) or `'single-rate'`
+(the whole export total at `tariffs.debsPeakCPerKwh`, the pre-v2.5 behaviour).
+Neither is in `DIGEST_FIELDS`, so older backups validate unchanged. Produced
+by `ingest/exportCredit.js`, which both ingest paths share so a recomputed
+month and a freshly ingested one can never disagree.
 
 ---
 

@@ -13,6 +13,7 @@ import React, { useState } from 'react';
 import InfoPopover from '../InfoPopover.jsx';
 import { Lede, CompareBar, ProgressRow, RangeChips, monthLabel, Deltas } from './parts.jsx';
 import { monthComparison } from '../../data/compare.js';
+import WholeBillComparison from '../Dashboard/WholeBillComparison.jsx';
 import { layer3AnnualAud } from '../../data/compute.js';
 
 function money(n, dp = 0) {
@@ -153,6 +154,11 @@ export default function Money({ scopes, months, rangeFilter, allDigests }) {
           <Deltas comparison={billVs} format={(n) => money(n)} higherIsBetter={false} />
         </div>
       )}
+
+      {/* What the same usage would have cost on a different rate card. Needs
+          the half-hourly profile, so it renders only for months imported
+          from a Synergy interval file. */}
+      <WholeBillComparison digests={digests} config={state.config} />
 
       {payback.length > 0 && (
         <div className="panel">

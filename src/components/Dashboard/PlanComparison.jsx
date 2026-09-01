@@ -15,7 +15,9 @@
 import React from 'react';
 import InfoPopover from '../InfoPopover.jsx';
 import { splitSessionsByBand } from '../../data/evTimeOfUseSplit.js';
-import { financialYearOf } from '../../data/tariffSchedule.js';
+// groupPlans/bandCoverageMinutes are shared with the whole-of-household
+// comparison on Money, so the two can never disagree about a plan's bands.
+import { groupPlans, bandCoverageMinutes } from '../../data/planPricing.js';
 
 function money(n) {
   return n == null ? '—' : `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -28,41 +30,6 @@ function money(n) {
 function shortFy(fy) {
   const m = /^FY\d{2}(\d{2})-(\d{2})$/.exec(fy ?? '');
   return m ? `${m[1]}/${m[2]}` : fy;
-}
-
-// Flattens the (planName, financialYear, bandLabel) rows from
-// config.tariffPlans back into one object per plan-year, each carrying its
-// full band list.
-function groupPlans(tariffPlans) {
-  const map = new Map();
-  for (const p of tariffPlans ?? []) {
-    const fy = financialYearOf(p);
-    const key = `${p.planName}__${fy}`;
-    if (!map.has(key)) {
-      map.set(key, { planName: p.planName, financialYear: fy, supplyChargeCPerDay: p.supplyChargeCPerDay, bands: [] });
-    }
-    map.get(key).bands.push({ label: p.bandLabel, from: p.from, to: p.to, priceCentsPerKwh: p.priceCentsPerKwh });
-  }
-  // Sort FY first so each financial year reads as its own group - plans are
-  // only compared against others in the SAME FY (comparing FY2025-26 prices
-  // against FY2026-27 prices would just crown the older, cheaper year).
-  return [...map.values()].sort((a, b) => a.financialYear.localeCompare(b.financialYear) || a.planName.localeCompare(b.planName));
-}
-
-// Total minutes/day a plan's bands cover. 1440 = exactly the full day; less
-// means a gap (energy charged in it silently prices at $0 - see
-// splitSessionsByBand), more means overlapping bands double-price energy.
-function bandCoverageMinutes(bands) {
-  const mins = (hhmm) => {
-    const [h, m] = (hhmm ?? '00:00').split(':').map(Number);
-    return h * 60 + m;
-  };
-  return bands.reduce((total, b) => {
-    const from = mins(b.from);
-    const toRaw = mins(b.to);
-    const to = toRaw <= from ? toRaw + 1440 : toRaw;
-    return total + (to - from);
-  }, 0);
 }
 
 export default function PlanComparison({ state }) {

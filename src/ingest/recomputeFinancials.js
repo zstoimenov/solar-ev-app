@@ -11,6 +11,7 @@
 // triggered by RecomputeFinancialsButton.jsx. Never called automatically.
 
 import { resolveScheduleEntry, sumChargingLogForMonth } from '../data/tariffSchedule.js';
+import { exportCreditForMonth } from './exportCredit.js';
 
 const round = (n, dp = 2) =>
   n == null ? null : Math.round((n + Number.EPSILON) * 10 ** dp) / 10 ** dp;
@@ -33,7 +34,16 @@ export function recomputeDigestFinancials(digest, config, chargingLog) {
   const gridCostAvoidedAud = actualGridCostAud != null && baselineGridCostAud != null
     ? round(baselineGridCostAud - actualGridCostAud, 2)
     : null;
-  const exportCreditAud = digest.gridExportKwh != null ? round(digest.gridExportKwh * debsPeak, 2) : null;
+  // Same helper as buildDigest.js, so a recomputed month and a freshly
+  // ingested one can never disagree. The profile is already on the stored
+  // digest, so this needs no raw file - a month ingested before the
+  // interval data existed simply has none and keeps the single rate.
+  const { exportCreditAud, exportCreditBasis, exportPeakSharePct } = exportCreditForMonth({
+    month: digest.month,
+    gridExportKwh: digest.gridExportKwh,
+    intervalProfile: digest.intervalProfile ?? null,
+    config
+  });
   const layer1SavingAud = gridCostAvoidedAud != null && exportCreditAud != null
     ? round(gridCostAvoidedAud + exportCreditAud, 2)
     : null;
@@ -73,6 +83,8 @@ export function recomputeDigestFinancials(digest, config, chargingLog) {
     baselineGridCostAud,
     gridCostAvoidedAud,
     exportCreditAud,
+    exportCreditBasis,
+    exportPeakSharePct,
     ceratoCounterfactualAud,
     layer1SavingAud,
     layer2SavingAud,

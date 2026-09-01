@@ -15,6 +15,7 @@ import SolarForecast from '../Dashboard/SolarForecast.jsx';
 import MonthlyProduction from '../Dashboard/MonthlyProduction.jsx';
 import MonthlyComparison from '../Dashboard/MonthlyComparison.jsx';
 import DailyCalendar from '../Dashboard/DailyCalendar.jsx';
+import TimeOfDayProfile from '../Dashboard/TimeOfDayProfile.jsx';
 import InfoPopover from '../InfoPopover.jsx';
 import { Lede, SplitBar, CompareBar, SOURCE_COLORS, RangeChips, RANGES, Deltas } from './parts.jsx';
 import { dailyForMonth, monthToDate, paceToMonthEnd, typicalForMonth } from '../../data/daily.js';
@@ -152,6 +153,10 @@ export default function Energy({ state, fullState, rangeFilter, onConfigChange }
           />
         </div>
       )}
+
+      {/* 2b. WHEN did the house buy it? Only for months whose Synergy
+          download carried 30-minute rows - it renders nothing otherwise. */}
+      <TimeOfDayProfile digests={scopeDigests} config={fullState.config} />
 
       {/* 3. Which days were good and bad? */}
       <div className="panel">

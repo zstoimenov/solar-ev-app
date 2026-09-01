@@ -5,6 +5,7 @@
 
 import { crossValFlag } from '../data/compute.js';
 import { resolveScheduleEntry, sumChargingLogForMonth, financialYearLabel } from '../data/tariffSchedule.js';
+import { exportCreditForMonth } from './exportCredit.js';
 
 const round = (n, dp = 2) =>
   n == null ? null : Math.round((n + Number.EPSILON) * 10 ** dp) / 10 ** dp;
@@ -75,11 +76,17 @@ export function buildDigest(parsed, manual, config, chargingLog = [], prevDigest
   // connection fee with or without solar) - it only makes the two absolute
   // cost figures match a real bill instead of usage-only.
   const supplyChargeAudPerDay = (importEntry?.supplyChargeCPerDay ?? 0) / 100;
-  // Feed-in (export) schedule is stored (config.tariffSchedule.export) but not
-  // yet auto-applied here - Fronius only gives a monthly export total, not an
-  // hour-by-hour split, so there's no reliable way to apply its two time-of-day
-  // rates without an assumed peak-share guess. Keeps using the blended rate.
+  // The foregone-export rate used by Layer 2's home-charging cost below.
+  // Deliberately still the single DEBS rate even when the export credit is
+  // priced on a measured split (see exportCredit.js): what an EV's PV/battery
+  // kWh would have earned depends on the time of day it was charged, which
+  // the Wattpilot data does not say. Changing it here would move Layer 2 on
+  // an assumption, which is the thing this app does not do.
   const debsPeak = tariffs.debsPeakCPerKwh / 100;
+
+  // The month's half-hourly profile, when its Synergy file carried 30-minute
+  // rows (or an earlier ingest of this month captured one).
+  const intervalProfile = synergy.intervalProfile ?? prevDigest?.intervalProfile ?? null;
 
   // Self-sufficiency / self-consumption from energy fields (null-safe).
   const cons = fronius.totalConsumptionKwh;
@@ -103,8 +110,14 @@ export function buildDigest(parsed, manual, config, chargingLog = [], prevDigest
     baselineGridCostAud != null && actualGridCostAud != null
       ? round(baselineGridCostAud - actualGridCostAud, 2)
       : null;
-  const exportCreditAud =
-    fronius.gridExportKwh != null ? round(fronius.gridExportKwh * debsPeak, 2) : null;
+  // Two-rate feed-in applied on the month's MEASURED peak share when there
+  // is one, otherwise the previous single-rate behaviour, unchanged.
+  const { exportCreditAud, exportCreditBasis, exportPeakSharePct } = exportCreditForMonth({
+    month,
+    gridExportKwh: fronius.gridExportKwh,
+    intervalProfile,
+    config
+  });
   const layer1SavingAud =
     gridCostAvoidedAud != null && exportCreditAud != null
       ? round(gridCostAvoidedAud + exportCreditAud, 2)
@@ -170,6 +183,12 @@ export function buildDigest(parsed, manual, config, chargingLog = [], prevDigest
     gridExportKwh: round(fronius.gridExportKwh),
     gridImportFroniusKwh: round(fronius.gridImportFroniusKwh),
     gridImportSynergyKwh: synergy.gridImportSynergyKwh,
+    // Optional (not in DIGEST_FIELDS): the month's half-hourly shape, when
+    // the Synergy download carried 30-minute rows. Re-ingesting a month from
+    // a DAILY-granularity file must not erase a profile captured earlier -
+    // same trap as the charging-log fallback below, so the previous digest's
+    // profile is kept rather than overwritten with null.
+    intervalProfile,
     selfSufficiencyPct,
     selfConsumptionRatePct,
     zeroProductionDays: fronius.zeroProductionDays ?? null,
@@ -190,6 +209,11 @@ export function buildDigest(parsed, manual, config, chargingLog = [], prevDigest
     baselineGridCostAud,
     gridCostAvoidedAud,
     exportCreditAud,
+    // Optional (not in DIGEST_FIELDS): how the credit above was priced, so a
+    // reader can tell a measured split from the single-rate fallback rather
+    // than having to infer it.
+    exportCreditBasis,
+    exportPeakSharePct,
     ceratoCounterfactualAud,
     layer1SavingAud,
     layer2SavingAud,

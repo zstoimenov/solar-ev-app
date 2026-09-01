@@ -36,6 +36,14 @@ npm run preview  # serve the production build locally
 - **First run** seeds from `public/seed-data_v1.json`, validates, and persists.
 - **Dashboards:** ROI Layers (1 solar+battery, 2 EV vs Cerato, 3 lease vs loan),
   Payback Progress, Energy Trends, EV Charging Split, and a Data Notes panel.
+- **Interval data:** a Synergy CSV with 30-minute rows is folded at import
+  into a 48-bucket half-hourly profile per month (raw rows discarded), shown
+  as a "when you buy power" panel on Energy. The same parser still handles a
+  daily-granularity file.
+- **Plan comparison, two of them:** the whole bill priced band-by-band from
+  that profile (Money), and EV charging only from the session log (Car).
+- **Export credit** is split across the feed-in tariff's peak/off-peak rates
+  using the month's own measured peak share, not an assumed one.
 - **Monthly ingest:** upload Fronius + Wattpilot XLSX + Synergy CSV, enter
   away-charging, preview the computed month + updated totals, then confirm to
   write (propose-before-write).
