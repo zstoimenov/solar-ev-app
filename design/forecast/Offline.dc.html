@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background: #0f172a; color: #e2e8f0; -webkit-font-smoothing: antialiased; }
+    a { color: #facc15; } a:hover { color: #fde68a; }
+  </style>
+</helmet>
+<div style="padding: 12px 12px 20px; background: #0f172a;">
+
+  <div style="font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin-bottom: 10px;">State · Offline, cached forecast</div>
+
+  <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px 17.6px;">
+
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9.6px;">
+      <h3 style="margin: 0; font-size: 15.2px; font-weight: 600; color: #e2e8f0;">Next 7 days</h3>
+      <button style="background: transparent; color: #94a3b8; border: 1px solid #334155; border-radius: 8px; padding: 4px 9px; font: inherit; font-size: 11.5px; cursor: pointer;">Try again</button>
+    </div>
+
+    <!-- the app's own .banner.warn tokens -->
+    <div style="background: #3a2a10; border: 1px solid #a16207; color: #fde68a; border-radius: 10px; padding: 11.2px 14.4px; font-size: 13px; line-height: 1.45; margin-bottom: 14px; text-wrap: pretty;">
+      Could not reach the weather service — showing <strong>yesterday's</strong> forecast, checked 2:10 pm.
+    </div>
+
+    <!-- Stale data is visibly stale: the whole plot is dimmed, not just captioned. -->
+    <div style="opacity: .55;">
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; height: 120px; border-bottom: 1px solid #334155;">
+        <div style="position: relative; height: 100%;">
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 24px; height: 23px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 34px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+        </div>
+        <div style="position: relative; height: 100%;">
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 42px; height: 34px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 57px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+        </div>
+        <div style="position: relative; height: 100%;">
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 27px; height: 24px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 38px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+        </div>
+        <div style="position: relative; height: 100%;">
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 52px; height: 42px; background: rgba(250,204,21,.34); border-radius: 7px;"></div>
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 71px; height: 3px; background: #facc15; border-radius: 2px;"></div>
+        </div>
+        <div style="position: relative; height: 100%;">
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 34px; height: 28px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 47px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+        </div>
+        <div style="position: relative; height: 100%;">
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 38px; height: 31px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 53px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+        </div>
+        <div style="position: relative; height: 100%;">
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 36px; height: 29px; background: rgba(250,204,21,.20); border-radius: 7px;"></div>
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); width: 14px; bottom: 50px; height: 3px; background: rgba(250,204,21,.75); border-radius: 2px;"></div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 7px;">
+        <div style="text-align: center; font-size: 11.5px; color: #94a3b8;">Mon</div>
+        <div style="text-align: center; font-size: 11.5px; color: #94a3b8;">Tue</div>
+        <div style="text-align: center; font-size: 11.5px; color: #94a3b8;">Wed</div>
+        <div style="text-align: center; font-size: 11.5px; color: #94a3b8;">Thu</div>
+        <div style="text-align: center; font-size: 11.5px; color: #94a3b8;">Fri</div>
+        <div style="text-align: center; font-size: 11.5px; color: #94a3b8;">Sat</div>
+        <div style="text-align: center; font-size: 11.5px; color: #94a3b8;">Sun</div>
+      </div>
+    </div>
+
+    <p style="border-top: 1px solid #334155; margin: 12px 0 0; padding-top: 9.6px; font-size: 12.5px; color: #94a3b8; line-height: 1.45; text-wrap: pretty;">
+      A day-old forecast still ranks the week, but treat the numbers as indicative —
+      today's has not been fetched.
+    </p>
+  </div>
+
+  <p style="margin: 12px 2px 0; font-size: 12px; color: #64748b; line-height: 1.5; text-wrap: pretty;">
+    Staleness is shown, not just stated: the plot dims so nobody reads a day-old number
+    as today's, while the ranking stays usable.
+  </p>
+</div>
+</x-dc>
+</body>
+</html>

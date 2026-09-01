@@ -4,3 +4,9 @@ dist-ssr
 *.local
 .DS_Store
 .vite
+
+# Seeded design-canvas bundles: ~2.5 MB each because the canvas editor is
+# baked into every one. Regenerate from the .dc.html sources beside them
+# (see design/forecast/README.md) rather than committing the output.
+design/**/*.html
+!design/**/*.dc.html

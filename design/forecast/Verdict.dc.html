@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background: #0f172a; color: #e2e8f0; -webkit-font-smoothing: antialiased; }
+    a { color: #facc15; } a:hover { color: #fde68a; }
+  </style>
+</helmet>
+<div style="padding: 12px 12px 20px; background: #0f172a;">
+
+  <div style="font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin-bottom: 10px;">Concept B · The verdict</div>
+
+  <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px 17.6px;">
+
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9.6px;">
+      <h3 style="margin: 0; font-size: 15.2px; font-weight: 600; color: #e2e8f0;">Next 7 days</h3>
+      <span style="font-size: 12.8px; color: #94a3b8;">11:47 am</span>
+    </div>
+
+    <!-- The answer, at the size of the answer. -->
+    <div style="background: #273449; border: 1px solid rgba(250,204,21,.28); border-radius: 10px; padding: 12px 14px;">
+      <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #94a3b8;">Best day this week</div>
+      <div style="display: flex; align-items: baseline; gap: 10px; margin-top: 4px;">
+        <span style="font-size: 26px; font-weight: 700; color: #facc15; letter-spacing: -.02em;">Thursday</span>
+        <span style="font-size: 15px; font-weight: 600; color: #e2e8f0;">31 kWh</span>
+      </div>
+      <div style="font-size: 13px; color: #94a3b8; margin-top: 5px; line-height: 1.45; text-wrap: pretty;">
+        Half as much again as the rest of the week. Likely 23–41 kWh.
+      </div>
+    </div>
+
+    <!-- The two other decisions a household actually makes -->
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <div style="flex: 0 0 62px;">
+          <div style="font-size: 12.5px; color: #e2e8f0; font-weight: 600;">Today</div>
+          <div style="font-size: 10.5px; color: #64748b; margin-top: 1px;">9–18°</div>
+        </div>
+        <div style="flex: 1 1 auto; min-width: 0;">
+          <div style="height: 8px; border-radius: 4px; background: #273449; position: relative; margin-top: 5px;">
+            <div style="position: absolute; left: 28%; width: 22%; top: 0; bottom: 0; background: rgba(250,204,21,.22); border-radius: 4px;"></div>
+            <div style="position: absolute; left: 38.6%; width: 3px; top: -2px; bottom: -2px; background: rgba(250,204,21,.8); border-radius: 2px;"></div>
+          </div>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 6px; line-height: 1.4;">Quiet day — enough for one load of washing.</div>
+        </div>
+        <div style="flex: 0 0 auto; font-size: 13.5px; font-weight: 600; color: #e2e8f0; padding-top: 1px;">16 kWh</div>
+      </div>
+
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <div style="flex: 0 0 62px;">
+          <div style="font-size: 12.5px; color: #e2e8f0; font-weight: 600;">Tomorrow</div>
+          <div style="font-size: 10.5px; color: #64748b; margin-top: 1px;">8–19°</div>
+        </div>
+        <div style="flex: 1 1 auto; min-width: 0;">
+          <div style="height: 8px; border-radius: 4px; background: #273449; position: relative; margin-top: 5px;">
+            <div style="position: absolute; left: 45%; width: 35%; top: 0; bottom: 0; background: rgba(250,204,21,.22); border-radius: 4px;"></div>
+            <div style="position: absolute; left: 61%; width: 3px; top: -2px; bottom: -2px; background: rgba(250,204,21,.8); border-radius: 2px;"></div>
+          </div>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 6px; line-height: 1.4;">A good day, but Thursday is better.</div>
+        </div>
+        <div style="flex: 0 0 auto; font-size: 13.5px; font-weight: 600; color: #e2e8f0; padding-top: 1px;">26 kWh</div>
+      </div>
+    </div>
+
+    <!-- the rest of the week, one line, tappable -->
+    <button style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; margin-top: 14px; min-height: 44px; background: transparent; border: 1px solid #334155; border-radius: 10px; padding: 8px 12px; cursor: pointer; font: inherit; color: #e2e8f0;">
+      <span style="font-size: 12.5px; color: #94a3b8;">Rest of the week</span>
+      <span style="display: flex; align-items: flex-end; gap: 4px; height: 22px;">
+        <span style="width: 6px; height: 38%; background: rgba(250,204,21,.35); border-radius: 3px;"></span>
+        <span style="width: 6px; height: 62%; background: rgba(250,204,21,.35); border-radius: 3px;"></span>
+        <span style="width: 6px; height: 41%; background: rgba(250,204,21,.35); border-radius: 3px;"></span>
+        <span style="width: 6px; height: 100%; background: #facc15; border-radius: 3px;"></span>
+        <span style="width: 6px; height: 50%; background: rgba(250,204,21,.35); border-radius: 3px;"></span>
+        <span style="width: 6px; height: 56%; background: rgba(250,204,21,.35); border-radius: 3px;"></span>
+        <span style="width: 6px; height: 53%; background: rgba(250,204,21,.35); border-radius: 3px;"></span>
+      </span>
+      <span style="font-size: 12.5px; color: #94a3b8;">Show ›</span>
+    </button>
+
+    <p style="border-top: 1px solid #334155; margin: 12px 0 0; padding-top: 9.6px; font-size: 12.5px; color: #94a3b8; line-height: 1.45; text-wrap: pretty;">
+      Fitted from <strong style="color: #e2e8f0;">43 of your own days</strong>, and typically lands within about 26% of the figure shown.
+    </p>
+  </div>
+
+  <p style="margin: 12px 2px 0; font-size: 12px; color: #64748b; line-height: 1.5; text-wrap: pretty;">
+    Answers the question instead of presenting the evidence for it: today, tomorrow and the
+    best day are the only three a household acts on. The other four stay one tap away.
+  </p>
+</div>
+</x-dc>
+</body>
+</html>
