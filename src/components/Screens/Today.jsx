@@ -1,16 +1,24 @@
-// Today - the answer screen. Everything here is visible on open: no
-// collapsed panels, no tapping required to learn how the household is doing.
+// Today - "how am I doing?"
 //
-// Order is deliberate: anything that needs attention, then the headline
-// saving, then payback, then the month in progress, then what's coming.
+// Four things, in this order: anything wrong, the total, how far to payback,
+// how this month is going. Nothing else earns a place here.
 //
-// Every figure is real or absent. Where a number cannot be derived (no daily
-// rows yet, no payback block, not enough history for a seasonal comparison)
-// the block is simply not rendered - nothing is estimated to fill a gap.
+// What was deliberately REMOVED in the v2.1 content pass:
+//   - "per day" alongside "per month" and the total. Three phrasings of one
+//     number is not three facts.
+//   - the three raw month-to-date kWh figures (generated / into the car /
+//     bought). "151 kWh" tells a household nothing without a reference, and
+//     the reference is what the comparison bar now supplies.
+//   - the daily sparkline. It was decoration: pretty, unreadable, and the
+//     day-level detail properly belongs on Energy's calendar.
+//
+// Every block still renders only when its inputs exist. Nothing is estimated
+// to keep the layout even.
 
 import React from 'react';
 import InfoPopover from '../InfoPopover.jsx';
 import { AlertIcon, CheckCircleIcon, ClockIcon } from '../Dashboard/icons.jsx';
+import { BigStat, Lede, CompareBar } from './parts.jsx';
 import { monthToDate, paceToMonthEnd, typicalForMonth, seasonalCheck } from '../../data/daily.js';
 import { backupStaleness } from '../../data/storage.js';
 
@@ -29,18 +37,12 @@ function monthLabel(month) {
   return `${MONTH_NAMES[m - 1]} ${y}`;
 }
 
-function kwh(n) {
-  return n == null ? '—' : Math.round(n).toLocaleString('en-AU');
-}
-
-// A ring rather than a bar: payback is one proportion of one whole, and the
-// ring reads at a glance from across the kitchen.
 function PaybackRing({ pct }) {
   const r = 40;
   const circumference = 2 * Math.PI * r;
   const filled = Math.max(0, Math.min(100, pct ?? 0)) / 100;
   return (
-    <svg width="96" height="96" viewBox="0 0 96 96" className="payback-ring" aria-hidden="true">
+    <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
       <circle cx="48" cy="48" r={r} fill="none" stroke="var(--border)" strokeWidth="10" />
       <circle
         cx="48" cy="48" r={r} fill="none" stroke="var(--green)" strokeWidth="10"
@@ -61,25 +63,20 @@ export default function Today({ state, appMeta, onGoTo }) {
   const months = c.coverage?.totalMonths ?? digests.length;
   const perMonth = combined != null && months ? combined / months : null;
 
-  // Per-day uses the real days covered, not months x 30 - a partial first or
-  // last month would otherwise quietly inflate the rate.
-  const totalDays = digests.reduce((a, d) => a + (d.daysInPeriod ?? 0), 0);
-  const perDay = combined != null && totalDays ? combined / totalDays : null;
-
   const totals = c.paybackTotals;
   const paybackPct =
     totals && totals.oopAud ? (totals.recoveredAud / totals.oopAud) * 100 : null;
   const paidOff = (c.payback ?? []).filter((p) => (p.remainingAud ?? 1) <= 0);
   const nextComponent = (c.payback ?? []).find((p) => (p.remainingAud ?? 0) > 0);
 
-  // The month in progress comes from the daily rows when they exist. Without
-  // them there is nothing to say that the Energy screen doesn't already show,
-  // so the card is omitted rather than filled with the last full month.
-  const latestMonth = digests.length ? digests[digests.length - 1].month : null;
   const dailyMonth = daily.length ? daily[daily.length - 1].date.slice(0, 7) : null;
   const mtd = dailyMonth ? monthToDate(daily, dailyMonth) : null;
   const pace = paceToMonthEnd(mtd);
   const typical = dailyMonth ? typicalForMonth(digests, dailyMonth) : null;
+
+  // This month's money and self-sufficiency come from the digest, which is
+  // the source of truth for both - the daily rows carry energy only.
+  const monthDigest = dailyMonth ? digests.find((d) => d.month === dailyMonth) : null;
 
   const season = seasonalCheck(daily);
   const stale = backupStaleness({
@@ -87,6 +84,9 @@ export default function Today({ state, appMeta, onGoTo }) {
     lastExportedCount: appMeta.lastExportedCount,
     lastExportedAt: appMeta.lastExportedAt
   });
+
+  const pacePct =
+    pace != null && typical?.kwh ? Math.round(((pace - typical.kwh) / typical.kwh) * 100) : null;
 
   return (
     <div className="screen">
@@ -118,30 +118,23 @@ export default function Today({ state, appMeta, onGoTo }) {
         </div>
       )}
 
-      <div className="panel headline-panel">
-        <div className="label">Saved so far</div>
-        <div className="headline-value">{money(combined)}</div>
-        <div className="sub">
-          {c.coverage?.firstMonth ? `Since ${monthLabel(c.coverage.firstMonth)}` : ''}
-          {months ? ` · ${months} month${months === 1 ? '' : 's'} tracked` : ''}
-        </div>
-        <div className="mini-grid">
-          <div className="mini-metric">
-            <div className="label">Per month</div>
-            <div className="mini-value">{money(perMonth)}</div>
-          </div>
-          <div className="mini-metric">
-            <div className="label">Per day</div>
-            <div className="mini-value">{money(perDay, 2)}</div>
-          </div>
-        </div>
+      <BigStat
+        label="Saved so far"
+        value={money(combined)}
+        tone="green"
+      >
+        <Lede>
+          {perMonth != null
+            ? <>About <strong>{money(perMonth)} a month</strong> since {monthLabel(c.coverage?.firstMonth)}.</>
+            : <>Across {months} month{months === 1 ? '' : 's'} of data.</>}
+        </Lede>
         <InfoPopover label="What this total covers" className="metric-info">
           Money kept by your solar and battery, plus the saving from driving
           electric instead of the old petrol car. It does not include the
           lease-versus-loan advantage, which is a fixed yearly figure and is
           deliberately never added in — see the Money screen.
         </InfoPopover>
-      </div>
+      </BigStat>
 
       {totals && (
         <div className="panel payback-panel">
@@ -153,20 +146,13 @@ export default function Today({ state, appMeta, onGoTo }) {
             </div>
           </div>
           <div className="payback-copy">
-            <div className="payback-headline">{money(totals.remainingAud)} left to recover</div>
+            <div className="payback-headline">{money(totals.remainingAud)} to go</div>
             <p className="small">
-              Of {money(totals.oopAud)} spent on hardware.
+              of the {money(totals.oopAud)} the hardware cost
               {nextComponent?.estPaybackYear && nextComponent.estPaybackYear !== 'Paid off'
-                ? ` At the current rate you break even in ${nextComponent.estPaybackYear}.`
-                : ''}
+                ? `, on track for ${nextComponent.estPaybackYear}`
+                : ''}.
             </p>
-            {paidOff.length > 0 && (
-              <div className="chip-row">
-                {paidOff.map((p) => (
-                  <span className="chip ok" key={p.component}>{p.component} done</span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -177,109 +163,88 @@ export default function Today({ state, appMeta, onGoTo }) {
             <h3 className="panel-title">{monthLabel(mtd.month)} so far</h3>
             <span className="small">day {mtd.daysCovered} of {mtd.daysInMonth}</span>
           </div>
-          <div className="stat-row">
-            <div className="stat">
-              <div className="stat-value accent">{kwh(mtd.solarKwh)}<span className="unit">kWh</span></div>
-              <div className="label">generated</div>
-            </div>
-            {mtd.evKwh != null && (
-              <div className="stat">
-                <div className="stat-value purple">{kwh(mtd.evKwh)}<span className="unit">kWh</span></div>
-                <div className="label">into the car</div>
-              </div>
-            )}
-            {mtd.gridImportKwh != null && (
-              <div className="stat">
-                <div className="stat-value red">{kwh(mtd.gridImportKwh)}<span className="unit">kWh</span></div>
-                <div className="label">bought</div>
-              </div>
-            )}
-          </div>
-          <Sparkline rows={state.dailySeries.filter((r) => r.date.slice(0, 7) === mtd.month)} />
-          {pace != null && (
+
+          {pacePct != null ? (
+            <>
+              <Lede>
+                At this rate {MONTH_NAMES[Number(mtd.month.slice(5, 7)) - 1]} finishes{' '}
+                <strong>{Math.abs(pacePct)}% {pacePct >= 0 ? 'ahead of' : 'behind'}</strong> a normal
+                {' '}{MONTH_NAMES[Number(mtd.month.slice(5, 7)) - 1]}.
+              </Lede>
+              <CompareBar
+                actual={pace}
+                reference={typical.kwh}
+                actualLabel="On pace for"
+                referenceLabel={`Typical ${MONTH_NAMES[Number(mtd.month.slice(5, 7)) - 1]}`}
+              />
+              <InfoPopover label="Where 'typical' comes from" className="section-info">
+                The average of your own {typical.years} previous complete{' '}
+                {MONTH_NAMES[Number(mtd.month.slice(5, 7)) - 1]}
+                {typical.years === 1 ? '' : 's'}. Partial months are excluded so a short
+                month cannot drag the figure down. The pace is a straight line from the
+                days covered so far — not a weather forecast.
+              </InfoPopover>
+            </>
+          ) : (
+            <Lede>
+              <strong>{Math.round(mtd.solarKwh).toLocaleString('en-AU')} kWh</strong> generated
+              over {mtd.daysCovered} days. A second {MONTH_NAMES[Number(mtd.month.slice(5, 7)) - 1]}{' '}
+              of data will give this something to compare against.
+            </Lede>
+          )}
+
+          {monthDigest && (
             <p className="panel-foot">
-              On pace for <strong>{kwh(pace)} kWh</strong>
-              {typical ? `, against a typical ${monthLabel(mtd.month).split(' ')[0]} of ${kwh(typical.kwh)}` : ''}.
-              {typical && (
-                <InfoPopover label="Where 'typical' comes from" className="section-info">
-                  The average of your own {typical.years} previous complete{' '}
-                  {monthLabel(mtd.month).split(' ')[0]}
-                  {typical.years === 1 ? '' : 's'}. Partial months are excluded so a
-                  short month cannot drag the figure down. The pace is a straight
-                  line from the days covered so far, not a weather forecast.
-                </InfoPopover>
+              {monthDigest.combinedSavingAud != null && (
+                <><strong>{money(monthDigest.combinedSavingAud)}</strong> saved this month</>
+              )}
+              {monthDigest.selfSufficiencyPct != null && (
+                <> · your own power covered <strong>{Math.round(monthDigest.selfSufficiencyPct)}%</strong> of
+                what the house used</>
               )}
             </p>
           )}
         </div>
       )}
 
-      <div className="panel">
-        <h3 className="panel-title">Coming up</h3>
-        <div className="milestone-list">
-          {paidOff.map((p) => (
-            <div className="milestone" key={p.component}>
-              <span className="milestone-icon done"><CheckCircleIcon /></span>
-              <div>{p.component} paid for itself</div>
-            </div>
-          ))}
-          {nextComponent && (
-            <div className="milestone">
-              <span className="milestone-icon"><ClockIcon /></span>
-              <div>
-                {nextComponent.component} — {money(nextComponent.remainingAud)} to go
-                {nextComponent.estPaybackYear && nextComponent.estPaybackYear !== 'Paid off'
-                  ? ` · about ${nextComponent.estPaybackYear}` : ''}
+      {(paidOff.length > 0 || nextComponent) && (
+        <div className="panel">
+          <h3 className="panel-title">Milestones</h3>
+          <div className="milestone-list">
+            {paidOff.map((p) => (
+              <div className="milestone" key={p.component}>
+                <span className="milestone-icon done"><CheckCircleIcon /></span>
+                <div>{p.component} has paid for itself</div>
               </div>
-            </div>
-          )}
-          {stale && (
-            <div className="milestone">
-              <span className="milestone-icon warn"><AlertIcon /></span>
-              <div>
-                {stale.text}{' '}
-                <button className="linkish" onClick={() => onGoTo('Data')}>Back up now</button>
+            ))}
+            {nextComponent && (
+              <div className="milestone">
+                <span className="milestone-icon"><ClockIcon /></span>
+                <div>
+                  {nextComponent.component} — {money(nextComponent.remainingAud)} to go
+                  {nextComponent.estPaybackYear && nextComponent.estPaybackYear !== 'Paid off'
+                    ? `, about ${nextComponent.estPaybackYear}` : ''}
+                </div>
               </div>
-            </div>
-          )}
-          {!paidOff.length && !nextComponent && !stale && (
-            <p className="small">Nothing needs your attention.</p>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {!mtd && latestMonth && (
+      {stale && (
+        <div className="chore">
+          <span className="chore-icon"><AlertIcon /></span>
+          <span className="chore-text">{stale.text}</span>
+          <button className="ghost small-btn" onClick={() => onGoTo('Data')}>Back up</button>
+        </div>
+      )}
+
+      {!mtd && (
         <p className="small screen-foot">
           Day-by-day figures start from your next monthly upload — earlier months
           were ingested before the app kept them.
         </p>
       )}
     </div>
-  );
-}
-
-// A bar per day of the month in progress. Pure SVG-free CSS bars: this is a
-// glance, not a chart, and it has to stay legible at 412px.
-function Sparkline({ rows }) {
-  const vals = rows.map((r) => r.solarKwh);
-  const max = Math.max(...vals.filter((v) => v != null), 0);
-  if (!max) return null;
-  return (
-    <>
-      <div className="sparkline">
-        {rows.map((r) => (
-          <div
-            key={r.date}
-            className={`spark-bar${r.solarKwh == null ? ' empty' : ''}`}
-            style={r.solarKwh == null ? undefined : { height: `${Math.max(4, (r.solarKwh / max) * 100)}%` }}
-            title={`${r.date}: ${r.solarKwh == null ? 'no reading' : `${r.solarKwh} kWh`}`}
-          />
-        ))}
-      </div>
-      <div className="sparkline-axis">
-        <span>{rows[0]?.date.slice(-2)} {MONTH_NAMES[Number(rows[0]?.date.slice(5, 7)) - 1]?.slice(0, 3)}</span>
-        <span>{rows[rows.length - 1]?.date.slice(-2)} {MONTH_NAMES[Number(rows[rows.length - 1]?.date.slice(5, 7)) - 1]?.slice(0, 3)}</span>
-      </div>
-    </>
   );
 }

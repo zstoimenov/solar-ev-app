@@ -1,62 +1,79 @@
-// Car - is driving electric paying, and when should I charge?
+// Car - "is driving electric paying, and when should I charge?"
 //
-// Wraps the existing EV tiles. The headline is deliberately the SOURCE MIX
-// rather than a cost-per-100km: the distance and consumption figures needed
-// for a per-kilometre number live in config.ev, whose shape this code has
-// never read, and inventing one would be a guess. The mix is real data.
+// Leads with money, because that is the question. The pre-v2.1 screen led
+// with "61% charged from your own energy" and then spent a doughnut, a
+// stacked bar chart and a two-row legend on the same split - three
+// renderings of one fact, and the doughnut's two "public" slices were
+// coloured #a78bfa and #60a5fa, a pair with a colour-vision separation of
+// 0.3 (i.e. identical). Both charts are gone; one labelled split bar
+// remains, with free and paid public folded into "Away from home".
 
 import React from 'react';
-import EvChargingSplit from '../Dashboard/EvChargingSplit.jsx';
 import PlanComparison from '../Dashboard/PlanComparison.jsx';
 import InfoPopover from '../InfoPopover.jsx';
+import { BigStat, Lede, SplitBar, SOURCE_COLORS } from './parts.jsx';
 
-const kwh = (n) => (n == null ? '—' : Math.round(n).toLocaleString('en-AU'));
-const money = (n) =>
-  n == null ? '—' : `$${Number(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (n, dp = 0) =>
+  n == null
+    ? '—'
+    : `$${Number(n).toLocaleString('en-AU', { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
+
+const sumKey = (rows, key) =>
+  rows.reduce((acc, d) => (d[key] == null ? acc : (acc ?? 0) + d[key]), null);
 
 export default function Car({ state }) {
   const ev = state.cumulativeTotals.ev ?? {};
-  // Share that came off the roof or out of the battery rather than being
-  // bought - the single number that explains why charging at home is cheap.
-  const ownShare =
-    ev.fromPvPct != null || ev.fromBatteryPct != null
-      ? Math.round((ev.fromPvPct ?? 0) + (ev.fromBatteryPct ?? 0))
-      : null;
+  const digests = state.monthlyDigests;
+
+  // The Layer 2 story, told as the comparison it actually is.
+  const petrolWouldHaveCost = sumKey(digests, 'ceratoCounterfactualAud');
+  const chargingCost = ev.totalEvElectricityCostAud;
+  const saved = state.cumulativeTotals.financial?.layer2SavingAud ?? null;
+
+  // Away-from-home charging is one category: free workplace and paid public
+  // are both "not off your roof". What separates them is cost, and cost is
+  // shown above in dollars rather than as two indistinguishable colours.
+  const away = (ev.workChargingKwh ?? 0) + (ev.publicTripKwh ?? 0);
 
   return (
     <div className="screen">
-      <div className="panel headline-panel">
-        <div className="label">Charged from your own energy</div>
-        <div className="headline-value green">
-          {ownShare == null ? '—' : `${ownShare}%`}
-        </div>
-        <div className="sub">
-          {kwh(ev.totalChargedKwh)} kWh charged in this range
-        </div>
-        <div className="mini-grid">
-          <div className="mini-metric">
-            <div className="label">Paid away from home</div>
-            <div className="mini-value">{money(ev.totalAwayChargingCostAud)}</div>
-            <div className="sub">public and road-trip charging</div>
-          </div>
-          <div className="mini-metric">
-            <div className="label">All charging cost</div>
-            <div className="mini-value">{money(ev.totalEvElectricityCostAud)}</div>
-            <div className="sub">including home charging</div>
-          </div>
-        </div>
-        <InfoPopover label="Why home charging still costs something" className="metric-info">
+      <BigStat label="Saved by driving electric" value={money(saved)} tone="green">
+        <Lede>
+          {petrolWouldHaveCost != null && chargingCost != null ? (
+            <>Petrol and servicing would have cost <strong>{money(petrolWouldHaveCost)}</strong>.
+            Charging cost <strong>{money(chargingCost)}</strong>.</>
+          ) : (
+            <>Petrol and servicing avoided, less what the charging actually cost.</>
+          )}
+        </Lede>
+        <InfoPopover label="Why home charging is counted as a cost" className="metric-info">
           Charging at home is not free. The grid-sourced share is paid at the
           import rate, and the solar or battery share gives up the feed-in
-          credit that energy would have earned by being exported. Both are
-          counted, which is what stops the solar saving and the driving saving
-          double-counting the same kilowatt-hours.
+          credit that energy would have earned by being exported. Counting both
+          is what stops the solar saving and the driving saving claiming the
+          same kilowatt-hours twice.
         </InfoPopover>
-      </div>
+      </BigStat>
 
       <div className="panel">
-        <h3 className="panel-title">Where the charge came from</h3>
-        <EvChargingSplit state={state} />
+        <div className="panel-head">
+          <h3 className="panel-title">Where the charge came from</h3>
+          <span className="small">
+            {ev.totalChargedKwh == null ? '—' : Math.round(ev.totalChargedKwh).toLocaleString('en-AU')} kWh
+          </span>
+        </div>
+        <SplitBar
+          segments={[
+            { label: 'Straight off the roof', value: ev.fromPvKwh, color: SOURCE_COLORS.solar },
+            { label: 'Out of the battery', value: ev.fromBatteryKwh, color: SOURCE_COLORS.battery },
+            { label: 'Bought from the grid', value: ev.fromHomeGridKwh, color: SOURCE_COLORS.grid },
+            { label: 'Away from home', value: away, color: SOURCE_COLORS.away }
+          ]}
+        />
+        <p className="panel-foot">
+          The bigger the first two, the cheaper the car is to run — that energy
+          costs you only the feed-in credit you gave up.
+        </p>
       </div>
 
       <div className="panel">

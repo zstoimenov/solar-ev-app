@@ -192,3 +192,45 @@ implemented: it needs the array's kW rating from `config.hardware`, whose
 key names no code in this repo has ever read. Rather than guess a key and
 render a wrong number, it was left out. Wire it up once the real
 `config.hardware` shape is confirmed against a live backup.
+
+---
+
+## 6. Content pass (v2.1.0)
+
+v2.0 fixed navigation but moved the old content across unchanged, so the
+screens still presented figures rather than answers. v2.1 reworked what each
+screen says.
+
+Three problems, all of them structural rather than cosmetic:
+
+1. **The same fact rendered two or three times.** `RoiLayers` showed three
+   metric cards then a table repeating them. `PaybackProgress` showed a
+   stacked bar chart then a table repeating that. `EvChargingSplit` spent a
+   doughnut, a stacked bar chart and a two-row legend on one split. Reading a
+   screen meant working out which of three renderings was new information.
+2. **Bare numbers with no reference.** Energy led with "151 kWh". Today showed
+   three raw month-to-date kWh figures. None of them answer "is that good?".
+3. **A dual-axis chart.** `EnergyTrends` plotted kWh, percent, dollars and kWh
+   across two y-axes — four questions, two scales, no honest reading.
+
+What replaced them, per screen:
+
+| Screen | Now leads with | Removed |
+| --- | --- | --- |
+| Today | Total saved + $/month; payback; this month vs a normal one | "per day" (a third phrasing of one number), three raw kWh stats, the decorative sparkline |
+| Energy | Production vs normal; **where the solar went**; **where the house got its power** | the bare kWh headline, the dual-axis four-series chart |
+| Car | The money comparison (petrol would have cost X, charging cost Y) | the doughnut and the per-month stacked bars |
+| Money | Two savings streams as rows, Layer 3 held apart; **this month's bill vs no system**; payback as one bar per component | both duplicate tables and the payback chart |
+
+The two "where did it go" splits on Energy and the bill comparison on Money
+are new: they are the questions a household actually asks, and no version of
+the app had answered them.
+
+### A real bug this surfaced
+
+Running the categorical palette through a colour-vision validator found that
+the EV split's "free public" (`#60a5fa`) and "paid public" (`#a78bfa`) had a
+separation of **0.3 under deuteranopia** and 10.2 with normal colour vision —
+two adjacent segments of the same chart that were effectively the same colour.
+They are now one "Away from home" category. The surviving four-colour set is
+documented and re-checkable in `Screens/parts.jsx`.
