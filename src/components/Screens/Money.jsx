@@ -9,23 +9,16 @@
 // their caveats; they only lose their jargon and their duplicate rendering.
 // Layer 3 is still never summed into the accrued total.
 
-import React from 'react';
+import React, { useState } from 'react';
 import InfoPopover from '../InfoPopover.jsx';
-import { Lede, CompareBar, ProgressRow } from './parts.jsx';
+import { Lede, CompareBar, ProgressRow, RangeChips, monthLabel, Deltas } from './parts.jsx';
+import { monthComparison } from '../../data/compare.js';
 import { layer3AnnualAud } from '../../data/compute.js';
-
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function money(n, dp = 0) {
   return n == null
     ? '—'
     : `$${Number(n).toLocaleString('en-AU', { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
-}
-
-function monthLabel(m) {
-  if (!m) return '—';
-  const [y, mo] = m.split('-').map(Number);
-  return `${MONTH_NAMES[mo - 1]} ${y}`;
 }
 
 // Component names come from the household's own config (brand/model), but
@@ -34,7 +27,11 @@ const BRAND_STRIP = /\s*[(]?\b(wattpilot|byd\s*hvm)\b[)]?\s*/gi;
 const simplifyName = (name) =>
   name ? name.replace(BRAND_STRIP, ' ').replace(/\s{2,}/g, ' ').trim() : name;
 
-export default function Money({ state }) {
+export default function Money({ scopes, months, rangeFilter, allDigests }) {
+  // All time is the default: this is the screen about what the whole
+  // investment has returned. The other two periods answer "and lately?".
+  const [range, setRange] = useState('all');
+  const state = scopes[range];
   const c = state.cumulativeTotals;
   const digests = state.monthlyDigests;
   const f = c.financial ?? {};
@@ -44,6 +41,15 @@ export default function Money({ state }) {
   const preTracking = c.paybackPreTracking;
 
   const latest = digests.length ? digests[digests.length - 1] : null;
+
+  // A single month is the only period with a "month before" and a "same
+  // month last year" to be held against.
+  const savedVs = range === 'month' && digests.length === 1
+    ? monthComparison(allDigests, digests[0].month, 'combinedSavingAud')
+    : null;
+  const billVs = range === 'month' && digests.length === 1
+    ? monthComparison(allDigests, digests[0].month, 'actualGridCostAud')
+    : null;
 
   const streams = [
     {
@@ -62,14 +68,32 @@ export default function Money({ state }) {
     }
   ];
 
+  // The period is part of the sentence, not a caption under it - a savings
+  // figure with no period attached is unreadable.
+  const first = c.coverage?.firstMonth;
+  const last = c.coverage?.lastMonth;
+  const period =
+    range === 'all'
+      ? <>since {monthLabel(first)}</>
+      : first === last
+        ? <>in {monthLabel(first)}</>
+        : <>from {monthLabel(first)} to {monthLabel(last)}</>;
+
   return (
     <div className="screen">
+      {months.length > 1 && <RangeChips value={range} onChange={setRange} />}
+      {range === 'window' && rangeFilter && (
+        <div className="range-filter-row">{rangeFilter}</div>
+      )}
+
       <div className="panel">
         <h3 className="panel-title">What it has saved</h3>
         <Lede>
-          <strong>{money(f.combinedLayer12SavingAud)}</strong> since{' '}
-          {monthLabel(c.coverage?.firstMonth)}, from two separate things.
+          <strong>{money(f.combinedLayer12SavingAud)}</strong> {period}, from two
+          separate things.
         </Lede>
+
+        <Deltas comparison={savedVs} format={(n) => money(n)} />
 
         <div className="stream-list">
           {streams.map((s) => (
@@ -89,8 +113,9 @@ export default function Money({ state }) {
             <span className="stream-value blue">{money(layer3)}<span className="unit">/yr</span></span>
           </div>
           <div className="stream-why">
-            A fixed yearly figure set by the lease terms, not by anything the system does.
-            Kept out of the total above on purpose. <span className="stream-layer">Layer 3</span>
+            A fixed yearly figure set by the lease terms, not by anything the system
+            does — so it does not change with the period selected, and it is kept out
+            of the total above on purpose. <span className="stream-layer">Layer 3</span>
             <InfoPopover label="What the lease advantage is" className="section-info">
               The after-tax advantage of financing the EV through the novated lease
               instead of a private car loan at 7%. Paying the lease and running costs
@@ -109,7 +134,7 @@ export default function Money({ state }) {
           <h3 className="panel-title">Your {monthLabel(latest.month)} bill</h3>
           <Lede>
             The system took <strong>{money(latest.baselineGridCostAud - latest.actualGridCostAud)}</strong> off
-            this month&apos;s electricity.
+            that month&apos;s electricity.
           </Lede>
           <CompareBar
             actual={latest.actualGridCostAud}
@@ -123,6 +148,9 @@ export default function Money({ state }) {
             Both include the same daily supply charge, so the gap is the real
             difference the system made rather than an artefact of the connection fee.
           </p>
+          {/* A bill going DOWN is the good direction, unlike every other
+              comparison on this screen. */}
+          <Deltas comparison={billVs} format={(n) => money(n)} higherIsBetter={false} />
         </div>
       )}
 
@@ -136,6 +164,12 @@ export default function Money({ state }) {
               </span>
             )}
           </div>
+          {range !== 'all' && (
+            <p className="panel-foot">
+              Payback always counts every month you have, whatever period is selected
+              above — it is what the hardware has recovered in total, not in a window.
+            </p>
+          )}
           <div className="progress-list">
             {payback.map((p) => {
               const oop = p.oopAud || 1;

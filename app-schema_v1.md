@@ -11,7 +11,7 @@ starting data before the first live monthly upload.
 ## Design Principles
 
 - **Local-only.** All data lives on-device (IndexedDB). No backend, no server copy.
-- **Backup via export.** The full store exports as one JSON blob, pasted to Notion as a dated backup.
+- **Backup via export.** The full store exports as one JSON file, downloaded and saved to Notion as a dated backup.
 - **Anti-truncation guard.** `meta.monthCount` and `meta.dateRange` let the app warn before an export that is shorter than the last known state.
 - **Currency is plain AUD.** Notion exported currency as `US$` (a display artifact). All monetary fields here are numbers in AUD - no symbols, no prefixes.
 - **Digests carry the full property set** so historical months render as richly as future ingested months.

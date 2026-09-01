@@ -136,3 +136,116 @@ export function ProgressRow({ name, status, statusTone = '', parts, caption }) {
     </div>
   );
 }
+
+// --- The three-scope range control -------------------------------------
+//
+// Energy, Car and Money all answer their question over a period, and the
+// period is the same three choices everywhere: the latest month, the range
+// picked in the From/To selectors, or everything loaded. One component so
+// the three screens cannot drift into three slightly different controls,
+// and so a chip row is never rendered when there is only one month loaded
+// (all three scopes would be the same data).
+export const RANGES = ['month', 'window', 'all'];
+
+const RANGE_LABELS = {
+  month: 'This month',
+  window: 'Selected range',
+  all: 'All time'
+};
+
+export function RangeChips({ value, onChange, options = RANGES }) {
+  if (options.length < 2) return null;
+  return (
+    <div className="range-chips" role="group" aria-label="Period">
+      {options.map((key) => (
+        <button
+          key={key}
+          className={key === value ? 'active' : ''}
+          aria-pressed={key === value}
+          onClick={() => onChange(key)}
+        >
+          {RANGE_LABELS[key]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export function monthLabel(m) {
+  if (!m) return '—';
+  const [y, mo] = m.split('-').map(Number);
+  return `${SHORT_MONTHS[mo - 1]} ${y}`;
+}
+
+// The period a figure actually covers, spelled out. A scoped number with no
+// period next to it is the same failure as a bare "151 kWh": the reader
+// cannot tell what they are looking at.
+export function rangeLabel(range, digests) {
+  if (!digests.length) return '—';
+  const first = digests[0].month;
+  const last = digests[digests.length - 1].month;
+  if (range === 'all') return `All time · ${monthLabel(first)} – ${monthLabel(last)}`;
+  return first === last ? monthLabel(first) : `${monthLabel(first)} – ${monthLabel(last)}`;
+}
+
+// Two comparisons for a single month: the month before, and the same month a
+// year earlier. Deliberately NOT a chart - two rows of "reference figure,
+// then the change" is the whole fact, and a chart of two points would be the
+// duplicate rendering this file exists to prevent.
+//
+// Direction is never carried by colour alone: every row states the arrow and
+// the signed size, so the good/bad tint is confirmation, not the message.
+export function Deltas({
+  comparison,
+  format = (n) => Math.round(n).toLocaleString('en-AU'),
+  higherIsBetter = true,
+  unit = ''
+}) {
+  if (!comparison) return null;
+  const rows = [
+    ['the month before', comparison.prev],
+    ['a year earlier', comparison.lastYear]
+  ].filter(([, r]) => r);
+  if (!rows.length) return null;
+
+  return (
+    <div className="deltas">
+      {rows.map(([caption, r]) => {
+        const flat = r.deltaAbs === 0 || (r.deltaPct != null && Math.abs(r.deltaPct) < 0.5);
+        const up = r.deltaAbs > 0;
+        const tone = flat ? '' : up === higherIsBetter ? 'good' : 'bad';
+        const change = r.deltaPct == null
+          ? `${up ? '+' : '−'}${format(Math.abs(r.deltaAbs))}${unit}`
+          : `${Math.abs(Math.round(r.deltaPct))}%`;
+        return (
+          <div className="delta-row" key={r.month}>
+            <span className="delta-label">
+              {monthLabel(r.month)}
+              <span className="delta-caption">{caption}</span>
+            </span>
+            <span className="delta-ref">{format(r.value)}{unit}</span>
+            <span className={`delta-change ${tone}`}>
+              {flat ? 'level' : <>{up ? '▲' : '▼'} {change}</>}
+            </span>
+          </div>
+        );
+      })}
+      {comparison.partial && (
+        <p className="delta-note">
+          {monthLabel(comparison.month)} is only
+          {comparison.daysInPeriod ? ` ${comparison.daysInPeriod} days` : ' part of a month'} in, so it
+          sits below a whole month by definition — read the change as progress so far,
+          not as a drop.
+        </p>
+      )}
+      {!comparison.lastYear && (
+        <p className="delta-note">
+          A year of history will add the same month last year here — the comparison that
+          takes the season out of it.
+        </p>
+      )}
+    </div>
+  );
+}

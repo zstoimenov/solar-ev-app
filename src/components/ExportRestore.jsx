@@ -1,13 +1,21 @@
-// ExportRestore - one-click full-store export (download + copy) with the
-// anti-truncation guard, paste/file restore with validation + confirm,
-// optional passphrase encryption (AES-GCM via data/crypto.js), a device
-// storage-durability readout, and a destructive "delete all data" reset.
+// ExportRestore - the Data screen's "Backup" page: download the whole store
+// as one JSON file, restore one back, see whether this browser is allowed to
+// delete the data on its own, and (behind a collapsed section) the
+// destructive month-delete / reset actions.
+//
+// A backup is a FILE, not a clipboard copy. The export used to also write
+// the JSON to the clipboard, which quietly truncated a real store on
+// Android - the paste arrived short, and a short backup is worse than no
+// backup because it looks like one. For the same reason there is no
+// paste-a-backup restore box any more: both directions are files, so
+// nothing can be silently cut in half on the way through.
 
 import React, { useState, useEffect } from 'react';
 import { getState, importState, parseBackup, recordExport, resetState, putState, SchemaError } from '../data/db.js';
 import { encryptJson, decryptJson, isEncryptedEnvelope } from '../data/crypto.js';
 import { recomputeCumulative, recomputeMeta } from '../data/compute.js';
 import { getStorageStatus, ensurePersisted, formatBytes, daysSince } from '../data/storage.js';
+import Collapsible from './Collapsible.jsx';
 import InfoPopover from './InfoPopover.jsx';
 
 function download(filename, text) {
@@ -24,12 +32,17 @@ export default function ExportRestore({ state, appMeta, onChange }) {
   const lastExportedAt = appMeta?.lastExportedAt ?? null;
   const [storage, setStorage] = useState(null);
   const [msg, setMsg] = useState(null);
-  const [restoreText, setRestoreText] = useState('');
   const [encryptOn, setEncryptOn] = useState(false);
   const [passphrase, setPassphrase] = useState('');
   const [pendingEnvelope, setPendingEnvelope] = useState(null);
   const [restorePassphrase, setRestorePassphrase] = useState('');
   const [monthToDelete, setMonthToDelete] = useState('');
+  const [manageOpen, setManageOpen] = useState(false);
+
+  // First run (App.jsx's empty-store view renders this component on its own):
+  // there is nothing to back up or delete yet, so Restore is the only thing
+  // on the page rather than the third thing down it.
+  const isEmpty = state.monthlyDigests.length === 0;
 
   useEffect(() => {
     let live = true;
@@ -54,7 +67,7 @@ export default function ExportRestore({ state, appMeta, onChange }) {
 
   async function handleExport() {
     if (encryptOn && !passphrase.trim()) {
-      setMsg({ type: 'err', text: 'Enter a passphrase, or untick "Encrypt this export".' });
+      setMsg({ type: 'err', text: 'Enter a passphrase, or untick "Encrypt this backup".' });
       return;
     }
     const current = await getState();
@@ -64,11 +77,11 @@ export default function ExportRestore({ state, appMeta, onChange }) {
     // last one. This is the one path to real data loss - require explicit OK.
     if (lastExportedCount != null && count < lastExportedCount) {
       const ok = window.confirm(
-        `WARNING: this export has ${count} months but your last export had ` +
-        `${lastExportedCount}. Exporting now could overwrite a fuller backup ` +
-        `with a shorter one. Export anyway?`
+        `WARNING: this backup has ${count} months but your last one had ` +
+        `${lastExportedCount}. Saving it could overwrite a fuller backup ` +
+        `with a shorter one. Download anyway?`
       );
-      if (!ok) { setMsg({ type: 'warn', text: 'Export cancelled (truncation guard).' }); return; }
+      if (!ok) { setMsg({ type: 'warn', text: 'Backup cancelled (truncation guard).' }); return; }
     }
 
     const stamped = {
@@ -79,15 +92,18 @@ export default function ExportRestore({ state, appMeta, onChange }) {
     const payload = encryptOn ? await encryptJson(stamped, passphrase) : stamped;
     const json = JSON.stringify(payload, null, 2);
     const suffix = encryptOn ? '.encrypted' : '';
-    download(`roi-backup_${current.meta?.dateRange?.last ?? 'export'}${suffix}.json`, json);
-    try { await navigator.clipboard.writeText(json); } catch { /* clipboard optional */ }
+    // The export date is in the filename so successive backups sit side by
+    // side in Notion instead of overwriting each other.
+    const today = new Date().toISOString().slice(0, 10);
+    const through = current.meta?.dateRange?.last ?? 'export';
+    download(`roi-backup_${through}_saved-${today}${suffix}.json`, json);
     await recordExport(count);
     onChange?.();
     setMsg({
       type: 'ok',
       text: encryptOn
-        ? `Exported ${count} months, encrypted (downloaded + copied to clipboard). Keep the passphrase safe - it cannot be recovered.`
-        : `Exported ${count} months (downloaded + copied to clipboard).`
+        ? `Downloaded a backup file with ${count} months, encrypted. Keep the passphrase safe - it cannot be recovered.`
+        : `Downloaded a backup file with ${count} months. Save it to Notion (or wherever you keep it).`
     });
   }
 
@@ -102,7 +118,6 @@ export default function ExportRestore({ state, appMeta, onChange }) {
       await importState(parsed);
       onChange?.();
       setMsg({ type: 'ok', text: `Restored ${incomingCount} months.` });
-      setRestoreText('');
       setPendingEnvelope(null);
       setRestorePassphrase('');
     } catch (e) {
@@ -141,7 +156,9 @@ export default function ExportRestore({ state, appMeta, onChange }) {
   async function onFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    handleRestore(await file.text());
+    const text = await file.text();
+    e.target.value = ''; // let the same file be chosen again after a failed try
+    handleRestore(text);
   }
 
   async function handleDelete() {
@@ -192,17 +209,86 @@ export default function ExportRestore({ state, appMeta, onChange }) {
   } else if (lastExportedCount != null) {
     lastBackupText = `${lastExportedCount} month${lastExportedCount === 1 ? '' : 's'} (date not recorded)`;
   } else {
-    lastBackupText = 'Never exported from this browser';
+    lastBackupText = 'never';
   }
 
   return (
-    <div className="panel">
-      <h2>Export / Restore</h2>
+    <>
       {msg && <div className={`banner ${msg.type}`}>{msg.text}</div>}
+
+      {!isEmpty && (
+      <div className="field-section">
+        <h3>
+          Back up
+          <InfoPopover label="What the backup file contains">
+            <p>
+              Everything: every month you have ingested, your rates, your charging log
+              and your payback settings — the whole store as one JSON file. It is
+              produced in this browser and downloaded straight to your device; nothing
+              is uploaded anywhere.
+            </p>
+            <p>
+              Tick <em>Encrypt</em> if the file is going somewhere you would rather it
+              was unreadable. The passphrase is never stored, so if you lose it the
+              file is gone for good.
+            </p>
+          </InfoPopover>
+        </h3>
+        <p className="small">
+          Your data lives only in this browser. Download the file and keep it somewhere
+          else — Notion, Drive, anywhere off this device.
+        </p>
+        <div className="row">
+          <button className="primary" onClick={handleExport}>Download backup file</button>
+          <span className="small">Last backup: {lastBackupText}</span>
+        </div>
+        <label className="field row" style={{ marginTop: '.6rem' }}>
+          <input type="checkbox" checked={encryptOn} onChange={(e) => setEncryptOn(e.target.checked)} />
+          <span style={{ margin: 0 }}>Encrypt this backup with a passphrase</span>
+        </label>
+        {encryptOn && (
+          <label className="field">
+            <span>Passphrase</span>
+            <input
+              type="password"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              placeholder="Choose a passphrase"
+            />
+            <span className="hint">
+              If this is lost, the encrypted backup is unrecoverable - there is no reset.
+            </span>
+          </label>
+        )}
+      </div>
+      )}
+
+      <div className="field-section">
+        <h3>Restore</h3>
+        <p className="small">
+          Choose a backup file. It replaces everything currently in this browser, after
+          a confirmation.
+        </p>
+        <input type="file" accept="application/json,.json" onChange={onFile} />
+
+        {pendingEnvelope && (
+          <div className="row" style={{ marginTop: '.5rem' }}>
+            <input
+              type="password"
+              value={restorePassphrase}
+              onChange={(e) => setRestorePassphrase(e.target.value)}
+              placeholder="Passphrase for this backup"
+            />
+            <button className="primary" disabled={!restorePassphrase} onClick={handleDecryptAndRestore}>
+              Decrypt &amp; restore
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="field-section">
         <h3>
-          Device storage
+          This browser&apos;s storage
           <InfoPopover label="About device storage">
             <p>
               This app stores everything in this browser's IndexedDB. By default that
@@ -223,129 +309,68 @@ export default function ExportRestore({ state, appMeta, onChange }) {
           </InfoPopover>
         </h3>
         <p className="small">
-          Whether this browser is allowed to clear your data on its own.
+          {storage == null && 'Checking…'}
+          {storage?.mode === 'persistent' && 'Protected — this browser will not clear your data to reclaim space.'}
+          {storage?.mode === 'best-effort' && (
+            <>
+              <strong>At risk</strong> — this browser may clear your data when the device
+              runs low on space.{' '}
+              <button className="ghost" onClick={handleRequestPersist}>Request protection</button>
+            </>
+          )}
+          {storage?.mode === 'unsupported' && 'Unknown — this browser does not report storage persistence.'}
         </p>
-        <table className="digest">
-            <tbody>
-              <tr>
-                <th>Eviction protection</th>
-                <td>
-                  {storage == null && 'Checking…'}
-                  {storage?.mode === 'persistent' && 'Protected — will not be cleared automatically'}
-                  {storage?.mode === 'best-effort' && (
-                    <>
-                      <strong>At risk</strong> — may be cleared when storage runs low{' '}
-                      <button className="ghost" onClick={handleRequestPersist}>Request protection</button>
-                    </>
-                  )}
-                  {storage?.mode === 'unsupported' && 'Unknown — this browser does not report storage persistence'}
-                </td>
-              </tr>
-              <tr>
-                <th>Data stored</th>
-                <td>
-                  {formatBytes(storage?.usageBytes)}
-                  {storage?.quotaBytes != null && ` of ~${formatBytes(storage.quotaBytes)} available`}
-                </td>
-              </tr>
-              <tr>
-                <th>Last backup</th>
-                <td>{lastBackupText}</td>
-              </tr>
-            </tbody>
-        </table>
-      </div>
-
-      <div className="field-section">
-        <h3>Export (backup to Notion)</h3>
-        <label className="field row">
-          <input type="checkbox" checked={encryptOn} onChange={(e) => setEncryptOn(e.target.checked)} />
-          <span style={{ margin: 0 }}>Encrypt this export with a passphrase (AES-GCM)</span>
-        </label>
-        {encryptOn && (
-          <label className="field">
-            <span>Passphrase</span>
-            <input
-              type="password"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              placeholder="Choose a passphrase"
-            />
-            <span className="hint">
-              If this is lost, the encrypted backup is unrecoverable - there is no reset.
-            </span>
-          </label>
+        {storage?.usageBytes != null && (
+          <p className="small">
+            Using {formatBytes(storage.usageBytes)}
+            {storage.quotaBytes != null && ` of about ${formatBytes(storage.quotaBytes)}`}.
+          </p>
         )}
-        <div className="row" style={{ marginTop: '.5rem' }}>
-          <button className="primary" onClick={handleExport}>Export JSON</button>
-          <span className="small">
-            Downloads a pretty JSON file and copies it to the clipboard. Last exported count:{' '}
-            {lastExportedCount ?? '—'}.
-          </span>
-        </div>
       </div>
 
-      <div className="field-section">
-        <h3>Restore (paste or file)</h3>
-        <textarea
-          placeholder="Paste a JSON backup here…"
-          value={restoreText}
-          onChange={(e) => setRestoreText(e.target.value)}
-        />
-        <div className="row" style={{ marginTop: '.5rem' }}>
-          <button className="ghost" disabled={!restoreText.trim()} onClick={() => handleRestore(restoreText)}>
-            Restore from pasted JSON
-          </button>
-          <input type="file" accept="application/json,.json" onChange={onFile} />
-        </div>
-
-        {pendingEnvelope && (
-          <div className="row" style={{ marginTop: '.5rem' }}>
-            <input
-              type="password"
-              value={restorePassphrase}
-              onChange={(e) => setRestorePassphrase(e.target.value)}
-              placeholder="Passphrase for this backup"
-            />
-            <button className="primary" disabled={!restorePassphrase} onClick={handleDecryptAndRestore}>
-              Decrypt &amp; restore
-            </button>
+      {/* Destructive and rare: kept out of sight so the two things this page
+          is actually for - back up, restore - are the only things on it. */}
+      {!isEmpty && (
+      <Collapsible
+        title="Remove data"
+        open={manageOpen}
+        onToggle={() => setManageOpen((v) => !v)}
+      >
+        <p className="small">
+          Deleting is permanent — there is no undo beyond a backup file you have
+          already downloaded.
+        </p>
+        {state.monthlyDigests.length > 0 && (
+          <div className="field-section">
+            <h3>Delete one month</h3>
+            <p className="small">
+              For a month imported from the wrong files. The running totals are
+              recomputed from what is left.
+            </p>
+            <div className="row">
+              <select value={monthToDelete} onChange={(e) => setMonthToDelete(e.target.value)}>
+                <option value="">Choose a month…</option>
+                {[...state.monthlyDigests].reverse().map((d) => (
+                  <option key={d.month} value={d.month}>{d.month}</option>
+                ))}
+              </select>
+              <button className="danger" disabled={!monthToDelete} onClick={handleDeleteMonth}>
+                Delete month
+              </button>
+            </div>
           </div>
         )}
-      </div>
 
-      <div className="field-section">
-        <h3>Delete a specific month</h3>
-        <p className="small">
-          Removes just one previously-imported month (e.g. you re-ingested June under the
-          wrong data) and recomputes the running totals from what's left. Export a backup
-          first if you're not sure.
-        </p>
-        {state.monthlyDigests.length > 0 ? (
-          <div className="row">
-            <select value={monthToDelete} onChange={(e) => setMonthToDelete(e.target.value)}>
-              <option value="">Choose a month…</option>
-              {[...state.monthlyDigests].reverse().map((d) => (
-                <option key={d.month} value={d.month}>{d.month}</option>
-              ))}
-            </select>
-            <button className="danger" disabled={!monthToDelete} onClick={handleDeleteMonth}>
-              Delete month
-            </button>
-          </div>
-        ) : (
-          <p className="small">No months loaded yet.</p>
-        )}
-      </div>
-
-      <div className="field-section">
-        <h3>Danger zone</h3>
-        <p className="small">
-          Permanently clears all data from this browser, leaving the app as an empty shell
-          (same as a fresh install). Export a backup first if you want to keep it.
-        </p>
-        <button className="danger" onClick={handleDelete}>Delete all data</button>
-      </div>
-    </div>
+        <div className="field-section">
+          <h3>Delete everything</h3>
+          <p className="small">
+            Clears all data from this browser, leaving the app as an empty shell — the
+            same as a fresh install.
+          </p>
+          <button className="danger" onClick={handleDelete}>Delete all data</button>
+        </div>
+      </Collapsible>
+      )}
+    </>
   );
 }

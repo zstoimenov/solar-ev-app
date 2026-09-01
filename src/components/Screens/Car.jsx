@@ -8,10 +8,11 @@
 // 0.3 (i.e. identical). Both charts are gone; one labelled split bar
 // remains, with free and paid public folded into "Away from home".
 
-import React from 'react';
+import React, { useState } from 'react';
 import PlanComparison from '../Dashboard/PlanComparison.jsx';
 import InfoPopover from '../InfoPopover.jsx';
-import { BigStat, Lede, SplitBar, SOURCE_COLORS } from './parts.jsx';
+import { BigStat, Lede, SplitBar, SOURCE_COLORS, RangeChips, rangeLabel, Deltas } from './parts.jsx';
+import { monthComparison } from '../../data/compare.js';
 
 const money = (n, dp = 0) =>
   n == null
@@ -21,7 +22,11 @@ const money = (n, dp = 0) =>
 const sumKey = (rows, key) =>
   rows.reduce((acc, d) => (d[key] == null ? acc : (acc ?? 0) + d[key]), null);
 
-export default function Car({ state }) {
+export default function Car({ scopes, months, rangeFilter, allDigests }) {
+  // The window is the useful default here: the charging mix a year ago says
+  // little about what the car costs to run now.
+  const [range, setRange] = useState('window');
+  const state = scopes[range];
   const ev = state.cumulativeTotals.ev ?? {};
   const digests = state.monthlyDigests;
 
@@ -35,9 +40,28 @@ export default function Car({ state }) {
   // shown above in dollars rather than as two indistinguishable colours.
   const away = (ev.workChargingKwh ?? 0) + (ev.publicTripKwh ?? 0);
 
+  // Only a single month can be compared against the month before it and the
+  // same month a year earlier; a range has no such counterpart.
+  const savedVs = range === 'month' && digests.length === 1
+    ? monthComparison(allDigests, digests[0].month, 'layer2SavingAud')
+    : null;
+  const chargedVs = range === 'month' && digests.length === 1
+    ? monthComparison(allDigests, digests[0].month, 'evTotalChargedKwh')
+    : null;
+
   return (
     <div className="screen">
-      <BigStat label="Saved by driving electric" value={money(saved)} tone="green">
+      {months.length > 1 && <RangeChips value={range} onChange={setRange} />}
+      {range === 'window' && rangeFilter && (
+        <div className="range-filter-row">{rangeFilter}</div>
+      )}
+
+      <BigStat
+        label="Saved by driving electric"
+        value={money(saved)}
+        sub={rangeLabel(range, digests)}
+        tone="green"
+      >
         <Lede>
           {petrolWouldHaveCost != null && chargingCost != null ? (
             <>Petrol and servicing would have cost <strong>{money(petrolWouldHaveCost)}</strong>.
@@ -53,6 +77,7 @@ export default function Car({ state }) {
           is what stops the solar saving and the driving saving claiming the
           same kilowatt-hours twice.
         </InfoPopover>
+        <Deltas comparison={savedVs} format={(n) => money(n)} />
       </BigStat>
 
       <div className="panel">
@@ -74,6 +99,7 @@ export default function Car({ state }) {
           The bigger the first two, the cheaper the car is to run — that energy
           costs you only the feed-in credit you gave up.
         </p>
+        <Deltas comparison={chargedVs} unit=" kWh" />
       </div>
 
       <div className="panel">

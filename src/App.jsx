@@ -30,11 +30,11 @@ const SCREENS = [
   { key: 'Data', icon: UploadIcon }
 ];
 
-// Screens whose numbers are scoped by the date range. Money is deliberately
-// absent: payback and accrued savings are all-time concepts. Energy is also
-// absent here: it owns its own range control (chips), and rendering a second
-// one in the header alongside them just asks the same question twice.
-const RANGE_SCOPED = new Set(['Car']);
+// Energy, Car and Money each own their range control inline (the three
+// chips + the From/To selectors), rather than a filter in the header. The
+// header version asked the same question twice on Energy and asked it in
+// the hardest-to-reach corner of the screen everywhere else. Today stays
+// all-time: it is the "right now" screen and has nothing to scope.
 
 // Once there's more than this many months of data, the range-scoped screens
 // default to the most recent window (still overridable via the filter) -
@@ -96,11 +96,14 @@ export default function App() {
         </header>
         <div className="banner warn">
           <strong>No data yet.</strong> This public build ships empty and contains no
-          personal data. Paste your private JSON backup below to load your dataset —
-          it is then stored only in this browser (IndexedDB) and never uploaded.
+          personal data. Load your private JSON backup file below to restore your
+          dataset — it is then stored only in this browser (IndexedDB) and never uploaded.
         </div>
         <StorageHealth state={state} appMeta={appMeta} onBackup={() => {}} />
-        <ExportRestore state={state} appMeta={appMeta} onChange={refresh} />
+        <div className="panel">
+          <h2>Restore your data</h2>
+          <ExportRestore state={state} appMeta={appMeta} onChange={refresh} />
+        </div>
         <div className="bottom-bar"><span className="sub">{APP_VERSION}</span></div>
       </div>
     );
@@ -113,26 +116,49 @@ export default function App() {
   const filteredDigests = state.monthlyDigests.filter(
     (d) => d.month >= effectiveFrom && d.month <= effectiveTo
   );
-  // Range-scoped screens read this view; HealthBanner still reads the
-  // unfiltered `state` so it always reflects the real data integrity.
-  // Payback is the exception: it's an all-time concept, so it comes from a
-  // full-history recompute (also keeps it live for backups exported by app
-  // versions that stored stale payback figures), not the filtered window.
+  // HealthBanner always reads the unfiltered `state`, whatever period a
+  // screen is showing, so it reflects the real data integrity. The
+  // full-history recompute below also keeps payback live for backups
+  // exported by app versions that stored stale payback figures.
   const fullCumulative = recomputeCumulative(state.monthlyDigests, state.cumulativeTotals, state.config);
-  const filteredCumulative = recomputeCumulative(filteredDigests, state.cumulativeTotals, state.config);
-  const filteredState = {
+
+  // One view of the store per selected period. Payback is deliberately NOT
+  // rescoped - it is an all-time concept - so every scope carries the
+  // full-history recompute of payback/paybackTotals/paybackPreTracking.
+  const scopedState = (digests) => ({
     ...state,
-    monthlyDigests: filteredDigests,
+    monthlyDigests: digests,
     cumulativeTotals: {
-      ...filteredCumulative,
+      ...recomputeCumulative(digests, state.cumulativeTotals, state.config),
       payback: fullCumulative.payback,
       paybackTotals: fullCumulative.paybackTotals,
       paybackPreTracking: fullCumulative.paybackPreTracking
     },
-    evChargingSessions: filterSessionsByMonthRange(state.evChargingSessions, effectiveFrom, effectiveTo)
-  };
-  // Today and Money are all-time: they read the full history, not the window.
+    evChargingSessions: filterSessionsByMonthRange(
+      state.evChargingSessions,
+      digests[0]?.month ?? null,
+      digests[digests.length - 1]?.month ?? null
+    )
+  });
+
+  const latestMonth = allMonths[allMonths.length - 1];
   const allTimeState = { ...state, cumulativeTotals: fullCumulative };
+  // The three periods every scoped screen offers, built once here so the
+  // screens only choose between them.
+  const scopes = {
+    month: scopedState(state.monthlyDigests.filter((d) => d.month === latestMonth)),
+    window: scopedState(filteredDigests),
+    all: allTimeState
+  };
+  const rangeFilter = (
+    <DateRangeFilter
+      months={allMonths}
+      from={effectiveFrom}
+      to={effectiveTo}
+      onFromChange={setFromMonth}
+      onToChange={setToMonth}
+    />
+  );
 
   return (
     <div className="app has-nav">
@@ -142,15 +168,6 @@ export default function App() {
           <button className="ghost notes-trigger" onClick={() => setNotesOpen(true)}>
             ⓘ Notes
           </button>
-        )}
-        {RANGE_SCOPED.has(screen) && (
-          <DateRangeFilter
-            months={allMonths}
-            from={effectiveFrom}
-            to={effectiveTo}
-            onFromChange={setFromMonth}
-            onToChange={setToMonth}
-          />
         )}
       </header>
 
@@ -164,22 +181,24 @@ export default function App() {
         <Today state={allTimeState} appMeta={appMeta} onGoTo={setScreen} />
       )}
       {screen === 'Energy' && (
-        <Energy
-          state={filteredState}
-          fullState={state}
-          rangeFilter={
-            <DateRangeFilter
-              months={allMonths}
-              from={effectiveFrom}
-              to={effectiveTo}
-              onFromChange={setFromMonth}
-              onToChange={setToMonth}
-            />
-          }
+        <Energy state={scopes.window} fullState={state} rangeFilter={rangeFilter} />
+      )}
+      {screen === 'Car' && (
+        <Car
+          scopes={scopes}
+          months={allMonths}
+          rangeFilter={rangeFilter}
+          allDigests={state.monthlyDigests}
         />
       )}
-      {screen === 'Car' && <Car state={filteredState} />}
-      {screen === 'Money' && <Money state={allTimeState} />}
+      {screen === 'Money' && (
+        <Money
+          scopes={scopes}
+          months={allMonths}
+          rangeFilter={rangeFilter}
+          allDigests={state.monthlyDigests}
+        />
+      )}
       {screen === 'Data' && (
         <DataScreen
           state={state}
