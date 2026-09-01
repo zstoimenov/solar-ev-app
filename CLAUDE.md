@@ -134,17 +134,14 @@ feature entirely (a real manually-entered figure from the old ingest flow).
 month, rather than zeroing them — don't change that `?? digest.field`
 fallback to `?? 0`, that's the exact bug that shipped and got caught by
 testing (May's value got erased when only June had a log entry). The
-export (feed-in) schedule is stored but **not** applied to `exportCreditAud`
-yet — Fronius only reports a monthly export total, not an hourly split, so
-blending two time-of-day rates would need an assumed peak-share % that
-doesn't exist yet. If that assumption gets added later, wire it in
-`buildDigest.js` next to the `debsPeak` calculation. `tariffSchedule.import[]`
+export (feed-in) schedule **is** applied to `exportCreditAud` since v2.5, via
+`ingest/exportCredit.js` — see "Export credit" below. `tariffSchedule.import[]`
 entries also carry `supplyChargeCPerDay` now — applied equally to
 `actualGridCostAud`/`baselineGridCostAud`, so it does NOT move
 `layer1SavingAud` (same connection fee with or without solar), only the two
 absolute cost figures.
 
-## Tariff plan comparison — EV charging only, not the whole bill
+## Tariff plan comparison — two of them, EV and whole-bill
 
 `config.tariffPlans[]` is a catalog of rate-card **options** (Synergy's
 A1/Midday Saver/EV Add On, etc.), entered via Ingest → Tariffs & Rates →
@@ -152,16 +149,18 @@ Tariff Plans, feeding the Dashboard's **Plan Comparison** tile
 (`components/Dashboard/PlanComparison.jsx`). Read that file's header comment
 before touching it — the scope limitation is load-bearing, not a footnote:
 
-- As of 2026-07, **no data source in this app has a time-of-day split of
-  general household usage.** Fronius "Energy balance total" and Wattpilot
-  "Energy balance" are both one row per **day** (confirmed against a real
-  2026-06 Wattpilot file — its `Date and time` column, despite the name, only
-  contains a date). The user's Synergy `MA_IntervalDataHistory.csv` was also
-  confirmed by the user not to carry usable time-of-day info despite the
-  filename. **Do not build a whole-household A1-vs-plan-X comparison** until
-  one of these actually has hour-level data, or the user explicitly opts into
-  manual monthly time-band entry — simulating a bill without real time-split
-  usage would just be a guess dressed up as a number.
+- **This scope note applied until v2.5.** For two years no data source here
+  had a time-of-day split of general household usage — Fronius "Energy
+  balance total" and Wattpilot "Energy balance" are both one row per **day**
+  — so a whole-of-bill comparison was refused outright rather than built on
+  an assumed band share. Synergy's interval download now supplies that split
+  (see "Synergy interval data"), so `Dashboard/WholeBillComparison.jsx` on
+  Money prices the WHOLE bill from measured half-hourly usage. It is
+  **in addition to**, never instead of, the EV-only comparison below: they
+  answer "which plan suits the house" and "which plan suits the car", and the
+  EV one still knows something the other cannot — which kWh were the car's.
+  A month with no interval profile still gets no whole-bill estimate; the
+  refusal to guess a band share is unchanged, it simply no longer has to.
 - What *does* exist: the Wattpilot **mobile app's** charging-session JSON
   export (`ingest/parseWattpilotSessions.js`, stored as top-level
   `evChargingSessions[]`, uploaded via Ingest → EV Charging Data → EV
@@ -440,12 +439,13 @@ everything else keeps working.
   matches `ANYTIME (KWH)`, which is the *usage* column — that mix-up would
   bucket a whole month into 00:00. `findTimeField()` requires an exact match
   or a name carrying no unit; there is a regression case for it.
-- **Two different questions, two different bases.** `gridImportSynergyKwh`
-  stays **billed-rows-only** because it feeds cross-validation against
-  Fronius. The profile is built from **every in-month row** because it is the
-  shape of the month and is more useful complete; `includesUnbilled` records
-  the difference. Do not "fix" the discrepancy by making them agree — they
-  answer different things.
+- **The `Billing Status` column is ignored** (household's decision, v2.5).
+  It marks what Synergy has invoiced versus what falls in the next billing
+  period — it says nothing about whether a reading is real. Filtering on it
+  made a month's total depend on when the download happened (August read
+  130.4 kWh billed-only against 144.9 kWh actual). Both the total and the
+  profile are built from every in-month row, so they always reconcile. A
+  month is `pending` only when the file had no rows for it at all.
 - `intervalProfile` is an **optional** digest field, deliberately NOT in
   `DIGEST_FIELDS`, so pre-v2.4 backups still validate. Re-ingesting a month
   from a daily-granularity file falls back to `prevDigest.intervalProfile`
@@ -457,13 +457,52 @@ everything else keeps working.
   no dollar figure; pricing a profile against a plan is a financial
   computation and belongs in `buildDigest.js`.
 
-**What this unblocks, and has not been done yet:** the two scope limitations
-recorded elsewhere in this file are now removable — a whole-of-household
-tariff comparison (Plan Comparison is still EV-charging-only) and a real
-peak/off-peak split for `exportCreditAud` (still a single rate, because the
-peak share used to be unknowable). Both change stored money figures, so both
-are deliberately separate pieces of work; `TimeOfDayProfile.jsx` shows the
-measured export peak share and says applying it is a separate change.
+**What this unblocked, both now done (v2.5):** a whole-of-household tariff
+comparison (`Dashboard/WholeBillComparison.jsx` on Money) and a real
+peak/off-peak split for `exportCreditAud` (see "Export credit" below). Both
+move stored money figures, which is why they were kept out of the commit that
+added the parser.
+
+## Export credit (since v2.5)
+
+`ingest/exportCredit.js` is the ONE implementation of what a month's exported
+energy earned, imported by both ingest paths — `buildDigest.js` on a fresh
+ingest and `recomputeFinancials.js` on the opt-in recompute. They must never
+drift: the same month must produce the same credit whichever route computed
+it. It records on the digest which of two bases produced the number, rather
+than leaving a reader to infer it:
+
+- `'measured-split'` — the household has a two-rate feed-in schedule
+  (`config.tariffSchedule.export`) AND the month has an `intervalProfile`. The
+  profile says what share of the exported energy actually left inside the peak
+  window, so each share is paid at its own rate. On the real August file that
+  share is 25.7%, and pricing it properly moved the month's credit from $21.47
+  to $9.90 — the single-rate figure had been crediting every exported kWh at
+  the peak rate.
+- `'single-rate'` — no schedule or no profile: the previous behaviour exactly
+  (whole export total at `config.tariffs.debsPeakCPerKwh`), so months without
+  interval data keep the figure they already had.
+
+Two deliberate choices inside it:
+
+- **The share comes from the meter profile; the quantity credited stays
+  `gridExportKwh` (Fronius).** The two export totals differ slightly, and
+  swapping which one is credited would move Layer 1 for a reason unrelated to
+  the time-of-day split. Only the rate applied is new.
+- **Layer 2's foregone-export rate is still the single `debsPeak`.** What an
+  EV's PV/battery kWh would have earned depends on the time of day it charged,
+  which the Wattpilot data does not say. Blending it on the household's
+  average export share would move Layer 2 on an assumption — exactly what this
+  change removes from Layer 1. Leave it until per-session attribution exists.
+
+`exportCreditBasis` and `exportPeakSharePct` are **optional** digest fields,
+not in `DIGEST_FIELDS`, so pre-v2.5 backups still validate.
+
+`data/planPricing.js` is the matching module for HYPOTHETICAL money — what a
+month would have cost on a plan the household is not on. It lives outside
+`buildDigest.js` because nothing it computes is ever stored, and it shares
+`groupPlans()`/`bandCoverageMinutes()` with the EV-only `PlanComparison.jsx`
+so the two comparisons can never disagree about a plan's bands.
 
 ## Null convention
 

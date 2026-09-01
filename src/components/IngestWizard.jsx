@@ -131,7 +131,7 @@ export default function IngestWizard({
       const wattpilot = await parseWattpilot(files.wattpilot);
       const synergy = files.synergy
         ? parseSynergy(await files.synergy.text(), manual.month)
-        : { gridImportSynergyKwh: null, pending: true, billedRows: 0, unbilledRows: 0, outOfMonthRows: 0 };
+        : { gridImportSynergyKwh: null, pending: true, rows: 0, outOfMonthRows: 0, intervalProfile: null };
 
       const manualClean = {
         month: manual.month,

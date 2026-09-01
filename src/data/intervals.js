@@ -70,7 +70,6 @@ export function mergeProfiles(digests) {
   const exportKwh = new Array(BUCKETS).fill(0);
   let anyExport = false;
   let days = 0;
-  let includesUnbilled = false;
   for (const d of withProfile) {
     const p = d.intervalProfile;
     for (let i = 0; i < BUCKETS; i++) {
@@ -79,12 +78,10 @@ export function mergeProfiles(digests) {
     }
     if (p.exportKwh) anyExport = true;
     days += p.days ?? 0;
-    if (p.includesUnbilled) includesUnbilled = true;
   }
   return {
     months: withProfile.map((d) => d.month),
     days,
-    includesUnbilled,
     importKwh,
     exportKwh: anyExport ? exportKwh : null
   };

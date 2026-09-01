@@ -58,6 +58,9 @@ export default function TimeOfDayProfile({ digests, config }) {
   const peakBand = bands.find((b) => /peak/i.test(b.label) && !/off/i.test(b.label));
   const exportWindow = peakBand ?? { from: '15:00', to: '21:00' };
   const exportSplit = exportShareInWindow(profile, exportWindow.from, exportWindow.to);
+  // Whether the credit stored on these months was actually priced on that
+  // measured share, or still on the single-rate fallback.
+  const applied = digests.some((d) => d.exportCreditBasis === 'measured-split');
 
   // The period named here is the period the PROFILE covers, which is not
   // the screen's selected range: only months imported from a 30-minute file
@@ -97,13 +100,17 @@ export default function TimeOfDayProfile({ digests, config }) {
         <p className="panel-foot">
           Of the {kwh(totals.exportKwh)} you sent back, <strong>{pct(exportSplit.insidePct)}</strong>{' '}
           went out between {clock(exportWindow.from)} and {clock(exportWindow.to)} — the window a
-          two-rate feed-in tariff pays differently for.
+          two-rate feed-in tariff pays more for.
+          {applied
+            ? ' Your export credit is now worked out on this measured share rather than a single rate.'
+            : ' Add your feed-in rates on the Data screen and the export credit will be worked out on this measured share instead of a single rate.'}
           <InfoPopover label="Why that share matters" className="section-info">
             A feed-in tariff with a higher afternoon rate cannot be applied to a monthly
             export total, because the total does not say when the energy left. Until this
-            data existed the app deliberately left the export credit on a single rate rather
-            than assume a share. This is the measured share for the period shown; applying
-            it to the credit is a separate change.
+            data existed the app deliberately left the export credit on one rate rather than
+            assume a share. The share above is measured from your own half-hourly readings,
+            so the credit no longer rests on an assumption
+            {applied ? '' : ' — it needs a two-rate feed-in schedule on file to be applied'}.
           </InfoPopover>
         </p>
       )}
@@ -111,7 +118,6 @@ export default function TimeOfDayProfile({ digests, config }) {
       <p className="panel-foot">
         From {monthCount === 1 ? 'one month' : `${monthCount} months`} of 30-minute meter data
         ({profile.days} days).
-        {profile.includesUnbilled && ' Includes days Synergy has not billed yet.'}
         <InfoPopover label="Where this comes from" className="section-info">
           <p>
             Your Synergy interval download has one row per half hour for both directions.

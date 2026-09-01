@@ -1,15 +1,17 @@
-// parseSynergy.js - Synergy MA_IntervalDataHistory.csv -> billed grid import,
-// plus (when the file has them) a compact time-of-day profile.
+// parseSynergy.js - Synergy MA_IntervalDataHistory.csv -> the month's grid
+// import, plus (when the file has them) a compact time-of-day profile.
 //
 // ONE parser, TWO shapes of the same export. Synergy's download has at times
 // been one row per day and at times one row per 30 minutes, and the columns
 // are named differently again ("ANYTIME (KWH)", "Solar export (Units)"). The
 // parser therefore detects what it was given rather than being told:
 //
-//   * Always: billed grid import for the month. Rule (match source skill
-//     exactly): filter to Billing Status == 'Billed' before summing. Keep
-//     unbilled rows OUT of the total but report their presence so the month
-//     can be flagged "pending" rather than a real zero.
+//   * Always: grid import for the month, from EVERY row dated in it. The
+//     file's "Billing Status" column is deliberately IGNORED: it reflects
+//     Synergy's billing period, not the quality or completeness of a
+//     reading, and filtering on it made a month's total depend on when the
+//     download happened. A month is "pending" only when the file contained
+//     no rows for it at all.
 //   * When a Time column exists: a 48-bucket half-hourly profile of import
 //     and (if present) export. If the interval file ever goes away again,
 //     this simply comes back null and everything else still works.
@@ -79,9 +81,10 @@ function monthOfDateValue(v) {
   return null;
 }
 
-// Returns { gridImportSynergyKwh, billedRows, unbilledRows, outOfMonthRows, pending }
-// gridImportSynergyKwh is null when there are zero billed rows (pending),
-// preserving the null convention (distinguishable from a real zero).
+// Returns { gridImportSynergyKwh, rows, outOfMonthRows, pending, intervalProfile }
+// gridImportSynergyKwh is null when the file had no rows for the month
+// (pending), preserving the null convention (distinguishable from a real
+// zero - a month with genuinely no import reads 0, not null).
 // `month` (YYYY-MM, optional) scopes the sum to rows dated in the ingest
 // month - a Synergy download often spans several months, and summing them
 // all would falsely fail cross-validation against one month of Fronius
@@ -92,7 +95,6 @@ export function parseSynergy(text, month = null) {
   const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
   const fields = parsed.meta.fields ?? [];
 
-  const statusField = findField(fields, 'billing', 'status') || findField(fields, 'status');
   const usageField =
     findField(fields, 'usage') ||
     findField(fields, 'kwh') ||
@@ -102,17 +104,12 @@ export function parseSynergy(text, month = null) {
   const timeField = findTimeField(fields);
   const exportField = findField(fields, 'export');
 
-  let billed = 0;
-  let billedRows = 0;
-  let unbilledRows = 0;
+  let imported = 0;
+  let rows = 0;
   let outOfMonthRows = 0;
 
-  // The profile is built from EVERY in-month row, billed or not, because it
-  // answers a different question from the total: the total feeds
-  // cross-validation against Fronius and must match what Synergy has
-  // actually billed, while the profile is the shape of the month and is
-  // more useful complete. `includesUnbilled` records the difference so
-  // nothing downstream mistakes one for the other.
+  // The profile and the total are built from the same rows - every row
+  // dated in the month - so the two always reconcile.
   const importKwh = timeField ? new Array(BUCKETS_PER_DAY).fill(0) : null;
   const exportKwh = timeField && exportField ? new Array(BUCKETS_PER_DAY).fill(0) : null;
   const profileDates = new Set();
@@ -127,14 +124,9 @@ export function parseSynergy(text, month = null) {
         continue;
       }
     }
-    const status = statusField ? norm(row[statusField]) : 'billed';
     const kwh = usageField ? Number(row[usageField]) || 0 : 0;
-    if (status === 'billed') {
-      billed += kwh;
-      billedRows += 1;
-    } else {
-      unbilledRows += 1;
-    }
+    imported += kwh;
+    rows += 1;
 
     if (importKwh) {
       const b = bucketIndex(row[timeField]);
@@ -149,7 +141,7 @@ export function parseSynergy(text, month = null) {
     }
   }
 
-  const pending = billedRows === 0;
+  const pending = rows === 0;
   const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
   // A file whose Time column never parsed is a daily-granularity export, not
@@ -161,16 +153,14 @@ export function parseSynergy(text, month = null) {
           intervalMinutes: 24 * 60 / BUCKETS_PER_DAY,
           days: profileDates.size || null,
           intervals: profileRows,
-          includesUnbilled: unbilledRows > 0,
           importKwh: importKwh.map(round2),
           exportKwh: exportKwh ? exportKwh.map(round2) : null
         }
       : null;
 
   return {
-    gridImportSynergyKwh: pending ? null : round2(billed),
-    billedRows,
-    unbilledRows,
+    gridImportSynergyKwh: pending ? null : round2(imported),
+    rows,
     outOfMonthRows,
     pending,
     // Optional, absent for a daily-granularity file.
