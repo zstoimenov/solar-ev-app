@@ -1,18 +1,21 @@
-// Energy - is the system performing as it should?
+// Energy - "is the system doing its job?"
 //
-// Absorbs the old Energy Trends and 12-Month Comparison tiles. They answered
-// the same question at two fidelities, so they are one screen with a
-// Chart/Table toggle rather than two separate collapsed panels.
+// Three questions, in order:
+//   1. Is it producing what it should?      -> a sentence + a comparison bar
+//   2. Where did the power actually go?     -> two complementary splits
+//   3. Which days were good and bad?        -> the calendar (month range only)
 //
-// The range control lives here rather than in the app chrome: this is the
-// only screen where "which months" is a real question. Money and Payback are
-// all-time by nature, and Today is about now.
+// Question 2 is the one a household actually asks about solar and the one
+// the pre-v2.1 screen never answered: it led with a bare "151 kWh", which
+// means nothing without a reference, and then offered a four-series
+// dual-axis chart. Both are gone.
 
 import React, { useState } from 'react';
-import EnergyTrends from '../Dashboard/EnergyTrends.jsx';
+import MonthlyProduction from '../Dashboard/MonthlyProduction.jsx';
 import MonthlyComparison from '../Dashboard/MonthlyComparison.jsx';
 import DailyCalendar from '../Dashboard/DailyCalendar.jsx';
 import InfoPopover from '../InfoPopover.jsx';
+import { Lede, SplitBar, CompareBar, SOURCE_COLORS } from './parts.jsx';
 import { dailyForMonth, monthToDate, paceToMonthEnd, typicalForMonth } from '../../data/daily.js';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -20,35 +23,20 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
 
 const kwh = (n) => (n == null ? '—' : Math.round(n).toLocaleString('en-AU'));
 
-function monthName(month) {
-  return month ? MONTH_NAMES[Number(month.slice(5, 7)) - 1] : '';
-}
-
-// Energy-weighted, matching compute.js:weightedPct - a mean of monthly
-// percentages would count a 5-day partial month the same as a 31-day one.
-function weightedPct(digests, numKey, denKey) {
-  let num = 0;
-  let den = 0;
-  for (const d of digests) {
-    if (d[numKey] == null || d[denKey] == null) continue;
-    num += d[numKey];
-    den += d[denKey];
-  }
-  return den > 0 ? Math.round((num / den) * 1000) / 10 : null;
-}
+// Null-preserving sum: a column with no values at all is "no data", not 0.
+const sumKey = (rows, key) =>
+  rows.reduce((acc, d) => (d[key] == null ? acc : (acc ?? 0) + d[key]), null);
 
 export default function Energy({ state, fullState, rangeFilter }) {
   const daily = fullState.dailySeries ?? [];
   const digests = state.monthlyDigests;
 
-  // "This month" means the latest month that has daily rows - the only range
-  // where a day-level view is possible at all.
   const dailyMonth = daily.length ? daily[daily.length - 1].date.slice(0, 7) : null;
   const [range, setRange] = useState(dailyMonth ? 'month' : 'window');
-  const [view, setView] = useState('chart');
+  const [showTable, setShowTable] = useState(false);
 
   const effectiveRange = range === 'month' && !dailyMonth ? 'window' : range;
-  const showCalendar = effectiveRange === 'month' && view === 'chart';
+  const isMonth = effectiveRange === 'month';
 
   const monthRows = dailyMonth ? dailyForMonth(daily, dailyMonth) : [];
   const mtd = dailyMonth ? monthToDate(daily, dailyMonth) : null;
@@ -56,38 +44,33 @@ export default function Energy({ state, fullState, rangeFilter }) {
   const typical = dailyMonth ? typicalForMonth(fullState.monthlyDigests, dailyMonth) : null;
 
   const rangeDigests = effectiveRange === 'all' ? fullState.monthlyDigests : digests;
-  const rangeSolar = rangeDigests.reduce(
-    (a, d) => (d.solarProductionKwh == null ? a : a + d.solarProductionKwh), 0
-  );
-  const selfSuff = weightedPct(rangeDigests, 'ownConsumptionKwh', 'totalConsumptionKwh');
+  const scopeDigests = isMonth
+    ? fullState.monthlyDigests.filter((d) => d.month === dailyMonth)
+    : rangeDigests;
 
-  const headline =
-    effectiveRange === 'month'
-      ? { label: `Generated in ${monthName(dailyMonth)}`, value: mtd?.solarKwh, sub:
-          mtd ? `${mtd.daysCovered} of ${mtd.daysInMonth} days${
-            pace != null ? ` · on pace for ${kwh(pace)}` : ''
-          }${typical ? ` against a typical ${kwh(typical.kwh)}` : ''}` : '' }
-      : {
-          label: effectiveRange === 'all' ? 'Generated, all time' : 'Generated over the selected range',
-          value: rangeSolar,
-          sub: `${rangeDigests.length} month${rangeDigests.length === 1 ? '' : 's'}`
-        };
+  // The two flows, from whichever scope is selected.
+  const generated = sumKey(scopeDigests, 'solarProductionKwh');
+  const exported = sumKey(scopeDigests, 'gridExportKwh');
+  const consumed = sumKey(scopeDigests, 'totalConsumptionKwh');
+  const imported = sumKey(scopeDigests, 'gridImportFroniusKwh');
+  const ownUsed = sumKey(scopeDigests, 'ownConsumptionKwh');
+  const selfUsedSolar = generated != null && exported != null ? Math.max(0, generated - exported) : null;
 
-  const scopedSelfSuff = effectiveRange === 'month'
-    ? weightedPct(
-        fullState.monthlyDigests.filter((d) => d.month === dailyMonth),
-        'ownConsumptionKwh', 'totalConsumptionKwh'
-      ) ?? selfSuff
-    : selfSuff;
+  const monthName = dailyMonth ? MONTH_NAMES[Number(dailyMonth.slice(5, 7)) - 1] : '';
+  const pacePct =
+    pace != null && typical?.kwh ? Math.round(((pace - typical.kwh) / typical.kwh) * 100) : null;
+
+  const scopeLabel = isMonth
+    ? monthName
+    : effectiveRange === 'all'
+      ? 'all time'
+      : `${rangeDigests.length} month${rangeDigests.length === 1 ? '' : 's'}`;
 
   return (
     <div className="screen">
       <div className="range-chips">
         {dailyMonth && (
-          <button
-            className={effectiveRange === 'month' ? 'active' : ''}
-            onClick={() => { setRange('month'); setView('chart'); }}
-          >
+          <button className={isMonth ? 'active' : ''} onClick={() => setRange('month')}>
             This month
           </button>
         )}
@@ -109,58 +92,80 @@ export default function Energy({ state, fullState, rangeFilter }) {
         <div className="range-filter-row">{rangeFilter}</div>
       )}
 
-      <div className="panel headline-panel">
-        <div className="label">{headline.label}</div>
-        <div className="headline-value accent">
-          {kwh(headline.value)}<span className="unit">kWh</span>
-        </div>
-        <div className="sub">{headline.sub}</div>
-        <div className="mini-grid">
-          <div className="mini-metric">
-            <div className="label">Self-sufficient</div>
-            <div className="mini-value green">{scopedSelfSuff == null ? '—' : `${scopedSelfSuff}%`}</div>
-            <div className="sub">of what the house used</div>
-          </div>
-          {mtd?.gridExportKwh != null && effectiveRange === 'month' && (
-            <div className="mini-metric">
-              <div className="label">Sold back</div>
-              <div className="mini-value">{kwh(mtd.gridExportKwh)}<span className="unit">kWh</span></div>
-              <div className="sub">exported to the grid</div>
-            </div>
-          )}
-        </div>
+      {/* 1. Producing what it should? */}
+      <div className="panel">
+        <h3 className="panel-title">Production</h3>
+        {isMonth && pacePct != null ? (
+          <>
+            <Lede>
+              {monthName} is on track to finish{' '}
+              <strong>{Math.abs(pacePct)}% {pacePct >= 0 ? 'ahead of' : 'behind'}</strong> normal.
+            </Lede>
+            <CompareBar
+              actual={pace}
+              reference={typical.kwh}
+              actualLabel={`On pace for (day ${mtd.daysCovered} of ${mtd.daysInMonth})`}
+              referenceLabel={`Typical ${monthName}`}
+            />
+            <InfoPopover label="Where 'normal' comes from" className="section-info">
+              The average of your own {typical.years} previous complete {monthName}
+              {typical.years === 1 ? '' : 's'}, partial months excluded. The pace is a
+              straight line from the days covered so far, not a weather forecast.
+            </InfoPopover>
+          </>
+        ) : (
+          <Lede>
+            <strong>{kwh(generated)} kWh</strong> generated over {scopeLabel}
+            {scopeDigests.length > 1 && generated != null
+              ? <> — an average of <strong>{kwh(generated / scopeDigests.length)} kWh</strong> a month</>
+              : ''}.
+          </Lede>
+        )}
       </div>
 
+      {/* 2. Where did it go? The question the old screen never answered. */}
+      {generated != null && selfUsedSolar != null && (
+        <div className="panel">
+          <h3 className="panel-title">Where your solar went</h3>
+          <SplitBar
+            segments={[
+              { label: 'Used in the house', value: selfUsedSolar, color: SOURCE_COLORS.battery },
+              { label: 'Sold back to the grid', value: exported, color: SOURCE_COLORS.solar }
+            ]}
+          />
+          <p className="panel-foot">
+            Energy you use yourself is worth the full import rate; energy you export
+            earns only the feed-in credit, which is far less.
+          </p>
+        </div>
+      )}
+
+      {consumed != null && ownUsed != null && (
+        <div className="panel">
+          <h3 className="panel-title">Where the house got its power</h3>
+          <SplitBar
+            segments={[
+              { label: 'Your own solar and battery', value: ownUsed, color: SOURCE_COLORS.battery },
+              { label: 'Bought from the grid', value: imported, color: SOURCE_COLORS.grid }
+            ]}
+          />
+        </div>
+      )}
+
+      {/* 3. Which days were good and bad? */}
       <div className="panel">
         <div className="panel-head">
-          <h3 className="panel-title">
-            {showCalendar ? 'Day by day' : 'Month by month'}
-          </h3>
-          <div className="mini-toggle">
-            <button
-              className={view === 'chart' ? 'active' : ''}
-              onClick={() => setView('chart')}
-            >
-              Chart
-            </button>
-            <button
-              className={view === 'table' ? 'active' : ''}
-              onClick={() => {
-                setView('table');
-                if (effectiveRange === 'month') setRange('window');
-              }}
-            >
-              Table
-            </button>
-          </div>
+          <h3 className="panel-title">{isMonth && !showTable ? 'Day by day' : 'Month by month'}</h3>
+          <button className="ghost small-btn" onClick={() => setShowTable((v) => !v)}>
+            {showTable ? 'Show chart' : 'Show numbers'}
+          </button>
         </div>
-
-        {view === 'table' ? (
+        {showTable ? (
           <MonthlyComparison state={{ ...state, monthlyDigests: rangeDigests }} />
-        ) : showCalendar ? (
+        ) : isMonth ? (
           <DailyCalendar rows={monthRows} month={dailyMonth} />
         ) : (
-          <EnergyTrends state={{ ...state, monthlyDigests: rangeDigests }} />
+          <MonthlyProduction state={{ ...state, monthlyDigests: rangeDigests }} />
         )}
       </div>
 

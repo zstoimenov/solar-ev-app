@@ -59,8 +59,11 @@ src/
               IngestWizard (+ Ingest/{TariffScheduleEditor,ChargingLogEditor,
               TariffPlanEditor,EvSessionsUploader} - a 2-level nav of nested
               sub-tabs, not top-level tabs: see "Ingest tab navigation" below),
-              Dashboard/{RoiLayers,PaybackProgress,EnergyTrends,MonthlyComparison,
-              EvChargingSplit,PlanComparison,DailyCalendar}
+              Screens/parts.jsx (Lede/BigStat/SplitBar/CompareBar/ProgressRow -
+              the ONLY presentational primitives the screens use; see
+              "Presenting information" below),
+              Dashboard/{MonthlyProduction,MonthlyComparison,PlanComparison,
+              DailyCalendar}
   version.js  APP_VERSION shown in the header - bump on every change (see below)
 ```
 
@@ -327,6 +330,42 @@ grid import). Preserve this in any new field or computation.
 header. **Bump it on every user-facing change** — UI, ingest behavior, or
 schema. Use semver-ish increments: patch for small fixes/tweaks, minor for
 new features or field changes, major only for a `schemaVersion` bump.
+
+## Presenting information (since v2.1)
+
+The v2.0 redesign fixed navigation but left the content as it was: the same
+figures, relocated. v2.1 reworked what each screen actually says. These rules
+are why, and undoing them re-creates the problem.
+
+- **One fact, one rendering.** The retired tiles each showed the same numbers
+  two or three ways: `RoiLayers` rendered three metric cards *and* a table
+  repeating them; `PaybackProgress` rendered a stacked bar chart *and* a table
+  repeating that; `EvChargingSplit` rendered a doughnut, a stacked bar chart
+  and a legend for one split. Never add a table that restates a chart above it.
+- **A bare number is not information.** "151 kWh" tells a household nothing.
+  Every headline figure carries either a comparison (`CompareBar`, against
+  that month's own historical typical) or a plain-language sentence
+  (`Lede`) saying what it means. Prefer a sentence over another metric card.
+- **Never a dual-axis chart.** The old `EnergyTrends` plotted kWh, percent,
+  dollars and kWh again across two y-axes; with two scales any two lines can
+  be made to cross, so it could not be read honestly. It is now
+  `MonthlyProduction`: one series, one axis, no legend needed. Money lives on
+  Money, EV charging on Car, self-sufficiency as a stat.
+- **The source palette is validated, not chosen by eye.** `SOURCE_COLORS` in
+  `Screens/parts.jsx` is checked against the `#1e293b` panel surface: normal
+  vision dE 21, worst colour-blind pair (grid red vs battery green) dE 6.5.
+  A 6-8 CVD score is legal ONLY with secondary encoding, which is why
+  `SplitBar` always draws a labelled row per segment plus 2px gaps between
+  fills - do not "tidy" those away. The pre-v2.1 five-colour set had `#a78bfa`
+  next to `#60a5fa`: dE 0.3 under deuteranopia, i.e. two adjacent segments
+  literally nobody could distinguish. Free and paid public charging are now
+  one "Away from home" category; what separates them is cost, shown as dollars.
+  Re-run the check (`dataviz` skill's `scripts/validate_palette.js`) before
+  changing any series colour.
+- **Sequential means one hue.** `DailyCalendar` shades dim -> bright in the
+  accent yellow only. Never a rainbow for magnitude.
+- **Charts are a last resort, not a default.** A stat with a sentence beats a
+  chart for a single number; a `SplitBar` beats a doughnut for a share.
 
 ## UI conventions
 

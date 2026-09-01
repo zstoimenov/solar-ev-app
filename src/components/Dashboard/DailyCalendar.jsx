@@ -3,30 +3,44 @@
 // render before v2: the daily numbers were parsed and discarded.
 //
 // A calendar rather than a bar chart because the question it answers is
-// "which days were bad, and were they together?" - weekends, a cloudy run,
-// a week of soiling. Weekday alignment carries that; a bar chart does not.
+// "which days were bad, and were they together?" - a run of cloudy days, a
+// weekend pattern, a week of soiling. Weekday alignment carries that; a bar
+// chart does not.
+//
+// Magnitude is a SEQUENTIAL encoding, so it is one hue from dim to bright,
+// never a rainbow. The per-cell kWh figure was removed in the v2.1 content
+// pass: at 412px it made every cell a cramped two-line block, and the exact
+// value of one day is a detail (the tooltip and the summary line below carry
+// it) while the pattern is the point.
 
 import React from 'react';
 import InfoPopover from '../InfoPopover.jsx';
 import { bestDay, zeroDays, daysInMonth } from '../../data/daily.js';
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // Monday-first index (JS getDay() is Sunday-first).
 function mondayIndex(year, month0, day) {
   return (new Date(year, month0, day).getDay() + 6) % 7;
 }
 
-// Four steps, not a continuous gradient: a reader can name a cell's bucket
-// at a glance, which a smooth ramp makes impossible on a small screen.
+// Four steps rather than a continuous ramp: a reader can name a cell's
+// bucket at a glance, which a smooth gradient makes impossible at this size.
 function bucket(value, max) {
   if (value == null) return null;
   const t = max > 0 ? value / max : 0;
-  if (t < 0.33) return 0;
+  if (t < 0.3) return 0;
   if (t < 0.55) return 1;
   if (t < 0.8) return 2;
   return 3;
 }
+
+const ordinal = (n) => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
 
 export default function DailyCalendar({ rows, month }) {
   if (!rows?.length || !month) return null;
@@ -51,6 +65,10 @@ export default function DailyCalendar({ rows, month }) {
 
   const best = bestDay(rows);
   const zeros = zeroDays(rows);
+  const withSolar = rows.filter((r) => r.solarKwh != null);
+  const worst = withSolar.length
+    ? withSolar.reduce((a, b) => (b.solarKwh < a.solarKwh ? b : a))
+    : null;
 
   return (
     <div className="calendar">
@@ -65,10 +83,9 @@ export default function DailyCalendar({ rows, month }) {
             <div
               key={c.key}
               className={`calendar-cell${c.level == null ? ' nodata' : ` lvl-${c.level}`}`}
-              title={`${month}-${String(c.day).padStart(2, '0')}: ${c.value == null ? 'no reading' : `${c.value} kWh`}`}
+              title={`${c.day} ${MONTHS[mon - 1]}: ${c.value == null ? 'no reading' : `${c.value} kWh`}`}
             >
               <span className="calendar-day">{c.day}</span>
-              <span className="calendar-kwh">{c.value == null ? '' : Math.round(c.value)}</span>
             </div>
           )
         )}
@@ -81,12 +98,16 @@ export default function DailyCalendar({ rows, month }) {
       </div>
 
       <p className="panel-foot">
-        {best && <>Best day <strong>{best.solarKwh} kWh</strong> on the {Number(best.date.slice(-2))}th</>}
+        {best && <>Best day <strong>{best.solarKwh} kWh</strong> on the {ordinal(Number(best.date.slice(-2)))}</>}
+        {worst && best && worst.date !== best.date && (
+          <> · quietest <strong>{worst.solarKwh} kWh</strong> on the {ordinal(Number(worst.date.slice(-2)))}</>
+        )}
         {zeros > 0 && <> · {zeros} day{zeros === 1 ? '' : 's'} at zero</>}
-        <InfoPopover label="About blank days" className="section-info">
-          A blank cell is a day the upload did not cover — no reading, which is
-          not the same as a day that produced nothing. Days that genuinely
-          produced nothing show a 0.
+        <InfoPopover label="Reading this calendar" className="section-info">
+          Brighter is a bigger day, shaded against this month&apos;s own best day.
+          Tap or hover a square for its exact figure. An outlined square is a day
+          the upload did not cover — no reading, which is not the same as a day
+          that produced nothing; those show as the dimmest shade.
         </InfoPopover>
       </p>
     </div>
