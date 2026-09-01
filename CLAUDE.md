@@ -40,7 +40,9 @@ src/
               persist()/estimate() + backup staleness, see below), seed.js
               (first-run loader), daily.js (helpers over the optional
               dailySeries[] - month-to-date, pace, typical-for-month,
-              seasonal check; see "Daily series" below), compute.js
+              seasonal check; see "Daily series" below), compare.js (one month
+              against the month before + the same month a year earlier; see
+              "Month comparisons" below), compute.js
               (recompute cumulativeTotals from the digest array), tariffSchedule.js
               (resolve a dated rate schedule for a month + sum the charging log),
               evTimeOfUseSplit.js (bucket EV charging sessions into time-of-day
@@ -52,16 +54,18 @@ src/
               manual input into one monthlyDigests entry + computes the financial
               layers)
   components/ HealthBanner, StorageHealth, DataNotes, Collapsible, Modal,
-              ExportRestore,
+              ExportRestore (the Data screen's Backup page - file-only export
+              and restore; see "Backups are files" below),
               Screens/{Today,Energy,Car,Money,DataScreen} - the five bottom-nav
               screens (see "Screens" below); the Dashboard/* tiles below are
               now composed BY these rather than listed flat in App.jsx,
-              IngestWizard (+ Ingest/{TariffScheduleEditor,ChargingLogEditor,
+              IngestWizard - the WHOLE Data screen in one panel, Backup
+              included (+ Ingest/{TariffScheduleEditor,ChargingLogEditor,
               TariffPlanEditor,EvSessionsUploader} - a 2-level nav of nested
               sub-tabs, not top-level tabs: see "Ingest tab navigation" below),
-              Screens/parts.jsx (Lede/BigStat/SplitBar/CompareBar/ProgressRow -
-              the ONLY presentational primitives the screens use; see
-              "Presenting information" below),
+              Screens/parts.jsx (Lede/BigStat/SplitBar/CompareBar/ProgressRow/
+              RangeChips/Deltas - the ONLY presentational primitives the screens
+              use; see "Presenting information" below),
               Dashboard/{MonthlyProduction,MonthlyComparison,PlanComparison,
               DailyCalendar}
   version.js  APP_VERSION shown in the header - bump on every change (see below)
@@ -317,6 +321,53 @@ band" from six months of data is exactly the guess-dressed-up-as-a-number this
 app refuses everywhere else (see Plan Comparison's scope note). Showing the
 raw numbers with no verdict is the correct degraded state.
 
+## Month comparisons (since v2.2)
+
+`data/compare.js:monthComparison(digests, month, key)` returns one month's
+stored value for a field alongside the **month before** and the **same month
+a year earlier**, each with the absolute and percentage difference. Rendered
+by `Screens/parts.jsx:Deltas` on Energy (production), Car (Layer 2 saving +
+kWh charged) and Money (combined saving + the bill), and only when the
+selected period is a **single month** — a range has no counterpart month, so
+the block simply doesn't render.
+
+- It **derives nothing**. It reads two values already on `monthlyDigests[]`
+  and subtracts. It works for money fields for exactly that reason; it must
+  never grow a computation of its own (`buildDigest.js` stays the only place
+  a financial figure is produced).
+- **Same month last year is the point.** Month-on-month movement in Perth is
+  mostly the seasons — August beating July says nothing about the system —
+  so the year-earlier row is what removes the season. If only one of the two
+  reference months exists, the other row is dropped and a line says a year of
+  history will fill it in.
+- A percentage change from a zero reference is `null`, not infinity; `Deltas`
+  falls back to the absolute difference.
+- **Direction is never colour-only.** Every row prints an arrow and the
+  signed size; the green/red tint only confirms it. Pass
+  `higherIsBetter={false}` for figures where down is good (the bill).
+- A **partial month** is flagged: it sits below a whole month by definition,
+  and the note says to read the change as progress so far, not a drop. Do not
+  silently hide the comparison for a partial month, and do not silently show
+  it without that note.
+
+## Backups are files, not clipboard text (since v2.2)
+
+The export used to also write the JSON to the clipboard and the restore box
+used to accept pasted text. On a real store the clipboard copy **truncated**,
+and a short backup is worse than no backup because it looks like one. Both
+directions are now files only:
+
+- Export downloads `roi-backup_<lastMonth>_saved-<YYYY-MM-DD>.json` — the
+  save date is in the filename so successive backups sit side by side in
+  Notion instead of overwriting each other.
+- Restore is a file picker. There is no textarea. `parseBackup()`'s error
+  message says "file", not "pasted text".
+- The anti-truncation guard (fewer months than the last export → confirm) and
+  the passphrase-encryption path are unchanged; the passphrase prompt now
+  appears after choosing an encrypted *file*.
+- The EV-sessions uploader (Ingest → EV Charging Data) still accepts pasted
+  JSON. That is a different, much smaller payload and was not the failure.
+
 ## Null convention
 
 Absent numeric/text values are always `null`, never `0` or `""` — this is
@@ -382,10 +433,20 @@ are why, and undoing them re-creates the problem.
   exist. Never fill a gap with an estimate to keep the layout even — the
   one sanctioned estimate in the app is `paybackPreTracking`, and it is
   labelled as one.
-- Screen scoping: Today and Money read **all-time** state; Energy and Car
-  read the date-filtered view. Energy owns its own range chips, so
-  `RANGE_SCOPED` in `App.jsx` deliberately excludes it — rendering the
-  header filter there too asked the same question twice.
+- **Screen scoping: three periods, one control** (since v2.2). Energy, Car
+  and Money each carry the same `RangeChips` row at the top of the screen —
+  *This month* / *Selected range* / *All time* — with the From/To
+  `DateRangeFilter` shown inline underneath only while *Selected range* is
+  picked. `App.jsx` builds one `scopes = { month, window, all }` object and
+  the screen just chooses; there is no range control in the header any more
+  (it asked the same question twice on Energy, and asked it in the
+  hardest-to-reach corner of a phone everywhere else). Defaults preserve
+  each screen's old behaviour: Energy *This month* when daily data exists,
+  Car *Selected range*, Money *All time*. Today is all-time and has no
+  chips. **Payback stays all-time in every scope** — `scopedState()` copies
+  `payback`/`paybackTotals`/`paybackPreTracking` from the full-history
+  recompute, and Money says so in the panel when a shorter period is
+  selected. Don't "fix" that by rescoping it.
 - **Layer names are plain language in the UI, unchanged in the model.**
   Layer 1 → "Solar and battery", Layer 2 → "Driving electric", Layer 3 →
   "Lease over a loan", with the layer number kept as a secondary label in
@@ -422,6 +483,14 @@ are why, and undoing them re-creates the problem.
   the "i" icon. When adding a new field or page, resist writing a 3-sentence
   blurb up front — write one sentence, and put the rest behind an
   `InfoPopover` from the start.
+- **The Data screen is ONE panel** (since v2.2). Backup is a category in the
+  same pill row as the ingest pages (`IngestWizard.jsx`'s `CATEGORIES`), not
+  a second panel stacked underneath — two panels with two different
+  navigation idioms read as two half-screens. `DataScreen.jsx` owns the
+  selected category so the stale-backup banner's "Back up now" can actually
+  open the Backup page. Within Backup, the destructive month-delete/reset
+  actions live in a **collapsed** `Collapsible` so the two things the page is
+  for (back up, restore) are the only things on it.
 - **Ingest tab navigation is two levels**, not one flat row of pills
   (`IngestWizard.jsx`'s `CATEGORIES` array): a few broad categories (Monthly
   Upload / Tariffs & Rates / EV Charging Data / Payback), each either a single

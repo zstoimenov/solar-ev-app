@@ -41,8 +41,9 @@ npm run preview  # serve the production build locally
   write (propose-before-write).
 - **Guards:** health banner, anti-truncation export guard, restore prompt,
   duplicate-month guard.
-- **Backup:** one-click JSON export (download + clipboard) and paste/file restore
-  with schema validation.
+- **Backup:** one-click JSON export as a downloaded, date-stamped file and
+  file restore with schema validation (no clipboard copy and no paste box —
+  a clipboard-sized backup silently truncated).
 
 Layer 2's dashboard headline is the **accrued cumulative** saving; the annual
 scope figure is shown only as a labelled sub-metric. Layer 3 is a fixed annual

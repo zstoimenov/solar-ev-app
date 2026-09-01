@@ -15,8 +15,9 @@ import MonthlyProduction from '../Dashboard/MonthlyProduction.jsx';
 import MonthlyComparison from '../Dashboard/MonthlyComparison.jsx';
 import DailyCalendar from '../Dashboard/DailyCalendar.jsx';
 import InfoPopover from '../InfoPopover.jsx';
-import { Lede, SplitBar, CompareBar, SOURCE_COLORS } from './parts.jsx';
+import { Lede, SplitBar, CompareBar, SOURCE_COLORS, RangeChips, RANGES, Deltas } from './parts.jsx';
 import { dailyForMonth, monthToDate, paceToMonthEnd, typicalForMonth } from '../../data/daily.js';
+import { monthComparison } from '../../data/compare.js';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -60,6 +61,12 @@ export default function Energy({ state, fullState, rangeFilter }) {
   const pacePct =
     pace != null && typical?.kwh ? Math.round(((pace - typical.kwh) / typical.kwh) * 100) : null;
 
+  // Same month last year is the comparison that takes the season out of it;
+  // the month before is here because it is the one people look for first.
+  const production = isMonth
+    ? monthComparison(fullState.monthlyDigests, dailyMonth, 'solarProductionKwh')
+    : null;
+
   const scopeLabel = isMonth
     ? monthName
     : effectiveRange === 'all'
@@ -68,25 +75,11 @@ export default function Energy({ state, fullState, rangeFilter }) {
 
   return (
     <div className="screen">
-      <div className="range-chips">
-        {dailyMonth && (
-          <button className={isMonth ? 'active' : ''} onClick={() => setRange('month')}>
-            This month
-          </button>
-        )}
-        <button
-          className={effectiveRange === 'window' ? 'active' : ''}
-          onClick={() => setRange('window')}
-        >
-          Selected range
-        </button>
-        <button
-          className={effectiveRange === 'all' ? 'active' : ''}
-          onClick={() => setRange('all')}
-        >
-          All time
-        </button>
-      </div>
+      <RangeChips
+        value={effectiveRange}
+        onChange={setRange}
+        options={dailyMonth ? RANGES : RANGES.filter((r) => r !== 'month')}
+      />
 
       {effectiveRange === 'window' && rangeFilter && (
         <div className="range-filter-row">{rangeFilter}</div>
@@ -112,6 +105,7 @@ export default function Energy({ state, fullState, rangeFilter }) {
               {typical.years === 1 ? '' : 's'}, partial months excluded. The pace is a
               straight line from the days covered so far, not a weather forecast.
             </InfoPopover>
+            <Deltas comparison={production} unit=" kWh" />
           </>
         ) : (
           <Lede>
@@ -121,6 +115,7 @@ export default function Energy({ state, fullState, rangeFilter }) {
               : ''}.
           </Lede>
         )}
+        {isMonth && pacePct == null && <Deltas comparison={production} unit=" kWh" />}
       </div>
 
       {/* 2. Where did it go? The question the old screen never answered. */}

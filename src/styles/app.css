@@ -222,6 +222,12 @@ input[type="date"], input[type="time"] { color-scheme: dark; }
 label.field { display: block; margin: .5rem 0; font-size: .85rem; }
 label.field span { display: block; color: var(--muted); margin-bottom: .2rem; }
 label.field .hint { color: var(--muted); font-size: .72rem; font-style: italic; margin-top: .2rem; }
+/* A checkbox and its label belong on one line. `label.field` (0,1,1) beats a
+   bare `.row` (0,1,0) on specificity, so the row modifier has to be spelled
+   out here or every checkbox stacks above its own text. */
+label.field.row { display: flex; align-items: center; gap: .5rem; }
+label.field.row span { display: inline; margin-bottom: 0; }
+label.field.row input[type="checkbox"] { flex: 0 0 auto; width: 1.1rem; height: 1.1rem; }
 
 .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table.digest { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .8rem; }
@@ -569,3 +575,23 @@ header.top .date-range-filter { flex-shrink: 0; }
 .chore-icon { flex: 0 0 auto; color: var(--accent); display: inline-flex; }
 .chore-text { flex: 1 1 auto; font-size: .8rem; color: var(--muted); }
 .chore .small-btn { flex: 0 0 auto; font-size: .75rem; padding: .3rem .6rem; }
+
+/* --- Month-against-month comparison rows --------------------------------
+   Two rows, never a chart: the reference month's figure and the change.
+   The arrow and the signed number carry the direction on their own - the
+   green/red tint only confirms it, so a colour-blind reader loses nothing. */
+.deltas { margin-top: .75rem; display: flex; flex-direction: column; gap: .35rem; }
+.delta-row {
+  display: flex; align-items: baseline; gap: .5rem;
+  padding: .4rem .55rem; background: var(--panel-2); border-radius: 8px;
+}
+.delta-label { flex: 1 1 auto; min-width: 0; font-size: .8rem; }
+.delta-caption { display: block; color: var(--muted); font-size: .68rem; }
+.delta-ref { color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.delta-change {
+  min-width: 4.2rem; text-align: right; font-size: .82rem; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--muted);
+}
+.delta-change.good { color: var(--green); }
+.delta-change.bad { color: var(--red); }
+.delta-note { margin: .35rem 0 0; font-size: .72rem; color: var(--muted); }

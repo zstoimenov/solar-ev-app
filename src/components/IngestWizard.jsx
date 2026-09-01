@@ -1,7 +1,15 @@
-// IngestWizard - client-side monthly ingest. Three uploaded files + one manual
-// away-charging step -> compute -> PREVIEW (propose-before-write) -> confirm ->
-// append exactly one month and recompute cumulative totals. Duplicate-month
-// guard blocks re-ingesting an existing month unless overwrite is chosen.
+// IngestWizard - the whole Data screen in one panel: the monthly ingest
+// (three uploaded files + one manual away-charging step -> compute ->
+// PREVIEW (propose-before-write) -> confirm -> append exactly one month and
+// recompute cumulative totals; a duplicate-month guard blocks re-ingesting
+// an existing month unless overwrite is chosen), the rate/log/payback
+// editors, and Backup.
+//
+// Backup is a category in the SAME pill row rather than a second panel
+// stacked underneath. The screen used to be two unrelated panels with two
+// different navigation idioms, which read as two half-screens rather than
+// one; now everything administrative is reached the same way, and only one
+// page is on screen at a time.
 
 import React, { useState } from 'react';
 import { parseFronius } from '../ingest/parseFronius.js';
@@ -16,16 +24,17 @@ import ChargingLogEditor from './Ingest/ChargingLogEditor.jsx';
 import TariffPlanEditor from './Ingest/TariffPlanEditor.jsx';
 import EvSessionsUploader from './Ingest/EvSessionsUploader.jsx';
 import PaybackSettingsEditor from './Ingest/PaybackSettingsEditor.jsx';
+import ExportRestore from './ExportRestore.jsx';
 
 const APP_VERSION = 'app_v1';
 const empty = { fronius: null, wattpilot: null, synergy: null };
 
-// Two levels: a few broad categories (kept to 3 top-level pills instead of
-// piling every page into one row), each with its own short intro - and,
-// where a category groups more than one page, a second row of pills for the
-// specific page. Monthly Upload has no group intro since it's a single page.
+// Two levels: a few broad categories instead of piling every page into one
+// row - and, where a category groups more than one page, a second row of
+// pills for the specific page plus a one-line intro. Single-page categories
+// (Add a Month, Payback, Backup) have no second row and no intro.
 const CATEGORIES = [
-  { key: 'upload', label: 'Monthly Upload' },
+  { key: 'upload', label: 'Add a Month' },
   {
     key: 'tariffs', label: 'Tariffs & Rates',
     intro: "Three related pages for electricity pricing: what you actually pay to " +
@@ -46,7 +55,8 @@ const CATEGORIES = [
       { key: 'evSessions', label: 'EV Sessions' }
     ]
   },
-  { key: 'payback', label: 'Payback' }
+  { key: 'payback', label: 'Payback' },
+  { key: 'backup', label: 'Backup' }
 ];
 
 // Fronius/Wattpilot report filenames end in "..._2026_06.xlsx" - pull the
@@ -68,8 +78,11 @@ function rowStatus(key, value) {
 
 const SEVERITY_RANK = { err: 2, warn: 1, ok: 0 };
 
-export default function IngestWizard({ state, onChange, onIngested }) {
-  const [category, setCategory] = useState('upload');
+// `category` is owned by DataScreen so other things on the screen (the
+// stale-backup banner's "Back up now") can jump straight to a page here.
+export default function IngestWizard({
+  state, appMeta, category, onCategoryChange, onChange, onIngested
+}) {
   const [subsection, setSubsection] = useState(null);
   const [files, setFiles] = useState(empty);
   const [manual, setManual] = useState({
@@ -163,14 +176,14 @@ export default function IngestWizard({ state, onChange, onIngested }) {
   const activeCategory = CATEGORIES.find((c) => c.key === category);
 
   function selectCategory(key) {
-    setCategory(key);
+    onCategoryChange(key);
     const cat = CATEGORIES.find((c) => c.key === key);
     setSubsection(cat.subsections?.[0]?.key ?? null);
   }
 
   return (
     <div className="panel">
-      <h2>Monthly Ingest</h2>
+      <h2>Data</h2>
 
       <div className="subtabs">
         {CATEGORIES.map((c) => (
@@ -263,6 +276,7 @@ export default function IngestWizard({ state, onChange, onIngested }) {
       {subsection === 'tariffPlans' && <TariffPlanEditor state={state} onChange={onChange} />}
       {subsection === 'evSessions' && <EvSessionsUploader state={state} onChange={onChange} />}
       {category === 'payback' && <PaybackSettingsEditor state={state} onChange={onChange} />}
+      {category === 'backup' && <ExportRestore state={state} appMeta={appMeta} onChange={onChange} />}
 
       {category === 'upload' && preview && (() => {
         const rows = Object.entries(preview.digest).map(([k, v]) => [k, v, rowStatus(k, v)]);

@@ -104,7 +104,7 @@ export function parseBackup(text) {
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new SchemaError('Rejected: the pasted text is not valid JSON.');
+    throw new SchemaError('Rejected: that file is not valid JSON.');
   }
   return parsed;
 }
