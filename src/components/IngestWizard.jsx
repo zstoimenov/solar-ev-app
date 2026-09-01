@@ -78,6 +78,20 @@ function rowStatus(key, value) {
 
 const SEVERITY_RANK = { err: 2, warn: 1, ok: 0 };
 
+// Most digest fields are a number or a string. `intervalProfile` is an
+// object of 96 bucket figures, which String()s to "[object Object]" - the
+// preview shows what was captured instead, since what the reviewer needs to
+// confirm is that the half-hourly data arrived, not its 96 values.
+function previewValue(key, value) {
+  if (value == null) return 'null';
+  if (key === 'intervalProfile') {
+    return `${value.intervals} intervals over ${value.days} days` +
+      (value.exportKwh ? ', import + export' : ', import only');
+  }
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
 // `category` is owned by DataScreen so other things on the screen (the
 // stale-backup banner's "Back up now") can jump straight to a page here.
 export default function IngestWizard({
@@ -299,7 +313,7 @@ export default function IngestWizard({
               <div className="table-scroll">
                 <table className="digest"><tbody>
                   {rows.map(([k, v, status]) => (
-                    <tr key={k}><td>{k}</td><td className={`digest-${status}`}>{v == null ? 'null' : String(v)}</td></tr>
+                    <tr key={k}><td>{k}</td><td className={`digest-${status}`}>{previewValue(k, v)}</td></tr>
                   ))}
                 </tbody></table>
               </div>

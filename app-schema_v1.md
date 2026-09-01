@@ -162,6 +162,36 @@ wall-clock **timestamps**, not just a daily/monthly total.
 
 ---
 
+## `monthlyDigests[].intervalProfile`
+
+*(optional; absent = no half-hourly data for that month)* Added in v2.4. The
+month's shape at the meter, from a Synergy `MA_IntervalDataHistory.csv` that
+carried 30-minute rows.
+
+`{ source, intervalMinutes, days, intervals, includesUnbilled,
+importKwh[48], exportKwh[48] | null }`
+
+- **48 half-hourly buckets per direction, labelled by their START**: index 0
+  is 00:00-00:30, index 47 is 23:30-24:00. A row stamped `07:30` covers
+  07:30-08:00.
+- Built by `ingest/parseSynergy.js`, which folds 1,440 raw rows into these 96
+  numbers **at ingest and discards the rows**. Raw intervals are never stored:
+  they would multiply the size of every backup file for data that is only
+  ever read in aggregate.
+- `exportKwh` is `null` when the file had no export column; the whole field is
+  `null` for a month imported from a daily-granularity file.
+- **NOT in `DIGEST_FIELDS`**, so pre-v2.4 backups validate unchanged.
+  Re-ingesting a month from a daily file preserves any profile already stored
+  rather than erasing it.
+- Built from **every in-month row, billed or not** - unlike
+  `gridImportSynergyKwh`, which stays billed-only because it feeds
+  cross-validation. `includesUnbilled` flags the difference. The two are
+  deliberately not reconciled.
+- **Energy only.** Nothing financial is derived from it;
+  `monthlyDigests[]` remains the sole source of every dollar figure.
+
+---
+
 ## `dailySeries[]`
 
 *(optional; absent = `[]`)* One entry per **day**, added in v2.0. Both monthly

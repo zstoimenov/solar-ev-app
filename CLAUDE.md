@@ -50,7 +50,8 @@ src/
               networked module - 7-day weather + a yield estimate calibrated
               from this household's own history; see "Weather forecast" below)
   ingest/     parseFronius.js, parseWattpilot.js, parseSynergy.js (client-side
-              XLSX/CSV parsing), parseWattpilotSessions.js (the Wattpilot MOBILE
+              XLSX/CSV parsing; the Synergy one ALSO folds a 30-minute file
+              into a 48-bucket profile - see "Synergy interval data" below), parseWattpilotSessions.js (the Wattpilot MOBILE
               APP's charging-session JSON - different file, different granularity,
               see "EV time-of-day data" below), buildDigest.js (merges parsed +
               manual input into one monthlyDigests entry + computes the financial
@@ -413,6 +414,56 @@ are the same ones that killed cloud sync:
 - The panels degrade rather than disappear: a failed fetch shows the last
   cached forecast with a warning, failures are rate-limited by a 60s
   cool-down, and `useForecast` de-duplicates the two panels' fetches.
+
+## Synergy interval data (since v2.4)
+
+Synergy's `MA_IntervalDataHistory.csv` now comes with **one row per 30
+minutes** and two channels (`ANYTIME (KWH)` import, `Solar export (Units)`).
+It has previously been one row per day, and could be again, so
+`parseSynergy.js` is ONE parser that detects the shape it was handed rather
+than being told: it always produces the billed monthly import total, and
+additionally a half-hourly profile when a Time column is present. If the
+interval download ever disappears, the profile comes back `null` and
+everything else keeps working.
+
+- **The raw rows are never stored.** A month is 1,440 rows (~57 KB of CSV);
+  they are folded at ingest into 48 half-hourly buckets per direction — 96
+  numbers, well under a kilobyte — and discarded. Putting intervals in the
+  store would bloat every backup, which is the failure the file-only backup
+  change just fixed. Aggregate at ingest, keep the summary, discard the
+  input — the same principle as the digest itself.
+- **Buckets are labelled by their START**, confirmed with the household:
+  a row stamped `07:30` covers 07:30–08:00. Reading it as interval-ending
+  would shift every tariff band by half an hour and quietly misprice
+  everything downstream.
+- **The `time` column needs its own finder.** A keyword match on "time" also
+  matches `ANYTIME (KWH)`, which is the *usage* column — that mix-up would
+  bucket a whole month into 00:00. `findTimeField()` requires an exact match
+  or a name carrying no unit; there is a regression case for it.
+- **Two different questions, two different bases.** `gridImportSynergyKwh`
+  stays **billed-rows-only** because it feeds cross-validation against
+  Fronius. The profile is built from **every in-month row** because it is the
+  shape of the month and is more useful complete; `includesUnbilled` records
+  the difference. Do not "fix" the discrepancy by making them agree — they
+  answer different things.
+- `intervalProfile` is an **optional** digest field, deliberately NOT in
+  `DIGEST_FIELDS`, so pre-v2.4 backups still validate. Re-ingesting a month
+  from a daily-granularity file falls back to `prevDigest.intervalProfile`
+  rather than erasing a profile captured earlier — the same trap as the
+  charging-log `?? digest.field` fallback.
+- `data/intervals.js` is **energy only**, like `daily.js`. It folds buckets
+  into arbitrary windows, borrowing the household's own rate-card bands via
+  `bandsFromPlans()` when they have a time-of-use plan on file. It computes
+  no dollar figure; pricing a profile against a plan is a financial
+  computation and belongs in `buildDigest.js`.
+
+**What this unblocks, and has not been done yet:** the two scope limitations
+recorded elsewhere in this file are now removable — a whole-of-household
+tariff comparison (Plan Comparison is still EV-charging-only) and a real
+peak/off-peak split for `exportCreditAud` (still a single rate, because the
+peak share used to be unknowable). Both change stored money figures, so both
+are deliberately separate pieces of work; `TimeOfDayProfile.jsx` shows the
+measured export peak share and says applying it is a separate change.
 
 ## Null convention
 

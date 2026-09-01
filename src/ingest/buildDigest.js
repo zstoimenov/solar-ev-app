@@ -170,6 +170,12 @@ export function buildDigest(parsed, manual, config, chargingLog = [], prevDigest
     gridExportKwh: round(fronius.gridExportKwh),
     gridImportFroniusKwh: round(fronius.gridImportFroniusKwh),
     gridImportSynergyKwh: synergy.gridImportSynergyKwh,
+    // Optional (not in DIGEST_FIELDS): the month's half-hourly shape, when
+    // the Synergy download carried 30-minute rows. Re-ingesting a month from
+    // a DAILY-granularity file must not erase a profile captured earlier -
+    // same trap as the charging-log fallback below, so the previous digest's
+    // profile is kept rather than overwritten with null.
+    intervalProfile: synergy.intervalProfile ?? prevDigest?.intervalProfile ?? null,
     selfSufficiencyPct,
     selfConsumptionRatePct,
     zeroProductionDays: fronius.zeroProductionDays ?? null,
