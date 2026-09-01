@@ -11,6 +11,7 @@
 // dual-axis chart. Both are gone.
 
 import React, { useState } from 'react';
+import SolarForecast from '../Dashboard/SolarForecast.jsx';
 import MonthlyProduction from '../Dashboard/MonthlyProduction.jsx';
 import MonthlyComparison from '../Dashboard/MonthlyComparison.jsx';
 import DailyCalendar from '../Dashboard/DailyCalendar.jsx';
@@ -28,7 +29,7 @@ const kwh = (n) => (n == null ? '—' : Math.round(n).toLocaleString('en-AU'));
 const sumKey = (rows, key) =>
   rows.reduce((acc, d) => (d[key] == null ? acc : (acc ?? 0) + d[key]), null);
 
-export default function Energy({ state, fullState, rangeFilter }) {
+export default function Energy({ state, fullState, rangeFilter, onConfigChange }) {
   const daily = fullState.dailySeries ?? [];
   const digests = state.monthlyDigests;
 
@@ -84,6 +85,11 @@ export default function Energy({ state, fullState, rangeFilter }) {
       {effectiveRange === 'window' && rangeFilter && (
         <div className="range-filter-row">{rangeFilter}</div>
       )}
+
+      {/* 0. What is coming. The only forward-looking block in the app, and
+          the only one that leaves the device - it sits above the history
+          because "should I charge the car tomorrow" is answerable today. */}
+      <SolarForecast state={fullState} onConfigChange={onConfigChange} />
 
       {/* 1. Producing what it should? */}
       <div className="panel">

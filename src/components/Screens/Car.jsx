@@ -9,6 +9,7 @@
 // remains, with free and paid public folded into "Away from home".
 
 import React, { useState } from 'react';
+import BestChargeDay from '../Dashboard/BestChargeDay.jsx';
 import PlanComparison from '../Dashboard/PlanComparison.jsx';
 import InfoPopover from '../InfoPopover.jsx';
 import { BigStat, Lede, SplitBar, SOURCE_COLORS, RangeChips, rangeLabel, Deltas } from './parts.jsx';
@@ -22,7 +23,7 @@ const money = (n, dp = 0) =>
 const sumKey = (rows, key) =>
   rows.reduce((acc, d) => (d[key] == null ? acc : (acc ?? 0) + d[key]), null);
 
-export default function Car({ scopes, months, rangeFilter, allDigests }) {
+export default function Car({ scopes, months, rangeFilter, allDigests, fullState }) {
   // The window is the useful default here: the charging mix a year ago says
   // little about what the car costs to run now.
   const [range, setRange] = useState('window');
@@ -101,6 +102,8 @@ export default function Car({ scopes, months, rangeFilter, allDigests }) {
         </p>
         <Deltas comparison={chargedVs} unit=" kWh" />
       </div>
+
+      <BestChargeDay state={fullState} />
 
       <div className="panel">
         <h3 className="panel-title">Would a different plan be cheaper?</h3>

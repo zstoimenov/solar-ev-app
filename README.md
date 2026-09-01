@@ -39,6 +39,9 @@ npm run preview  # serve the production build locally
 - **Monthly ingest:** upload Fronius + Wattpilot XLSX + Synergy CSV, enter
   away-charging, preview the computed month + updated totals, then confirm to
   write (propose-before-write).
+- **7-day forecast:** opt-in weather panel on Energy (Open-Meteo, no API key)
+  with an expected-yield figure calibrated from the household's own
+  production history, plus a "best day to charge" panel on Car.
 - **Guards:** health banner, anti-truncation export guard, restore prompt,
   duplicate-month guard.
 - **Backup:** one-click JSON export as a downloaded, date-stamped file and

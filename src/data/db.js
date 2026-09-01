@@ -11,6 +11,11 @@ const DB_VERSION = 1;
 const STORE = 'state';
 const STATE_KEY = 'current';
 const META_KEY = 'appMeta'; // holds { lastExportedCount, lastExportedAt } - guard input
+// Weather forecast + historical-radiation cache. Deliberately a SEPARATE
+// record from the app state: it is disposable third-party data that can be
+// re-fetched at any time, so it must never enter the schema, the backup
+// file, or validate(). Losing it costs one HTTP request.
+const WEATHER_KEY = 'weatherCache';
 
 let _dbp = null;
 function db() {
@@ -57,6 +62,19 @@ export async function recordExport(count) {
   meta.lastExportedAt = new Date().toISOString();
   await (await db()).put(STORE, meta, META_KEY);
   return meta;
+}
+
+// --- Weather cache (never part of the backup) ------------------------------
+// Read/written by data/forecast.js. Kept out of `state` on purpose: the
+// backup file is the household's own record, and nothing in it should be a
+// copy of someone else's API response.
+export async function getWeatherCache() {
+  return (await (await db()).get(STORE, WEATHER_KEY)) ?? null;
+}
+
+export async function putWeatherCache(cache) {
+  await (await db()).put(STORE, cache, WEATHER_KEY);
+  return cache;
 }
 
 // Validate + forward-migrate a parsed backup object, then replace the store.

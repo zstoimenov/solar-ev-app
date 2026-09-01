@@ -46,7 +46,9 @@ src/
               (recompute cumulativeTotals from the digest array), tariffSchedule.js
               (resolve a dated rate schedule for a month + sum the charging log),
               evTimeOfUseSplit.js (bucket EV charging sessions into time-of-day
-              bands for Dashboard/PlanComparison.jsx)
+              bands for Dashboard/PlanComparison.jsx), forecast.js (the ONLY
+              networked module - 7-day weather + a yield estimate calibrated
+              from this household's own history; see "Weather forecast" below)
   ingest/     parseFronius.js, parseWattpilot.js, parseSynergy.js (client-side
               XLSX/CSV parsing), parseWattpilotSessions.js (the Wattpilot MOBILE
               APP's charging-session JSON - different file, different granularity,
@@ -67,7 +69,7 @@ src/
               RangeChips/Deltas - the ONLY presentational primitives the screens
               use; see "Presenting information" below),
               Dashboard/{MonthlyProduction,MonthlyComparison,PlanComparison,
-              DailyCalendar}
+              DailyCalendar,SolarForecast,BestChargeDay,useForecast}
   version.js  APP_VERSION shown in the header - bump on every change (see below)
 ```
 
@@ -367,6 +369,50 @@ directions are now files only:
   appears after choosing an encrypted *file*.
 - The EV-sessions uploader (Ingest → EV Charging Data) still accepts pasted
   JSON. That is a different, much smaller payload and was not the failure.
+
+## Weather forecast (since v2.3)
+
+`data/forecast.js` + `Dashboard/SolarForecast.jsx` (a panel at the top of
+Energy) and `Dashboard/BestChargeDay.jsx` (a small panel on Car). This is the
+**only** networked code in the app, and the rules that let it exist at all
+are the same ones that killed cloud sync:
+
+- **No API key, ever.** Open-Meteo requires none, which is the entire reason
+  this is possible — the bundle is public, so it can never carry a token. If
+  a future change needs a keyed weather provider, the answer is no.
+- **Opt-in, and off until a location is set.** The app makes no outbound
+  request on its own. `SolarForecast` states plainly what leaves the device
+  before anything is sent.
+- **Coordinates are rounded to 0.1° (~11 km)** by `roundCoord()` before being
+  stored or sent, and **no household coordinate is ever committed** —
+  `LOCATION_PRESETS` is coarse public geography (metro areas) and none of the
+  entries is a default. The household picks, or uses `navigator.geolocation`.
+  The chosen location lives in `config.forecast` (private: their IndexedDB
+  and their backup file), never in `public/seed-data_v1.json`.
+- **The kWh figure is FITTED, not modelled.** The forecast supplies daily
+  shortwave radiation (MJ/m²); `calibrate()` fits kWh-per-MJ from this roof's
+  own history — daily rows against archive radiation when there are ≥30
+  matched days, otherwise complete-month totals when there are ≥6. A ratio
+  estimator through the origin, never a line with an intercept (zero
+  radiation must mean zero output). Do **not** replace this with a
+  specs-based model (kWp × tilt × efficiency): the fit already contains the
+  array, tilt, shading, soiling and clipping, and re-fits as they drift.
+- **Below those thresholds there is no kWh at all** — temperature and
+  sunshine only, plus a line saying what is missing. Same gate philosophy as
+  `daily.js:seasonalCheck()`. Don't lower it to make numbers appear sooner.
+- **Energy only, never dollars.** Pricing a forecast day needs the
+  time-of-day usage split the app does not have (see Plan Comparison's scope
+  note). `BestChargeDay`'s "spare" figure is a daily energy subtraction —
+  projected production minus the household's typical non-EV daily draw — and
+  says so; it is not an hour-by-hour simulation and knows nothing about the
+  battery's state.
+- **The weather cache is NOT part of the backup.** `db.js` keeps it under its
+  own `weatherCache` key, outside `state`, so `validate()` never sees it and
+  no backup file carries a copy of someone else's API response. Losing it
+  costs one request.
+- The panels degrade rather than disappear: a failed fetch shows the last
+  cached forecast with a warning, failures are rate-limited by a 60s
+  cool-down, and `useForecast` de-duplicates the two panels' fetches.
 
 ## Null convention
 
