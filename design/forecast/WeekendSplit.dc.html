@@ -14,7 +14,7 @@
   </style>
 </helmet>
 <div style="padding: 12px 12px 20px; background: #0f172a;">
-  <div style="font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin-bottom: 10px;">Weekend card · W1 one number</div>
+  <div style="font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin-bottom: 10px;">Weekend card · W2 side by side</div>
   <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px 17.6px;">
 
     <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9.6px;">
@@ -74,20 +74,39 @@
     </button>
 
     <div style="margin-top: 14px; background: #273449; border-radius: 10px; padding: 12px 14px;">
-      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px;">
         <span style="font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #94a3b8;">This weekend</span>
-        <span style="font-size: 17px; font-weight: 700; color: #e2e8f0;">44 kWh</span>
+        <span style="font-size: 13px; font-weight: 600; color: #94a3b8;">44 kWh · 20 spare</span>
       </div>
-      <div style="font-size: 12.8px; color: #94a3b8; margin-top: 6px; line-height: 1.5; text-wrap: pretty;">
-        <strong style="color: #e2e8f0;">Sunday</strong> is the better of the two — 23 kWh against 21 on Saturday.
-        About <strong style="color: #e2e8f0;">20 kWh spare</strong> for the car across both days.
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+        <div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px;">
+            <span style="font-size: 12.5px; color: #e2e8f0;">Saturday</span>
+            <span style="font-size: 13px; font-weight: 600;">21</span>
+          </div>
+          <div style="height: 6px; border-radius: 3px; background: #1e293b; margin-top: 5px; overflow: hidden;">
+            <div style="width: 68%; height: 100%; background: rgba(250,204,21,.45); border-radius: 3px;"></div>
+          </div>
+          <div style="font-size: 10.8px; color: #64748b; margin-top: 5px;">9 kWh spare · 12–23°</div>
+        </div>
+        <div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px;">
+            <span style="font-size: 12.5px; color: #facc15; font-weight: 600;">Sunday ✓</span>
+            <span style="font-size: 13px; font-weight: 700; color: #e2e8f0;">23</span>
+          </div>
+          <div style="height: 6px; border-radius: 3px; background: #1e293b; margin-top: 5px; overflow: hidden;">
+            <div style="width: 74%; height: 100%; background: #facc15; border-radius: 3px;"></div>
+          </div>
+          <div style="font-size: 10.8px; color: #64748b; margin-top: 5px;">11 kWh spare · 10–21°</div>
+        </div>
       </div>
+      <div style="font-size: 11.5px; color: #94a3b8; margin-top: 10px; line-height: 1.45;">kWh expected · Sunday is the better of the two.</div>
     </div>
     <p style="border-top: 1px solid #334155; margin: 12px 0 0; padding-top: 9.6px; font-size: 12.5px; color: #94a3b8; line-height: 1.45; text-wrap: pretty;">
       Fitted from <strong style="color: #e2e8f0;">43 of your own days</strong> against the sunlight they got, and typically lands within about 26% of the figure shown.
     </p>
   </div>
-  <p style="margin: 12px 2px 0; font-size: 12px; color: #64748b; line-height: 1.5; text-wrap: pretty;">The plainest reading of "combined": one weekend total, one sentence naming the better day. Shortest of the three, and adds no new visual language to the panel.</p>
+  <p style="margin: 12px 2px 0; font-size: 12px; color: #64748b; line-height: 1.5; text-wrap: pretty;">Each day keeps its own figure and bar, so the two are directly comparable without reading a sentence. Tallest of the three, and repeats the bar idiom from the rows above.</p>
 </div>
 </x-dc>
 </body>
