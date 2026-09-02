@@ -94,6 +94,7 @@ export default function NotificationSettings({ state }) {
 
   return (
     <>
+      <h3>Alerts</h3>
       <p className="small">
         Alerts about the week&apos;s solar, worked out and shown by your phone itself —
         no account, no server, and nothing sent anywhere.
@@ -107,7 +108,7 @@ export default function NotificationSettings({ state }) {
           <p>
             The cost of that is timing. Android decides when to wake the app, and it does so
             more often for apps you actually use. So each alert has a window of hours rather
-            than a set time, and anything that never went out is shown on the Today screen
+            than a set time, and anything that never went out is shown on the Home screen
             the next time you open the app instead. Nothing is silently dropped.
           </p>
           <p>

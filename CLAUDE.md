@@ -616,7 +616,7 @@ hiding it:
   Monday, tomorrow's date), so a second sync in the same window, or the next
   day's sync, sends nothing. Sunday evening and Monday morning share one key on
   purpose.
-- **The app's catch-up counts as delivery.** `ForecastAlert` on Today re-runs
+- **The app's catch-up counts as delivery.** `ForecastAlert` on Home re-runs
   the SAME decision on open and shows anything still unsent, then marks it sent
   so the phone does not buzz hours later with advice already read. This is why
   the decision lives in a pure module with no DOM and no IndexedDB - two
@@ -750,8 +750,8 @@ grid import). Preserve this in any new field or computation.
 
 ## Versioning
 
-`src/version.js` exports `APP_VERSION`, shown next to the title in the
-header. **Bump it on every user-facing change** — UI, ingest behavior, or
+`src/version.js` exports `APP_VERSION`, shown in the header's "What's new"
+panel (and on the first-run screen; it is not in the header bar itself). **Bump it on every user-facing change** — UI, ingest behavior, or
 schema. Use semver-ish increments: patch for small fixes/tweaks, minor for
 new features or field changes, major only for a `schemaVersion` bump.
 

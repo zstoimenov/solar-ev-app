@@ -1,4 +1,4 @@
-// ForecastAlert - the catch-up half of the notifications, on Today.
+// ForecastAlert - the catch-up half of the notifications, on Home.
 //
 // Periodic background sync is best effort: Chrome fires it when it feels like
 // it, and an app that has not been opened for a week may get nothing at all.
