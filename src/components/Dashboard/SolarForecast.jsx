@@ -1,12 +1,16 @@
 // SolarForecast - the next 7 days, arranged around the decision rather than
 // around the calendar.
 //
-// It leads with the answer (the best solar day and by how much), then shows
-// only the days this household actually acts on: today, tomorrow, and the
-// coming weekend - the days the car normally gets charged. The best day
-// joins them as its own row when it is none of those, which is what covers
-// a rotating weekday off without anyone having to tell the app their roster.
-// The other days are one tap away, never gone.
+// It leads with the answer (the best solar day and by how much), then today
+// and tomorrow as full rows, then the rest of the week behind a toggle, and
+// finally ONE combined card for the coming weekend - the days the car
+// normally gets charged.
+//
+// The weekend is a card rather than two more rows because two more rows made
+// the panel too tall to take in at a glance, which was the whole point of
+// the rework. A rotating weekday off is still covered without any roster
+// configuration: the best day of the week is named in the verdict block at
+// the top whichever day it falls on, and the toggle lists the rest.
 //
 // The kWh figures are NOT modelled from panel specs. The forecast supplies
 // daily shortwave radiation; data/forecast.js fits kWh-per-MJ from this
@@ -165,6 +169,70 @@ function DayRow({ day, scaleMax, hasKwh, highlight }) {
   );
 }
 
+// The coming weekend as ONE card: the two days side by side, each with its
+// own figure and bar so they are directly comparable, plus the combined
+// total. It replaces two more full-height rows - the panel was getting too
+// tall to take in at a glance, which is what the rework was for.
+function WeekendCard({ days, scaleMax, hasKwh }) {
+  const [sat, sun] = days;
+  const valueOf = (d) => (hasKwh ? d.kwh : d.sunshineHours);
+  const shown = (d) =>
+    valueOf(d) == null ? '—' : hasKwh ? Math.round(d.kwh) : `${Math.round(d.sunshineHours)} h`;
+
+  const totalKwh = hasKwh && sat.kwh != null && sun.kwh != null ? sat.kwh + sun.kwh : null;
+  const totalSpare =
+    sat.spareKwh != null && sun.spareKwh != null ? sat.spareKwh + sun.spareKwh : null;
+  // Which of the two is worth choosing. Marked with a tick and named in
+  // words, never by colour alone.
+  const better =
+    valueOf(sat) != null && valueOf(sun) != null
+      ? valueOf(sun) > valueOf(sat) ? sun : sat
+      : null;
+
+  return (
+    <div className="fc-weekend">
+      <div className="fc-weekend-head">
+        <span className="label">This weekend</span>
+        <span className="small">
+          {totalKwh != null ? `${Math.round(totalKwh)} kWh` : ''}
+          {totalKwh != null && totalSpare != null ? ` · ${Math.round(totalSpare)} spare` : ''}
+        </span>
+      </div>
+
+      <div className="fc-weekend-days">
+        {days.map((d) => {
+          const isBetter = better && d.date === better.date;
+          const pct = scaleMax > 0 && valueOf(d) != null
+            ? Math.min(100, (valueOf(d) / scaleMax) * 100)
+            : 0;
+          return (
+            <div className="fc-weekend-day" key={d.date}>
+              <div className="fc-weekend-day-head">
+                <span className={isBetter ? 'fc-weekend-name best' : 'fc-weekend-name'}>
+                  {DAY_NAMES[d.weekday]}{isBetter ? ' ✓' : ''}
+                </span>
+                <span className="fc-weekend-value">{shown(d)}</span>
+              </div>
+              <div className="fc-weekend-track">
+                <div className={isBetter ? 'fc-weekend-fill best' : 'fc-weekend-fill'} style={{ width: `${pct}%` }} />
+              </div>
+              <div className="fc-weekend-sub">
+                {d.spareKwh != null ? `${Math.round(d.spareKwh)} kWh spare · ` : ''}
+                {deg(d.tMinC)}–{deg(d.tMaxC)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="fc-weekend-foot">
+        {hasKwh ? 'kWh expected' : 'Hours of sun'}
+        {better ? ` · ${DAY_NAMES[better.weekday]} is the better of the two.` : ''}
+      </div>
+    </div>
+  );
+}
+
 export default function SolarForecast({ state, onConfigChange }) {
   const { data, loading, reload, hasLocation } = useForecast(state);
   const [changing, setChanging] = useState(false);
@@ -213,20 +281,26 @@ export default function SolarForecast({ state, onConfigChange }) {
     : null;
   const quietest = ranked.length > 1 ? ranked[ranked.length - 1] : null;
 
-  // The days this household acts on: today, tomorrow, and the coming
-  // weekend - always both, because Saturday and Sunday are when the car
-  // normally goes on the charger. Any 7-day window contains exactly one of
-  // each, so the weekend is always here.
-  const wanted = new Map();
-  for (const d of days) {
-    const isWeekend = d.weekday === 0 || d.weekday === 6;
-    if (d.index <= 1 || isWeekend) wanted.set(d.date, d);
-  }
-  // The standout day, when it is none of the above. This is what answers a
-  // rotating weekday off without the app needing to know the roster.
-  if (best && !wanted.has(best.date)) wanted.set(best.date, best);
-  const featured = [...wanted.values()].sort((a, b) => a.index - b.index);
-  const rest = days.filter((d) => !wanted.has(d.date));
+  // Only the two days decided in the next 24 hours get a full row - except
+  // on a Friday, when the weekend starts tomorrow: Sunday joins as a third
+  // row so the whole weekend is on screen as rows, and the card below drops
+  // out rather than showing Saturday twice.
+  const featured = days.filter((d) => d.index <= 1);
+  if (days[1]?.weekday === 6 && days[2]) featured.push(days[2]);
+  const inRows = new Set(featured.map((d) => d.date));
+  const rest = days.filter((d) => !inRows.has(d.date));
+
+  // The coming weekend as one card. Any 7-day window contains exactly one
+  // Saturday and one Sunday, so both are always available - but the card is
+  // shown ONLY while both are still ahead of the rows above. Once either has
+  // become today or tomorrow (Friday, Saturday, Sunday) the rows are the
+  // weekend, and a card would only repeat them.
+  const saturday = days.find((d) => d.weekday === 6) ?? null;
+  const sunday = days.find((d) => d.weekday === 0) ?? null;
+  const weekend =
+    saturday && sunday && !inRows.has(saturday.date) && !inRows.has(sunday.date)
+      ? [saturday, sunday]
+      : null;
 
   // One scale for every bar in the panel, so rows are comparable by length.
   const scaleMax = hasKwh
@@ -332,6 +406,10 @@ export default function SolarForecast({ state, onConfigChange }) {
             </div>
           )}
         </>
+      )}
+
+      {weekend && (
+        <WeekendCard days={weekend} scaleMax={scaleMax} hasKwh={hasKwh} />
       )}
 
       {!hasKwh && (

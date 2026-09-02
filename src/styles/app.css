@@ -651,6 +651,32 @@ header.top .date-range-filter { flex-shrink: 0; }
 .fc-spark span { width: 5px; background: rgba(250, 204, 21, .35); border-radius: 3px; }
 .fc-spark span.best { background: var(--accent); }
 
+/* The coming weekend as one card: two days side by side rather than two more
+   full rows. The better day carries a tick and its name in the foot line, so
+   the accent fill is confirmation rather than the message. */
+.fc-weekend {
+  background: var(--panel-2); border-radius: 10px;
+  padding: .75rem .85rem; margin-top: .9rem;
+}
+.fc-weekend-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: .5rem; margin-bottom: .65rem;
+}
+.fc-weekend .label { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
+.fc-weekend-days { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+.fc-weekend-day-head { display: flex; align-items: baseline; justify-content: space-between; gap: .4rem; }
+.fc-weekend-name { font-size: .8rem; color: var(--text); min-width: 0; }
+.fc-weekend-name.best { color: var(--accent); font-weight: 600; }
+.fc-weekend-value { font-size: .84rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fc-weekend-track {
+  height: 6px; border-radius: 3px; background: var(--panel);
+  overflow: hidden; margin-top: .35rem;
+}
+.fc-weekend-fill { height: 100%; background: rgba(250, 204, 21, .45); border-radius: 3px; }
+.fc-weekend-fill.best { background: var(--accent); }
+.fc-weekend-sub { font-size: .68rem; color: var(--muted); margin-top: .35rem; }
+.fc-weekend-foot { font-size: .72rem; color: var(--muted); margin-top: .65rem; line-height: 1.4; text-wrap: pretty; }
+
 .forecast-foot-row {
   display: flex; align-items: center; justify-content: space-between; gap: .5rem;
   margin-top: .75rem; padding-top: .6rem; border-top: 1px solid var(--border); flex-wrap: wrap;
