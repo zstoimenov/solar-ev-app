@@ -325,6 +325,19 @@ export default function SolarForecast({ state, onConfigChange }) {
       ? Math.round(((cal.highRatio - cal.lowRatio) / 2) * 100)
       : null;
 
+  // What the panel has actually been measured to get right, as opposed to how
+  // tightly this roof scatters around its own fit. Only present once enough
+  // logged days have had their real production arrive on a monthly upload.
+  const acc = data?.accuracy;
+  const measuredPct = acc?.pooled ? Math.round(acc.pooled.mapePct) : null;
+  const biasPct = acc?.biasFactor ? Math.round(Math.abs(1 - acc.biasFactor) * 100) : null;
+  const leadRows = acc
+    ? [0, 1, 2, 3, 4, 5, 6]
+        .filter((lead) => acc.byLead?.[lead])
+        .map((lead) => ({ lead, ...acc.byLead[lead] }))
+    : [];
+  const leadName = (lead) => (lead === 0 ? 'Today' : lead === 1 ? 'Tomorrow' : `${lead} days out`);
+
   return (
     <div className="panel">
       <div className="panel-head">
@@ -413,7 +426,7 @@ export default function SolarForecast({ state, onConfigChange }) {
       )}
 
       {!hasKwh && (
-        <p className="panel-foot">
+        <div className="panel-foot">
           No kWh estimate yet — that needs enough of your own production to compare
           against past weather
           {cal?.monthlyPairs != null && cal.monthlyPairs > 0
@@ -428,15 +441,19 @@ export default function SolarForecast({ state, onConfigChange }) {
             (6), there is nothing honest to fit, so no number is shown. Every monthly
             upload brings it closer.
           </InfoPopover>
-        </p>
+        </div>
       )}
 
       {hasKwh && (
-        <p className="panel-foot">
+        <div className="panel-foot">
           {cal.method === 'daily'
             ? `Fitted from ${cal.samples} of your own days against the sunlight they got`
             : `Fitted from ${cal.samples} complete months against the sunlight they got`}
-          {spreadPct ? `, and typically lands within about ${spreadPct}% of the figure shown` : ''}.
+          {measuredPct != null
+            ? `, and has landed within about ${measuredPct}% of what actually happened across ${acc.scoredDays} days since`
+            : spreadPct
+              ? `, and typically lands within about ${spreadPct}% of the figure shown`
+              : ''}.
           {data?.fetchedAt && ` Checked ${timeLabel(data.fetchedAt)}.`}
           <InfoPopover label="How these kWh figures are worked out" className="section-info">
             <p>
@@ -448,9 +465,64 @@ export default function SolarForecast({ state, onConfigChange }) {
             </p>
             <p>
               {cal.method === 'monthly'
-                ? 'It is currently fitted on whole-month totals, because there are not yet 30 days of daily readings. Month-to-month scatter is much tighter than day-to-day scatter, so a single day is a rougher figure than the fit suggests; it sharpens once daily data builds up, and the bars show no range until then.'
-                : 'The bar is the middle 60% of your own days around the fit, and the line is the middle of it. It does not include the weather forecast itself being wrong, which grows through the week — day six or seven is a much softer number than tomorrow.'}
+                ? 'It is currently fitted on whole-month totals, because there are not yet 30 days of daily readings. Month-to-month scatter is much tighter than day-to-day scatter, so a single day is a rougher figure than the fit suggests; it sharpens once daily data builds up.'
+                : cal.narrowSeason
+                  ? `It is fitted on days spanning only ${cal.seasonMonths} months of the year so far, so it has not yet seen how this roof behaves in every season: a hot day loses efficiency, and a low winter sun casts longer shadows. It re-fits as the year fills in.`
+                  : 'The fit spans a full year of your own days, so it already carries how this roof behaves across the seasons.'}
             </p>
+
+            {leadRows.length > 0 ? (
+              <>
+                <p>
+                  The range on each bar is measured, not assumed: every figure this panel has
+                  shown is recorded and later checked against what your roof actually produced
+                  that day. What is drawn is how wrong this panel has really been that far
+                  ahead, which is why tomorrow is tighter than Sunday.
+                </p>
+                <div className="small">
+                  {leadRows.map((r) => (
+                    <div key={r.lead}>
+                      {leadName(r.lead)}: within about {Math.round(r.mapePct)}% ({r.n} days
+                      checked)
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p>
+                {cal.lowRatio != null
+                  ? 'The bar is the middle 60% of your own days around the fit, and the line is the middle of it. It does not yet include the weather forecast itself being wrong, which grows through the week: day six or seven is a much softer number than tomorrow.'
+                  : 'There is no range on the bars yet.'}{' '}
+                Every figure shown here is now recorded and checked against what actually
+                happened, so the bars become a measured range instead. Real production only
+                arrives with a monthly upload, so that takes a few weeks to appear.
+              </p>
+            )}
+
+            {biasPct != null && (
+              <p>
+                Across those days this roof has run about {biasPct}%{' '}
+                {acc.biasFactor < 1 ? 'below' : 'above'} the fitted figure, so the numbers
+                above are adjusted to match what it has actually delivered rather than what
+                the fit alone would say.
+              </p>
+            )}
+
+            {acc?.pendingEntries > 0 && (
+              <p className="small">
+                {acc.pendingEntries} logged{' '}
+                {acc.pendingEntries === 1 ? 'figure is' : 'figures are'} still waiting on a
+                monthly upload to bring the matching production in.
+              </p>
+            )}
+
+            {cal.radiationSource === 'archive' && (
+              <p className="small">
+                Calibrated against the reanalysis archive rather than the forecast models&apos;
+                own history, because that service was unavailable. It re-fits against the right
+                one automatically once it is back.
+              </p>
+            )}
             <p>
               &quot;Spare for the car&quot; is the day&apos;s expected production less what
               your house alone has typically drawn per day over recent months. It is a
@@ -462,7 +534,7 @@ export default function SolarForecast({ state, onConfigChange }) {
               same limit that keeps Plan Comparison to EV charging only.
             </p>
           </InfoPopover>
-        </p>
+        </div>
       )}
 
       <div className="forecast-foot-row">

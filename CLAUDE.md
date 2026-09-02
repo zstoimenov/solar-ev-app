@@ -48,7 +48,10 @@ src/
               evTimeOfUseSplit.js (bucket EV charging sessions into time-of-day
               bands for Dashboard/PlanComparison.jsx), forecast.js (the ONLY
               networked module - 7-day weather + a yield estimate calibrated
-              from this household's own history; see "Weather forecast" below)
+              from this household's own history; see "Weather forecast" below),
+              forecastAccuracy.js (the forecast scoring itself against what the
+              roof actually produced - the log, the bias, the per-lead-day
+              error bands; see "Forecast accuracy" below)
   ingest/     parseFronius.js, parseWattpilot.js, parseSynergy.js (client-side
               XLSX/CSV parsing; the Synergy one ALSO folds a 30-minute file
               into a 48-bucket profile - see "Synergy interval data" below), parseWattpilotSessions.js (the Wattpilot MOBILE
@@ -391,12 +394,40 @@ are the same ones that killed cloud sync:
   and their backup file), never in `public/seed-data_v1.json`.
 - **The kWh figure is FITTED, not modelled.** The forecast supplies daily
   shortwave radiation (MJ/m²); `calibrate()` fits kWh-per-MJ from this roof's
-  own history — daily rows against archive radiation when there are ≥30
+  own history — daily rows against archived radiation when there are ≥30
   matched days, otherwise complete-month totals when there are ≥6. A ratio
   estimator through the origin, never a line with an intercept (zero
   radiation must mean zero output). Do **not** replace this with a
   specs-based model (kWp × tilt × efficiency): the fit already contains the
   array, tilt, shading, soiling and clipping, and re-fits as they drift.
+- **Calibrate on the same model you predict with** (v2.8). History comes from
+  the **Historical Forecast API** (`historical-forecast-api.open-meteo.com`),
+  the archived output of the models behind the live forecast, NOT the ERA5
+  reanalysis (`archive-api`) it used until v2.8. Those are different products
+  with different radiation biases, and fitting on one to predict with the
+  other baked a silent scale error into every projection that more data could
+  never remove — it only made the app more confident about it. The
+  reanalysis stays as a fallback for when that endpoint is down,
+  `history.source` records which one produced the fit, and a cache from one
+  source is DISCARDED rather than merged when the other is in use. Don't
+  "simplify" the two back into one.
+- **A daily fit must have seen the year before it outranks a monthly one**
+  (v2.8, `MIN_SEASON_MONTHS`). Thirty consecutive daily pairs is thirty days
+  of ONE season, and kWh per MJ is not constant across the year (heat
+  derating, inverter clipping, a lower winter sun through the same trees).
+  Until the daily pairs span 6 distinct calendar months a qualifying monthly
+  fit wins; with no monthly fit available the narrow daily one still runs
+  (some evidence beats none) and is flagged `narrowSeason` so the panel says
+  so.
+- **Zero-production days are excluded from the fit** (v2.8). A day with real
+  sunlight and essentially no output is an inverter or comms outage, not
+  weather — Perth does not hand out zero-kWh days. Left in, each one drags
+  the factor down permanently. On a two-year synthetic set, filtering them
+  moved the recovered factor from 1.2% low to 0.06% low.
+- **The fit's band comes only from days above a radiation floor** (v2.8). The
+  band is a ratio, so a 3 MJ overcast day divides by almost nothing and
+  returns a wild answer; those tails, not the weather, were setting the 20th
+  and 80th percentiles for every other day.
 - **Below those thresholds there is no kWh at all** — temperature and
   sunshine only, plus a line saying what is missing. Same gate philosophy as
   `daily.js:seasonalCheck()`. Don't lower it to make numbers appear sooner.
@@ -406,10 +437,25 @@ are the same ones that killed cloud sync:
   projected production minus the household's typical non-EV daily draw — and
   says so; it is not an hour-by-hour simulation and knows nothing about the
   battery's state.
+- **Projections are capped at what the array has actually done** (v2.8):
+  110% of the observed daily record, once there are ≥60 daily rows to know
+  what that record is. A projection above everything the roof has ever
+  produced is a fault in the factor, not a good day.
 - **The weather cache is NOT part of the backup.** `db.js` keeps it under its
   own `weatherCache` key, outside `state`, so `validate()` never sees it and
   no backup file carries a copy of someone else's API response. Losing it
   costs one request.
+- **Dates are LOCAL, never UTC** (v2.8). Perth is UTC+8, so `toISOString()`
+  names yesterday for the whole local morning, which shifted the calibration
+  window by a day and quietly cost a pair on every early-morning open.
+  Open-Meteo is asked for `timezone=auto` and answers in local dates, and
+  `dailySeries[]` stores local dates, so it all lines up only if this module
+  does too.
+- **History is fetched by gap, not wholesale** (v2.8). It used to refetch ~2
+  years of daily rows every day despite a comment promising it extended the
+  tail; on a warm cache it is now a one-day request, often none. The history
+  refresh is also no longer gated on the forecast request having succeeded —
+  two independent endpoints were failing together for no reason.
 - The panels degrade rather than disappear: a failed fetch shows the last
   cached forecast with a warning, failures are rate-limited by a 60s
   cool-down, and `useForecast` de-duplicates the two panels' fetches.
@@ -444,6 +490,58 @@ naming the best day, then shows only the days this household acts on:
   InfoPopover says why.
 - "Spare for the car" is `typicalHouseLoadPerDay()` subtracted from the day's
   projection — energy only, a whole-day figure, and labelled as such.
+
+## Forecast accuracy (since v2.8)
+
+`data/forecastAccuracy.js` is the forecast checking its own homework. Before
+it, nothing compared a projected kWh figure to what the roof actually made
+that day, so neither the household nor the panel could say whether "34 kWh on
+Thursday" was a real-world number - and the fit could only ever get more
+confident, never more correct.
+
+Every projection is logged; when a monthly upload brings the matching
+`dailySeries` rows in, each entry is scored. Three things fall out, all
+measured rather than assumed: a **bias factor**, an **error band per lead
+day**, and the plain-language accuracy line in the panel.
+
+- **The log stores the forecast RADIATION, not the projected kWh.** The fitted
+  factor changes as history grows, so a kWh figure recorded in March came from
+  a different fit than today's. Scoring re-derives the projection from the
+  stored radiation using the CURRENT factor, which keeps every measurement
+  relative to the fit actually in use. Storing the kWh would slowly poison the
+  bias with the errors of fits long since replaced. Don't "optimise" that by
+  caching the kWh.
+- **The bias is measured against the RAW fit and applied on top of it**, never
+  measured against an already-corrected figure - that is a feedback loop, and
+  it converges on nothing useful. The band ratios are the same: both are
+  ratios against the raw fitted number, so they apply to it and never to each
+  other.
+- **It lives outside the backup**, under its own `forecastLog` IndexedDB key
+  like `weatherCache`, and is deleted by `resetState()` (scoring a log against
+  a wiped store would report a phantom history). A restore or a new phone
+  starts the measured bands from zero and rebuilds them in a few weeks; that
+  was the explicit trade-off, taken to keep backup files clean and small.
+- **Entries are keyed on (target day, lead time), with the lead measured from
+  when the forecast was FETCHED**, not from today. Re-reading the same cached
+  forecast on another screen, or on the next day, must not write a second copy
+  or relabel a three-day-out call as a two-day-out one.
+- **Gates, as everywhere else**: 15 scored days before a lead day gets its own
+  band, 20 pooled before the pooled band or the bias apply at all, and a bias
+  only applies when it exceeds 5%, clamped to 0.7-1.4. Outside that range the
+  fit itself is wrong and a multiplier would hide it. Below the gates there is
+  no correction and no measured band - the panel falls back to the fit's own
+  residual scatter and says the forecast's own error is not in it yet.
+- **The accuracy figure legitimately lags by up to a month**, because real
+  production only arrives with a monthly upload. `pendingEntries` counts what
+  is logged but not yet scoreable, and the panel says so rather than looking
+  broken.
+- The displayed figure is clamped into its own band. The bias is pooled and
+  the band is per lead day, so the mark could otherwise land just outside its
+  own range, which reads as a bug whatever the arithmetic behind it.
+
+Verified against a two-year synthetic household: `calibrate()` recovers a
+known factor to 0.06%, a deliberately 8%-high forecast is detected as a 0.93
+bias, and measured error widens from ~7% at lead 0 to ~14% at lead 6.
 
 ## Synergy interval data (since v2.4)
 
