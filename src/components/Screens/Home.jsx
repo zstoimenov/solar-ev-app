@@ -26,6 +26,7 @@ import { BigStat, Lede, CompareBar } from './parts.jsx';
 import { monthToDate, paceToMonthEnd, typicalForMonth, seasonalCheck } from '../../data/daily.js';
 import { backupStaleness } from '../../data/storage.js';
 import ForecastAlert from '../ForecastAlert.jsx';
+import SunCurve from '../Dashboard/SunCurve.jsx';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -166,6 +167,11 @@ export default function Home({ state, appMeta, onGoTo }) {
           </div>
         </div>
       )}
+
+      {/* The day ahead. Renders nothing until a forecast location is set -
+          the app makes no outbound request on its own - and nothing when the
+          cached forecast carries no hourly shape. See SunCurve.jsx. */}
+      <SunCurve state={state} />
 
       {mtd && (
         <div className="panel">

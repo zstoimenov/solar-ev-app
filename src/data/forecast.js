@@ -228,8 +228,34 @@ function zipDaily(daily) {
     radiationMj: at('shortwave_radiation_sum', i),
     sunshineHours: at('sunshine_duration', i) == null ? null : at('sunshine_duration', i) / 3600,
     cloudPct: at('cloud_cover_mean', i),
-    rainMm: at('precipitation_sum', i)
+    rainMm: at('precipitation_sum', i),
+    // Local clock strings ("2026-09-02T06:23"), because the request asks for
+    // timezone=auto. Kept as strings and read as strings: turning them into
+    // Date objects would reintroduce exactly the UTC drift this module went
+    // out of its way to remove.
+    sunrise: at('sunrise', i),
+    sunset: at('sunset', i),
+    daylightHours: at('daylight_duration', i) == null ? null : at('daylight_duration', i) / 3600
   }));
+}
+
+// The hourly radiation that gives a day its SHAPE. Open-Meteo returns
+// W/m2 per hour on the same local clock as the daily rows; only the relative
+// size of the hours is used (see dayShape), so the unit never has to be
+// reconciled with the daily MJ/m2 total.
+function zipHourly(hourly) {
+  if (!hourly || !Array.isArray(hourly.time)) return {};
+  const byDate = {};
+  hourly.time.forEach((stamp, i) => {
+    const [date, clock] = String(stamp).split('T');
+    if (!date || !clock) return;
+    const v = Array.isArray(hourly.shortwave_radiation) ? hourly.shortwave_radiation[i] : null;
+    (byDate[date] ??= []).push({
+      time: clock.slice(0, 5),
+      wm2: v == null || Number.isNaN(v) ? null : v
+    });
+  });
+  return byDate;
 }
 
 export async function fetchForecast({ latitude, longitude }) {
@@ -242,13 +268,24 @@ export async function fetchForecast({ latitude, longitude }) {
       'shortwave_radiation_sum',
       'sunshine_duration',
       'cloud_cover_mean',
-      'precipitation_sum'
+      'precipitation_sum',
+      'sunrise',
+      'sunset',
+      'daylight_duration'
     ].join(','),
+    // Hourly radiation is asked for so a day can be drawn as a curve rather
+    // than a single number. It buys the SHAPE only - the day's kWh is still
+    // the fitted, bias-corrected daily figure, and the curve is that figure
+    // distributed across the hours the sun is actually forecast to arrive in
+    // (see dayShape). A cloudy morning therefore dents the curve instead of
+    // being smoothed over by an assumed bell.
+    hourly: 'shortwave_radiation',
     timezone: 'auto',
     forecast_days: String(FORECAST_DAYS)
   });
   const json = await getJson(`${FORECAST_URL}?${params}`);
-  return zipDaily(json.daily);
+  const hourlyByDate = zipHourly(json.hourly);
+  return zipDaily(json.daily).map((row) => ({ ...row, hourly: hourlyByDate[row.date] ?? null }));
 }
 
 // Daily radiation for the past, used only to calibrate against your own
@@ -673,6 +710,77 @@ export function projectDays(forecastRows, calibration, accuracy = null, today = 
   });
 }
 
+// --- The shape of a day ---------------------------------------------------
+// A day's projected kWh spread across the hours it is forecast to arrive in.
+//
+// NO NEW NUMBER IS PRODUCED HERE. The total is the day's existing projection
+// - already fitted from this roof's own history, bias-corrected against the
+// accuracy log and capped - and this only says how it is distributed. The
+// distribution comes from the forecast's own hourly radiation, so the curve
+// is weather rather than a bell drawn between sunrise and sunset: an
+// overcast morning shows up as a dented morning.
+//
+// What it is NOT: a per-hour production measurement. Nothing in this app
+// knows what the roof made at 2pm - dailySeries[] is one row per day - so
+// the hourly figures cannot be scored the way the daily ones are
+// (forecastAccuracy.js), and the panel drawing this says so. They are an
+// honest division of a measured daily total, not seven new predictions.
+//
+// Returns null when the day carries no hourly radiation (a forecast cached
+// before v2.12, or a response missing the block), so callers degrade to the
+// daily figure rather than drawing a fabricated shape.
+const clockHours = (stamp) => {
+  const clock = String(stamp ?? '').split('T')[1];
+  if (!clock) return null;
+  const [h, m] = clock.split(':').map(Number);
+  return Number.isFinite(h) && Number.isFinite(m) ? h + m / 60 : null;
+};
+
+export function dayShape(day) {
+  const rows = Array.isArray(day?.hourly) ? day.hourly : null;
+  if (!rows?.length) return null;
+  const total = rows.reduce((a, r) => a + (r.wm2 ?? 0), 0);
+  // A day with no radiation at all has no shape to draw. Not a Perth
+  // problem, but a null total must not become a division by zero.
+  if (!(total > 0)) return null;
+
+  const hours = rows.map((r) => {
+    const share = (r.wm2 ?? 0) / total;
+    return {
+      time: r.time,
+      hour: clockHours(`T${r.time}`) ?? 0,
+      share,
+      kwh: day.kwh == null ? null : day.kwh * share
+    };
+  });
+  const peak = hours.reduce((a, b) => (b.share > a.share ? b : a), hours[0]);
+
+  return {
+    hours,
+    peak,
+    totalKwh: day.kwh ?? null,
+    // Fractional local hours, for placing the ends of the curve. Parsed from
+    // the clock string, never through a Date - see zipDaily.
+    sunriseHour: clockHours(day.sunrise),
+    sunsetHour: clockHours(day.sunset),
+    sunrise: day.sunrise ?? null,
+    sunset: day.sunset ?? null,
+    daylightHours: day.daylightHours ?? null
+  };
+}
+
+// How much of a day's sun is already behind you, from the same hourly shares.
+// Only meaningful for today, which is the caller's business to decide.
+export function shareBefore(shape, hour) {
+  if (!shape?.hours?.length || hour == null) return null;
+  let share = 0;
+  for (const h of shape.hours) {
+    if (h.hour + 1 <= hour) share += h.share;
+    else if (h.hour < hour) share += h.share * (hour - h.hour);
+  }
+  return Math.min(1, Math.max(0, share));
+}
+
 // Typical daily household draw EXCLUDING the car, from the most recent
 // complete months. Used to turn "34 kWh on Thursday" into "about this much
 // spare for the car" - daily energy only: it does not model when in the day
@@ -739,7 +847,12 @@ async function loadForecastUncached(state, location, key, force) {
   let history = sameSpot ? cached?.history ?? null : null;
   let error = null;
 
-  const forecastStale = !forecastRows || force || now - new Date(fetchedAt ?? 0).getTime() > FORECAST_TTL_MS;
+  // A cache written before the hourly shape existed is stale whatever its
+  // age: the day curve would be missing for up to a TTL for no reason.
+  const missingShape = Boolean(forecastRows?.length) && !forecastRows.some((r) => r.hourly);
+  const forecastStale =
+    !forecastRows || force || missingShape ||
+    now - new Date(fetchedAt ?? 0).getTime() > FORECAST_TTL_MS;
 
   // Still inside the cool-down from a recent failure: report that failure
   // again rather than repeating a request that is going to fail too.
