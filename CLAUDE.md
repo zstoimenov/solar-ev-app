@@ -70,7 +70,7 @@ src/
   components/ HealthBanner, StorageHealth, DataNotes, Collapsible, Modal,
               ExportRestore (the Data screen's Backup page - file-only export
               and restore; see "Backups are files" below),
-              Screens/{Today,Energy,Car,Money,DataScreen} - the five bottom-nav
+              Screens/{Home,Energy,Car,Money,DataScreen} - the five bottom-nav
               screens (see "Screens" below); the Dashboard/* tiles below are
               now composed BY these rather than listed flat in App.jsx,
               IngestWizard - the WHOLE Data screen in one panel, Backup
@@ -755,6 +755,13 @@ header. **Bump it on every user-facing change** — UI, ingest behavior, or
 schema. Use semver-ish increments: patch for small fixes/tweaks, minor for
 new features or field changes, major only for a `schemaVersion` bump.
 
+Since v2.10 there is only ONE place to do that: add an entry to the top of
+`src/changelog.js` and `APP_VERSION` follows it (`version.js` reads
+`LATEST.version`). That is deliberate — the header number and the number in
+the "What's new" panel cannot drift apart if neither is typed twice. Write the
+`changes` lines in the register the rest of the app uses: what it now does for
+the household, not which module moved.
+
 ## Presenting information (since v2.1)
 
 The v2.0 redesign fixed navigation but left the content as it was: the same
@@ -793,15 +800,17 @@ are why, and undoing them re-creates the problem.
 
 ## UI conventions
 
-- **Five screens on a fixed bottom nav** (`App.jsx`'s `SCREENS`): Today,
+- **Five screens on a fixed bottom nav** (`App.jsx`'s `SCREENS`): Home,
   Energy, Car, Money, Data. Bottom rather than top because this is a phone
   app and the top-right corner is the hardest place to reach one-handed.
   Content on a screen is **visible on arrival** — the pre-v2 dashboard
   collapsed all six panels by default, so opening the app showed six
   headings and no answer, which was the single biggest reason it felt
-  useless. Don't reintroduce collapse-by-default on Today.
+  useless. Don't reintroduce collapse-by-default on Home.
   `Collapsible.jsx` is still available for genuinely secondary content.
-- **Today shows nothing it cannot derive.** Each block (attention item,
+- **Home shows nothing it cannot derive.** (Called Today until v2.10 - it
+  was renamed because the total saved, the payback ring and the milestones are
+  all-time figures, and only the month-to-date block is about now.) Each block (attention item,
   payback ring, month-to-date, milestones) renders only when its inputs
   exist. Never fill a gap with an estimate to keep the layout even — the
   one sanctioned estimate in the app is `paybackPreTracking`, and it is
@@ -815,7 +824,7 @@ are why, and undoing them re-creates the problem.
   (it asked the same question twice on Energy, and asked it in the
   hardest-to-reach corner of a phone everywhere else). Defaults preserve
   each screen's old behaviour: Energy *This month* when daily data exists,
-  Car *Selected range*, Money *All time*. Today is all-time and has no
+  Car *Selected range*, Money *All time*. Home is all-time and has no
   chips. **Payback stays all-time in every scope** — `scopedState()` copies
   `payback`/`paybackTotals`/`paybackPreTracking` from the full-history
   recompute, and Money says so in the panel when a shorter period is
@@ -846,9 +855,16 @@ are why, and undoing them re-creates the problem.
 - Test any layout change against a **412px-wide viewport** (OnePlus 12 /
   typical Android flagship) — the project's acceptance bar for "no
   horizontal scroll" is that width, not just desktop.
-- The Data Notes panel is intentionally a dismissible `<Modal>`, not a
-  permanent dashboard panel — it's caveats/context, not something that needs
-  to be visible at a glance.
+- **The header's ⓘ panel is "What's new", not Data Notes** (since v2.10). It
+  shows the version being run and what changed in it, and nothing else. It was
+  a list of data caveats (a provisional feed-in rate, months awaiting a Synergy
+  bill, the servicing step-change); those were context about numbers rather
+  than something to act on, and they made the one panel reachable from every
+  screen a place nobody opened twice. A caveat belongs beside the number it
+  qualifies — which is where the ones that still matter already are (see the
+  InfoPopover convention below). Only the NEWEST release is listed: someone
+  opening it wants to know what changed since they last looked, not to read a
+  history. It stays a dismissible `<Modal>`, not a permanent panel.
 - **Long explanatory text is a summary sentence + `<InfoPopover>`, not a
   paragraph.** (`src/components/InfoPopover.jsx`.) Every Ingest sub-page and
   several Dashboard tiles follow this: one short always-visible sentence
@@ -856,23 +872,31 @@ are why, and undoing them re-creates the problem.
   the "i" icon. When adding a new field or page, resist writing a 3-sentence
   blurb up front — write one sentence, and put the rest behind an
   `InfoPopover` from the start.
-- **The Data screen is ONE panel** (since v2.2). Backup is a category in the
-  same pill row as the ingest pages (`IngestWizard.jsx`'s `CATEGORIES`), not
+- **The Data screen is ONE panel** (since v2.2). Backup is a page in the same
+  index as the ingest pages (`IngestWizard.jsx`'s `PAGES`), not
   a second panel stacked underneath — two panels with two different
   navigation idioms read as two half-screens. `DataScreen.jsx` owns the
   selected category so the stale-backup banner's "Back up now" can actually
   open the Backup page. Within Backup, the destructive month-delete/reset
   actions live in a **collapsed** `Collapsible` so the two things the page is
   for (back up, restore) are the only things on it.
-- **Ingest tab navigation is two levels**, not one flat row of pills
-  (`IngestWizard.jsx`'s `CATEGORIES` array): a few broad categories (Monthly
-  Upload / Tariffs & Rates / EV Charging Data / Payback), each either a single
-  page (no `subsections`, e.g. Monthly Upload and Payback) or a second pill
-  row + a one-line category `intro`. If
-  you add a new Ingest page, put it under an existing category's
-  `subsections` (or add a new category) rather than growing a flat list back
-  out — the whole point of the 2-level nav was that a flat list of 6+ pills
-  reads as overwhelming.
+- **The Data screen is an INDEX and a drill-in, not tabs** (since v2.10).
+  `IngestWizard.jsx`'s `PAGES` array is flat, each entry carrying its `group`
+  and a one-line `blurb`; `GROUPS` is the order those groups appear in.
+  `DataScreen` holds the page in view, where `null` is the index. To add a
+  page: one entry in `PAGES`, one render line, and give it a heading of its
+  own (every page renders its own, which is why the drill-in view adds no
+  title and nothing is titled twice).
+  The two rows of pills this replaced wrapped to **three lines on a 412px
+  phone**: a category with sub-pages spent 278px, most of a third of the
+  screen, on navigation before any content appeared, and the category `intro`
+  paragraph sat BETWEEN the two rows so the levels did not read as levels.
+  The same page now sits 59px down. Do not go back to pills to save a tap:
+  this screen is touched about once a month, a grouped list of eight rows is
+  not the same thing as a wrapped row of eight pills (a list has a shape), and
+  the blurb finally has somewhere to live. A horizontal scroll is not the
+  answer either — see the 12-month table note above, where a scroll hides
+  the rightmost column by default.
 
 ## Testing changes
 

@@ -167,19 +167,46 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 /* Sub-navigation within a tab (e.g. Ingest: Monthly Upload / Tariffs & Rates /
    EV Charging Data) - distinct from the top-level hamburger menu, but the
    same "pill" language. */
-.subtabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; }
-.subtabs button {
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: .4rem .75rem; font-size: .82rem; cursor: pointer;
+/* The Data screen's index: every page as a full-width row, grouped. This
+   replaced two rows of pills, which wrapped to three lines on a 412px phone
+   and spent most of a third of the screen on navigation before any content
+   appeared. A list also gives the one-line description somewhere to live -
+   it used to be a paragraph sitting between the two pill rows. */
+.data-group { margin-bottom: 1.1rem; }
+.data-group:last-of-type { margin-bottom: .25rem; }
+/* Scoped to .panel to outrank the generic `.panel h3` rule above, which would
+   otherwise set these back to a full-size section heading and make the group
+   labels compete with the row titles they are meant to sit quietly above. */
+.panel .data-group-label {
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--muted); font-weight: 600; margin: 0 0 .4rem;
 }
-.subtabs button.active { background: var(--accent); color: #1a1a1a; font-weight: 600; border-color: var(--accent); }
+.data-row {
+  display: flex; align-items: center; gap: .75rem; width: 100%;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: .7rem .8rem; margin-bottom: .4rem;
+  text-align: left; cursor: pointer; font: inherit;
+}
+.data-row:last-child { margin-bottom: 0; }
+.data-row:hover { border-color: var(--muted); }
+/* A visible focus ring: these are the only controls on the screen when the
+   index is showing, so keyboard position has to be obvious. */
+.data-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.data-row-text { display: flex; flex-direction: column; gap: .15rem; min-width: 0; flex: 1 1 auto; }
+.data-row-label { font-size: .95rem; font-weight: 600; }
+.data-row-blurb { font-size: .78rem; color: var(--muted); line-height: 1.35; }
+.data-row-chevron { flex: 0 0 auto; color: var(--muted); font-size: 1.4rem; line-height: 1; }
 
-/* Second-level pills within a category (e.g. Tariffs & Rates -> Import /
-   Feed-in / Plans) - visually smaller/quieter than the top-level row above
-   it, so the two levels don't read as one long undifferentiated list. */
-.subtabs-nested { margin-top: -.4rem; margin-bottom: .75rem; padding-left: .1rem; }
-.subtabs-nested button { padding: .3rem .6rem; font-size: .76rem; background: transparent; }
-.subtabs-nested button.active { background: var(--panel-2); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+/* Back out of a page to the index. Deliberately plain and left-aligned: it is
+   a way out, not an action competing with the page's own buttons. */
+.back-link {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: transparent; border: 0; padding: .1rem .2rem .5rem 0;
+  color: var(--muted); font: inherit; font-size: .85rem; cursor: pointer;
+}
+.back-link:hover { color: var(--text); }
+.back-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
 /* Small "i" trigger that reveals secondary explanatory text on demand. */
 .info-popover { position: relative; display: inline-flex; }
@@ -694,3 +721,7 @@ header.top .date-range-filter { flex-shrink: 0; }
 .ok-dot, .warn-dot { flex: 0 0 auto; width: .5rem; height: .5rem; border-radius: 50%; }
 .ok-dot { background: var(--green); }
 .warn-dot { background: #fbbf24; }
+
+/* The version line at the top of the "What's new" panel. */
+.whats-new-version { margin: 0 0 .6rem; font-size: .95rem; }
+.whats-new-version .small { color: var(--muted); }

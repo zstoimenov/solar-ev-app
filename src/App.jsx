@@ -5,16 +5,16 @@ import { recomputeCumulative } from './data/compute.js';
 import { APP_VERSION } from './version.js';
 import HealthBanner from './components/HealthBanner.jsx';
 import StorageHealth from './components/StorageHealth.jsx';
-import DataNotes from './components/DataNotes.jsx';
+import WhatsNew from './components/WhatsNew.jsx';
 import Modal from './components/Modal.jsx';
 import DateRangeFilter from './components/Dashboard/DateRangeFilter.jsx';
-import Today from './components/Screens/Today.jsx';
+import Home from './components/Screens/Home.jsx';
 import Energy from './components/Screens/Energy.jsx';
 import Car from './components/Screens/Car.jsx';
 import Money from './components/Screens/Money.jsx';
 import DataScreen from './components/Screens/DataScreen.jsx';
 import {
-  SunIcon, TrendIcon, CarIcon, LayersIcon, UploadIcon
+  SunIcon, TrendIcon, CarIcon, BanknoteIcon, UploadIcon
 } from './components/Dashboard/icons.jsx';
 import { filterSessionsByMonthRange } from './data/evTimeOfUseSplit.js';
 import ExportRestore from './components/ExportRestore.jsx';
@@ -23,18 +23,19 @@ import ExportRestore from './components/ExportRestore.jsx';
 // Backup hamburger. Bottom rather than top because this is a phone app -
 // the top-right corner is the hardest place to reach one-handed.
 const SCREENS = [
-  { key: 'Today', icon: SunIcon },
+  { key: 'Home', icon: SunIcon },
   { key: 'Energy', icon: TrendIcon },
   { key: 'Car', icon: CarIcon },
-  { key: 'Money', icon: LayersIcon },
+  { key: 'Money', icon: BanknoteIcon },
   { key: 'Data', icon: UploadIcon }
 ];
 
 // Energy, Car and Money each own their range control inline (the three
 // chips + the From/To selectors), rather than a filter in the header. The
 // header version asked the same question twice on Energy and asked it in
-// the hardest-to-reach corner of the screen everywhere else. Today stays
-// all-time: it is the "right now" screen and has nothing to scope.
+// the hardest-to-reach corner of the screen everywhere else. Home stays
+// all-time: most of what it shows (the total saved, payback, the milestones)
+// is an all-time figure, so there is nothing there to scope.
 
 // Once there's more than this many months of data, the range-scoped screens
 // default to the most recent window (still overridable via the filter) -
@@ -46,7 +47,7 @@ export default function App() {
   const [state, setState] = useState(null);
   const [appMeta, setAppMeta] = useState({ lastExportedCount: null, lastExportedAt: null });
   const [loadError, setLoadError] = useState(null);
-  const [screen, setScreen] = useState('Today');
+  const [screen, setScreen] = useState('Home');
   const [notesOpen, setNotesOpen] = useState(false);
   const [fromMonth, setFromMonth] = useState(null);
   const [toMonth, setToMonth] = useState(null);
@@ -163,10 +164,10 @@ export default function App() {
   return (
     <div className="app has-nav">
       <header className="top">
-        <h1>{screen === 'Today' ? 'Solar, Battery & EV' : screen}</h1>
-        {screen === 'Today' && (
+        <h1>{screen === 'Home' ? 'Solar, Battery & EV' : screen}</h1>
+        {screen === 'Home' && (
           <button className="ghost notes-trigger" onClick={() => setNotesOpen(true)}>
-            ⓘ Notes
+            ⓘ What's new
           </button>
         )}
       </header>
@@ -177,8 +178,8 @@ export default function App() {
         onRestore={() => setScreen('Data')}
       />
 
-      {screen === 'Today' && (
-        <Today state={allTimeState} appMeta={appMeta} onGoTo={setScreen} />
+      {screen === 'Home' && (
+        <Home state={allTimeState} appMeta={appMeta} onGoTo={setScreen} />
       )}
       {screen === 'Energy' && (
         <Energy
@@ -210,13 +211,13 @@ export default function App() {
           state={state}
           appMeta={appMeta}
           onChange={refresh}
-          onIngested={() => setScreen('Today')}
+          onIngested={() => setScreen('Home')}
         />
       )}
 
       {notesOpen && (
-        <Modal title="Data Notes" onClose={() => setNotesOpen(false)}>
-          <DataNotes state={state} />
+        <Modal title="What's new" onClose={() => setNotesOpen(false)}>
+          <WhatsNew />
         </Modal>
       )}
 

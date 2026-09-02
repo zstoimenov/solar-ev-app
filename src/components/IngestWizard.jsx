@@ -5,11 +5,26 @@
 // an existing month unless overwrite is chosen), the rate/log/payback
 // editors, and Backup.
 //
-// Backup is a category in the SAME pill row rather than a second panel
-// stacked underneath. The screen used to be two unrelated panels with two
-// different navigation idioms, which read as two half-screens rather than
-// one; now everything administrative is reached the same way, and only one
-// page is on screen at a time.
+// Backup is a page in the SAME index rather than a second panel stacked
+// underneath. The screen used to be two unrelated panels with two different
+// navigation idioms, which read as two half-screens rather than one; now
+// everything administrative is reached the same way, and only one page is on
+// screen at a time.
+//
+// NAVIGATION IS AN INDEX AND A DRILL-IN, not tabs. It used to be two rows of
+// pills, and on a 412px phone the top row alone wrapped to three lines: a
+// category with sub-pages spent 278px - most of a third of the screen - on
+// navigation before any content appeared, and the intro paragraph sat BETWEEN
+// the two rows so the levels did not even read as levels. Six pills wrapped
+// across three lines is not a menu, it is a wall.
+//
+// So the screen opens as a list of every page, grouped, one tap to any of
+// them, and each row carries the one-line description that used to be a
+// paragraph competing with the pills. Choosing one gives it the whole screen
+// with a single back link. This is the ordinary phone-settings pattern, and it
+// suits a screen touched about once a month: an extra tap costs nothing here,
+// and nothing is hidden behind a horizontal scroll (see the note in CLAUDE.md
+// about the 12-month table, where a scroll hides the rightmost column).
 
 import React, { useState } from 'react';
 import { parseFronius } from '../ingest/parseFronius.js';
@@ -30,36 +45,53 @@ import ExportRestore from './ExportRestore.jsx';
 const APP_VERSION = 'app_v1';
 const empty = { fronius: null, wattpilot: null, synergy: null };
 
-// Two levels: a few broad categories instead of piling every page into one
-// row - and, where a category groups more than one page, a second row of
-// pills for the specific page plus a one-line intro. Single-page categories
-// (Add a Month, Payback, Backup) have no second row and no intro.
-const CATEGORIES = [
-  { key: 'upload', label: 'Add a Month' },
+// Every page, flat, with the group it sits under. There is no second level any
+// more: a grouped list of eight rows is not overwhelming the way a flat row of
+// eight PILLS was, because a list has a shape and a wrapped pill row does not.
+// The blurb is the row's own subtitle, which is what finally gives that text
+// somewhere to live.
+const PAGES = [
   {
-    key: 'tariffs', label: 'Tariffs & Rates',
-    intro: "Three related pages for electricity pricing: what you actually pay to " +
-      "import, what you're paid to export, and reference rate cards to compare " +
-      'plans against.',
-    subsections: [
-      { key: 'importTariff', label: 'Import Tariff' },
-      { key: 'exportTariff', label: 'Feed-in Tariff' },
-      { key: 'tariffPlans', label: 'Tariff Plans' }
-    ]
+    key: 'upload', group: 'Monthly', label: 'Add a Month',
+    blurb: 'Upload the Fronius, Wattpilot and Synergy files for a finished month.'
   },
   {
-    key: 'evData', label: 'EV Charging Data',
-    intro: 'Two related pages for your EV: paid public-charging costs, and ' +
-      "charging-session timestamps used by the Dashboard's Plan Comparison tile.",
-    subsections: [
-      { key: 'chargingLog', label: 'Public Charging Log' },
-      { key: 'evSessions', label: 'EV Sessions' }
-    ]
+    key: 'importTariff', group: 'Tariffs & rates', label: 'Import Tariff',
+    blurb: 'What you pay per kWh drawn from the grid, plus the daily supply charge.'
   },
-  { key: 'payback', label: 'Payback' },
-  { key: 'alerts', label: 'Alerts' },
-  { key: 'backup', label: 'Backup' }
+  {
+    key: 'exportTariff', group: 'Tariffs & rates', label: 'Feed-in Tariff',
+    blurb: "What you're paid for the energy you export."
+  },
+  {
+    key: 'tariffPlans', group: 'Tariffs & rates', label: 'Tariff Plans',
+    blurb: 'Reference rate cards, for comparing plans you are not on.'
+  },
+  {
+    key: 'chargingLog', group: 'EV charging data', label: 'Public Charging Log',
+    blurb: 'What you paid to charge the car away from home.'
+  },
+  {
+    key: 'evSessions', group: 'EV charging data', label: 'EV Sessions',
+    blurb: "Charging-session timestamps, for the plan comparison's time-of-day split."
+  },
+  {
+    key: 'payback', group: 'Setup', label: 'Payback',
+    blurb: 'What the hardware cost, and when it was installed.'
+  },
+  {
+    key: 'alerts', group: 'Setup', label: 'Alerts',
+    blurb: 'Forecast alerts from your phone, and whether they are getting through.'
+  },
+  {
+    key: 'backup', group: 'Setup', label: 'Backup',
+    blurb: 'Export a copy, restore one, or clear what is stored in this browser.'
+  }
 ];
+
+// Order matters: the thing done monthly first, the things done once a year
+// after it, and the two that are set up once at the bottom.
+const GROUPS = ['Monthly', 'Tariffs & rates', 'EV charging data', 'Setup'];
 
 // Fronius/Wattpilot report filenames end in "..._2026_06.xlsx" - pull the
 // month straight from the filename so the user doesn't have to type it.
@@ -94,12 +126,12 @@ function previewValue(key, value) {
   return String(value);
 }
 
-// `category` is owned by DataScreen so other things on the screen (the
-// stale-backup banner's "Back up now") can jump straight to a page here.
+// `page` is owned by DataScreen so other things on the screen (the
+// stale-backup banner's "Back up now") can jump straight to a page here, and
+// null means the index.
 export default function IngestWizard({
-  state, appMeta, category, onCategoryChange, onChange, onIngested
+  state, appMeta, page, onPageChange, onChange, onIngested
 }) {
-  const [subsection, setSubsection] = useState(null);
   const [files, setFiles] = useState(empty);
   const [manual, setManual] = useState({
     month: '', evWorkChargingKwh: 0, notes: ''
@@ -189,49 +221,47 @@ export default function IngestWizard({
     onIngested?.();
   }
 
-  const activeCategory = CATEGORIES.find((c) => c.key === category);
+  const activePage = PAGES.find((p) => p.key === page) ?? null;
 
-  function selectCategory(key) {
-    onCategoryChange(key);
-    const cat = CATEGORIES.find((c) => c.key === key);
-    setSubsection(cat.subsections?.[0]?.key ?? null);
+  // The index: every page, grouped, one tap away. No pills, no second level,
+  // and the blurb that used to be a paragraph above the content is the row.
+  if (!activePage) {
+    return (
+      <div className="panel">
+        <h2>Data</h2>
+        <p className="small">
+          Everything administrative lives here, and none of it needs looking at more
+          than about once a month.
+        </p>
+        {GROUPS.map((group) => (
+          <div className="data-group" key={group}>
+            <h3 className="data-group-label">{group}</h3>
+            {PAGES.filter((p) => p.group === group).map((p) => (
+              <button className="data-row" key={p.key} onClick={() => onPageChange(p.key)}>
+                <span className="data-row-text">
+                  <span className="data-row-label">{p.label}</span>
+                  <span className="data-row-blurb">{p.blurb}</span>
+                </span>
+                <span className="data-row-chevron" aria-hidden="true">&rsaquo;</span>
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
   }
 
   return (
     <div className="panel">
-      <h2>Data</h2>
+      {/* One back link, and then the page has the whole screen. Each page
+          renders its own heading, so nothing is titled twice. */}
+      <button className="back-link" onClick={() => onPageChange(null)}>
+        <span aria-hidden="true">&lsaquo;</span> Data
+      </button>
 
-      <div className="subtabs">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c.key}
-            className={c.key === category ? 'active' : ''}
-            onClick={() => selectCategory(c.key)}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      {activeCategory.subsections && (
-        <>
-          <p className="small">{activeCategory.intro}</p>
-          <div className="subtabs subtabs-nested">
-            {activeCategory.subsections.map((s) => (
-              <button
-                key={s.key}
-                className={s.key === subsection ? 'active' : ''}
-                onClick={() => setSubsection(s.key)}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {category === 'upload' && (
+      {page === 'upload' && (
       <>
+      <h3>Add a Month</h3>
       <p className="small">
         Upload the three monthly files + enter away-charging. Nothing is written
         until you confirm the preview.
@@ -286,16 +316,16 @@ export default function IngestWizard({
       </>
       )}
 
-      {subsection === 'importTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="import" />}
-      {subsection === 'exportTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="export" />}
-      {subsection === 'chargingLog' && <ChargingLogEditor state={state} onChange={onChange} />}
-      {subsection === 'tariffPlans' && <TariffPlanEditor state={state} onChange={onChange} />}
-      {subsection === 'evSessions' && <EvSessionsUploader state={state} onChange={onChange} />}
-      {category === 'payback' && <PaybackSettingsEditor state={state} onChange={onChange} />}
-      {category === 'alerts' && <NotificationSettings state={state} />}
-      {category === 'backup' && <ExportRestore state={state} appMeta={appMeta} onChange={onChange} />}
+      {page === 'importTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="import" />}
+      {page === 'exportTariff' && <TariffScheduleEditor state={state} onChange={onChange} kind="export" />}
+      {page === 'chargingLog' && <ChargingLogEditor state={state} onChange={onChange} />}
+      {page === 'tariffPlans' && <TariffPlanEditor state={state} onChange={onChange} />}
+      {page === 'evSessions' && <EvSessionsUploader state={state} onChange={onChange} />}
+      {page === 'payback' && <PaybackSettingsEditor state={state} onChange={onChange} />}
+      {page === 'alerts' && <NotificationSettings state={state} />}
+      {page === 'backup' && <ExportRestore state={state} appMeta={appMeta} onChange={onChange} />}
 
-      {category === 'upload' && preview && (() => {
+      {page === 'upload' && preview && (() => {
         const rows = Object.entries(preview.digest).map(([k, v]) => [k, v, rowStatus(k, v)]);
         const overall = rows.reduce((worst, [, , s]) => (SEVERITY_RANK[s] > SEVERITY_RANK[worst] ? s : worst), 'ok');
         const overallText = {

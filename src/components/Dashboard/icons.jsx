@@ -78,14 +78,34 @@ export function SunIcon(props) {
   );
 }
 
+// A car in side profile: a low body with a raised cabin over it, and the
+// wheels straddling the sill. The previous one drew a single tall box with a
+// slightly sloped top, which at 24px read as a van or a shed - the two tiers
+// are what make it read as a car at a glance.
 export function CarIcon(props) {
   return (
     <svg {...common} {...props}>
-      <path d="M5 16h14" />
-      <path d="M6.5 16V9.5l1.8-3.6a1.5 1.5 0 0 1 1.3-.9h4.8a1.5 1.5 0 0 1 1.3.9L17.5 9.5V16" />
-      <path d="M6.5 9.5h11" />
-      <circle cx="8.5" cy="16.5" r="1.6" />
-      <circle cx="15.5" cy="16.5" r="1.6" />
+      <path d="M4.4 16.2H3.5c-.5 0-.9-.4-.9-.9v-2.1c0-.8.6-1.5 1.4-1.7l2.8-.8 1.8-2.4c.3-.4.7-.6 1.2-.6h4.4c.5 0 .9.2 1.2.6l1.8 2.4 2.8.8c.8.2 1.4.9 1.4 1.7v2.1c0 .5-.4.9-.9.9h-.9" />
+      <path d="M6.8 10.7h10.4" />
+      <path d="M12 7.7v3" />
+      <path d="M9.9 16.2h4.2" />
+      <circle cx="7.2" cy="16.2" r="1.8" />
+      <circle cx="16.8" cy="16.2" r="1.8" />
+    </svg>
+  );
+}
+
+// Money: a banknote. The Money screen was using LayersIcon, which is the ROI
+// layers glyph - meaningful inside that tile, and meaningless as a nav label
+// for "what have I saved". A note is read as money instantly and shares
+// nothing with the other four icons in the bar, which is what a nav icon has
+// to do at 24px.
+export function BanknoteIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <rect x="2.5" y="6.5" width="19" height="11" rx="2" />
+      <circle cx="12" cy="12" r="2.6" />
+      <path d="M6 10.2v3.6M18 10.2v3.6" />
     </svg>
   );
 }
