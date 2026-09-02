@@ -23,7 +23,7 @@ only in it.
 | Artboard | Treatment |
 |---|---|
 | `Main.dc.html` | **W1 · One number** — a weekend total and one sentence naming the better day. Shortest; adds no new visual language |
-| `WeekendSplit.dc.html` | **W2 · Side by side** — each day with its own figure, bar, spare kWh and temperature. Most comparable; tallest |
+| `WeekendSplit.dc.html` | **W2 · Side by side — CHOSEN, built in v2.7** — each day with its own figure, bar, spare kWh and temperature. Most comparable; tallest |
 | `WeekendOneBar.dc.html` | **W3 · One quantity** — leads with the combined kWh, splits it as proportions of one bar |
 
 **Page 2 — Round 1 · directions.** The set the first decision was made from;

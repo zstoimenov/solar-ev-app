@@ -418,17 +418,25 @@ are the same ones that killed cloud sync:
 the design canvas in `design/forecast/`). It leads with a verdict block
 naming the best day, then shows only the days this household acts on:
 
-- **Today, tomorrow, and the coming weekend — always both weekend days**,
-  because Saturday and Sunday are when the car normally goes on the charger.
-  Any 7-day window contains exactly one Saturday and one Sunday, so they are
-  always available; today/tomorrow absorb them when the weekend is that close.
-- **Plus the standout day when it is none of those.** That row is what covers
-  a *rotating weekday off* without the app having to know the roster — the
-  household looks at the panel on whichever day they are home and the best
-  day is already called out. Do not add a shift-scheduling feature to serve
-  this; it was considered and rejected as more configuration than it is worth.
+- **Today and tomorrow get a full row each** — the two days decided in the
+  next 24 hours. On a **Friday** Sunday joins as a third row, so the whole
+  weekend is on screen as rows and the card below drops out rather than
+  showing Saturday twice.
+- **The coming weekend is ONE card, not two more rows** (v2.7): the two days
+  side by side, each with its own figure and bar so they are directly
+  comparable, plus the combined total and spare-for-the-car. Saturday and
+  Sunday are when the car normally goes on the charger, so the weekend earns
+  a permanent place — but two more full rows made the panel too tall to take
+  in at a glance, which was the whole point of the rework. Any 7-day window
+  contains exactly one Saturday and one Sunday, so both are always available.
+  The card shows **only while both weekend days are still ahead of the rows
+  above**; from Friday onwards the rows are the weekend, so it drops out.
 - The remaining days are behind a "Rest of the week" toggle — one tap away,
-  never gone, and the second place a day off gets looked up.
+  never gone, and where a day off gets looked up.
+- **A rotating weekday off needs no configuration.** The verdict block names
+  the best day of the week whichever day it falls on, so the household sees
+  it on whatever day they are home. A shift-scheduling feature was considered
+  and rejected as more configuration than it is worth — don't add one.
 - **The range IS the bar**: the dim extent is the fitted 20th-80th percentile
   band and the bright line is the middle of it, on one shared scale across
   every row, so uncertainty is never a footnote. A monthly-fitted calibration
