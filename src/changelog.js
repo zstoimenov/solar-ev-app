@@ -13,6 +13,20 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.12.0',
+    date: '2026-09-02',
+    changes: [
+      'Home now draws the day itself: sunrise to sunset, with the forecast ' +
+        'solar spread across the hours the sun is expected to arrive in, and a ' +
+        'mark showing how much of it is still to come. One tap for tomorrow.',
+      'The shape is the weather forecast\'s own hour-by-hour sunshine, so a ' +
+        'cloudy morning shows as a dip rather than a smooth hill. The day\'s ' +
+        'total is the same figure the Energy screen gives.',
+      'Today and tomorrow on the 7-day forecast now say when the sun rises and ' +
+        'sets, and how long it is up for.'
+    ]
+  },
+  {
     version: 'v2.11.0',
     date: '2026-09-02',
     changes: [

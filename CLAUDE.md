@@ -81,7 +81,7 @@ src/
               RangeChips/Deltas - the ONLY presentational primitives the screens
               use; see "Presenting information" below),
               Dashboard/{MonthlyProduction,MonthlyComparison,PlanComparison,
-              DailyCalendar,SolarForecast,BestChargeDay,useForecast}
+              DailyCalendar,SolarForecast,BestChargeDay,SunCurve,useForecast}
   version.js  APP_VERSION shown in the header - bump on every change (see below)
 ```
 
@@ -536,6 +536,43 @@ naming the best day, then shows only the days this household acts on:
 - "Spare for the car" is the measured surplus on comparable past days, with
   `typicalHouseLoadPerDay()` subtraction as the fallback (see above) — energy
   only, a whole-day figure, and labelled with whichever basis produced it.
+
+## The day's sun curve (since v2.12)
+
+`data/forecast.js:dayShape()` + `Dashboard/SunCurve.jsx` (a panel on Home,
+today with a one-tap toggle to tomorrow). Sunrise, sunset and daylight length
+come from the same daily request and also appear on the Energy panel's two
+full rows.
+
+- **It produces no new number.** The total is the day's existing projection -
+  fitted, bias-corrected, capped - and `dayShape()` only says how it is
+  distributed. If the curve and the Energy row ever disagree about a day,
+  something is wrong with one of them.
+- **The shape is the forecast's own hourly radiation** (`hourly=
+  shortwave_radiation`), not a bell drawn between sunrise and sunset. That
+  distinction is the whole reason the panel is allowed to exist: a modelled
+  arc would be a guess dressed up as a picture, and a cloudy morning has to
+  be able to show as a dented morning. Do not "smooth" it with a spline
+  either - a curve fitted through the hourly points overshoots between them
+  and draws radiation nobody forecast.
+- **The hourly figures are a division, not measurements, and the panel says
+  so.** `dailySeries[]` is one row per day, so there is nothing to score an
+  hourly claim against the way `forecastAccuracy.js` scores the daily one.
+  Nothing hourly is logged, and the accuracy log stays a daily measurement.
+- **Energy only, like the rest of the forecast.** Pricing an hour needs a
+  time-of-day usage split for the whole household (see Plan Comparison's
+  scope note); the curve is kWh and daylight, never dollars.
+- **Clock strings are never parsed into a `Date`.** `sunrise`/`sunset` arrive
+  as local strings ("2026-09-02T06:23") because the request asks for
+  `timezone=auto`, and they are formatted by splitting the string - the same
+  discipline as the v2.8 local-dates fix.
+- **No fit, no kWh** - the curve and the daylight window still draw, with a
+  line saying a yield figure needs more history. Same degraded state as the
+  rest of the panel.
+- A cached forecast written before v2.12 carries no hourly block:
+  `loadForecast` treats that as stale and refetches rather than leaving the
+  curve missing for up to a TTL, and `dayShape()` returns `null` in the
+  meantime so nothing is drawn from an assumption.
 
 ## Forecast accuracy (since v2.8)
 

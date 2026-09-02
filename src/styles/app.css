@@ -704,6 +704,19 @@ header.top .date-range-filter { flex-shrink: 0; }
 .fc-weekend-sub { font-size: .68rem; color: var(--muted); margin-top: .35rem; }
 .fc-weekend-foot { font-size: .72rem; color: var(--muted); margin-top: .65rem; line-height: 1.4; text-wrap: pretty; }
 
+/* --- The day's sun curve (Home) ----------------------------------------
+   Sunrise to sunset with the day's forecast yield spread across it. ONE hue,
+   like every other magnitude in the app: height is the message and the fill
+   is the same accent the forecast panel uses, so the two read as the same
+   quantity. The "now" line is dashed and labelled - a colour alone would not
+   say what it marks. */
+.sun-curve { display: block; width: 100%; height: auto; margin: .5rem 0 .25rem; overflow: visible; }
+.sun-curve-tick { fill: var(--muted); font-size: 10px; }
+.sun-curve-row { display: flex; align-items: baseline; gap: .4rem; }
+
+/* Sunrise/sunset alongside a forecast row (Energy). */
+.fc-row-sun { font-size: .7rem; color: var(--muted); margin-top: .25rem; font-variant-numeric: tabular-nums; }
+
 .forecast-foot-row {
   display: flex; align-items: center; justify-content: space-between; gap: .5rem;
   margin-top: .75rem; padding-top: .6rem; border-top: 1px solid var(--border); flex-wrap: wrap;

@@ -60,6 +60,27 @@ function shortDate(dateStr) {
 const kwh = (n) => (n == null ? '—' : `${Math.round(n)} kWh`);
 const deg = (n) => (n == null ? '—' : `${Math.round(n)}°`);
 
+// Sunrise/sunset, formatted from the local clock STRING the forecast returns
+// ("2026-09-02T06:23"). Deliberately not parsed into a Date - the whole
+// module treats these as local clock times, and a Date is how UTC drift gets
+// back in (see data/forecast.js).
+function sunClock(stamp) {
+  const clock = String(stamp ?? '').split('T')[1];
+  if (!clock) return null;
+  const [h, m] = clock.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  const suffix = h < 12 ? 'am' : 'pm';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return m ? `${h12}:${String(m).padStart(2, '0')}${suffix}` : `${h12}${suffix}`;
+}
+
+function daylightLabel(hours) {
+  if (hours == null) return null;
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
 function timeLabel(iso) {
   if (!iso) return null;
   const d = new Date(iso);
@@ -131,7 +152,10 @@ function LocationSetup({ onSaved }) {
 
 // One day, as a labelled row: the range bar carries the uncertainty, the
 // caption says what the day is FOR rather than restating the number.
-function DayRow({ day, scaleMax, hasKwh, highlight }) {
+// `showSun` is set only on the featured rows (today, tomorrow, and Sunday on
+// a Friday). The rest-of-week list stays as terse as it was - that panel was
+// deliberately kept short, and a third line per day undoes it.
+function DayRow({ day, scaleMax, hasKwh, highlight, showSun = false }) {
   const pctOf = (v) => (v == null || !(scaleMax > 0) ? 0 : Math.min(100, (v / scaleMax) * 100));
   const value = hasKwh ? day.kwh : day.sunshineHours;
   const hasBand = hasKwh && day.kwhLow != null && day.kwhHigh != null;
@@ -163,6 +187,13 @@ function DayRow({ day, scaleMax, hasKwh, highlight }) {
           <div className="fc-fill" style={{ width: `${pctOf(value)}%` }} />
         )}
       </div>
+
+      {showSun && (day.sunrise || day.sunset) && (
+        <div className="fc-row-sun">
+          Sun {sunClock(day.sunrise) ?? '—'} to {sunClock(day.sunset) ?? '—'}
+          {day.daylightHours != null && ` · ${daylightLabel(day.daylightHours)} of daylight`}
+        </div>
+      )}
 
       {day.note && <div className="fc-row-note">{day.note}</div>}
     </div>
@@ -391,6 +422,7 @@ export default function SolarForecast({ state, onConfigChange }) {
             day={d}
             scaleMax={scaleMax}
             hasKwh={hasKwh}
+            showSun
             highlight={best && d.date === best.date}
           />
         ))}
