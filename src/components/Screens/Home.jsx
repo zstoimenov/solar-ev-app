@@ -1,7 +1,11 @@
-// Today - "how am I doing?"
+// Home - "how am I doing?"
 //
 // Four things, in this order: anything wrong, the total, how far to payback,
 // how this month is going. Nothing else earns a place here.
+//
+// It was called Today until v2.10, which undersold it: the total saved, the
+// payback ring and the milestones are all-time figures, and only the
+// month-to-date block is about now. "Home" is what a landing screen is.
 //
 // What was deliberately REMOVED in the v2.1 content pass:
 //   - "per day" alongside "per month" and the total. Three phrasings of one
@@ -55,7 +59,7 @@ function PaybackRing({ pct }) {
   );
 }
 
-export default function Today({ state, appMeta, onGoTo }) {
+export default function Home({ state, appMeta, onGoTo }) {
   const c = state.cumulativeTotals;
   const digests = state.monthlyDigests;
   const daily = state.dailySeries ?? [];
