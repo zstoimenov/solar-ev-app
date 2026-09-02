@@ -8,9 +8,9 @@
 // the one action that reliably flips it - installing the PWA.
 
 import React, { useEffect, useState } from 'react';
-import { ensurePersisted, backupStaleness } from '../data/storage.js';
+import { ensurePersisted, backupStaleness, cloudStaleness } from '../data/storage.js';
 
-export default function StorageHealth({ state, appMeta, onBackup }) {
+export default function StorageHealth({ state, appMeta, cloudMeta, onBackup, onCloudBackup }) {
   const [mode, setMode] = useState(null); // null while the check is in flight
   const [installEvent, setInstallEvent] = useState(null);
   const [dismissed, setDismissed] = useState(false);
@@ -59,8 +59,20 @@ export default function StorageHealth({ state, appMeta, onBackup }) {
     lastExportedAt: appMeta?.lastExportedAt
   });
 
+  // Only ever shown once cloud backup is switched on: an unused feature is
+  // not something to nag about. Separate from `stale` above because the two
+  // are different backups with different fixes.
+  const cloudStale = onCloudBackup
+    ? cloudStaleness({
+        enabled: Boolean(state?.config?.cloud?.enabled),
+        monthCount: state?.monthlyDigests.length ?? 0,
+        lastPushedCount: cloudMeta?.lastPushedCount,
+        lastPushedAt: cloudMeta?.lastPushedAt
+      })
+    : null;
+
   const atRisk = mode === 'best-effort' && !dismissed;
-  if (!atRisk && !stale) return null;
+  if (!atRisk && !stale && !cloudStale) return null;
 
   return (
     <>
@@ -88,6 +100,15 @@ export default function StorageHealth({ state, appMeta, onBackup }) {
           <span>
             <strong>Backup out of date.</strong> {stale.text}{' '}
             <button className="ghost" onClick={onBackup}>Back up now</button>
+          </span>
+        </div>
+      )}
+
+      {cloudStale && (
+        <div className={`banner ${cloudStale.level} compact`}>
+          <span>
+            <strong>Cloud backup out of date.</strong> {cloudStale.text}{' '}
+            <button className="ghost" onClick={onCloudBackup}>Open cloud backup</button>
           </span>
         </div>
       )}

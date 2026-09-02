@@ -91,6 +91,16 @@ Six blocks:
     export that left inside the peak window. Without one, the credit falls back
     to the single `tariffs.debsPeakCPerKwh` rate, exactly as before. Which of
     the two was used is recorded on the digest as `exportCreditBasis`.
+- **`cloud`** *(optional; absent = cloud backup off, no network requests at all)* -
+  `{ enabled: true }`, and nothing else. Written by
+  `data/cloud.js:saveCloudEnabled()` from the **Data → Cloud Backup** page.
+  Presence of the key IS the switch, following the same convention as
+  `config.forecast`: turning the feature off deletes the key rather than
+  storing `enabled: false`. It deliberately holds no credential, no project
+  reference and no email - the Supabase project is a build-time constant
+  (`src/data/cloudKeys.js`) and the session lives outside `state` under the
+  IndexedDB `authSession` key, so a backup file never carries one. See
+  CLAUDE.md "Encrypted cloud backup".
 
 ---
 
