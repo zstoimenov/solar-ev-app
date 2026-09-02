@@ -144,10 +144,13 @@ function summarise(rows) {
 }
 
 // Score every logged entry that now has a real production figure to compare
-// against. `kwhPerMj` is the CURRENT fitted factor: the whole point is to
-// measure how the fit in use today has actually performed.
-export function scoreForecastLog(log, dailySeries, kwhPerMj) {
-  if (!log?.entries?.length || !(kwhPerMj > 0)) return null;
+// against. `rawFor(radiationMj, targetDate)` must be the SAME derivation the
+// panel uses for its unadjusted figure - today's fitted factor, today's
+// seasonal shape - because the whole point is to measure how the projection in
+// use right now has actually performed. Passing anything else (a stored kWh, a
+// bias-corrected figure) measures a number nobody is being shown.
+export function scoreForecastLog(log, dailySeries, rawFor) {
+  if (!log?.entries?.length || typeof rawFor !== 'function') return null;
 
   const actualByDate = new Map();
   for (const row of dailySeries ?? []) {
@@ -159,7 +162,8 @@ export function scoreForecastLog(log, dailySeries, kwhPerMj) {
   for (const e of log.entries) {
     const actual = actualByDate.get(e.targetDate);
     if (actual == null || e.radiationMj == null) continue;
-    const predicted = e.radiationMj * kwhPerMj;
+    const predicted = rawFor(e.radiationMj, e.targetDate);
+    if (predicted == null) continue;
     if (!(predicted > 0)) continue;
     // An outage day says nothing about the forecast, only about the inverter.
     if (actual < OUTAGE_KWH && e.radiationMj >= OUTAGE_RADIATION_MJ) continue;

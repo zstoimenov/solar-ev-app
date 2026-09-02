@@ -34,7 +34,7 @@ import InfoPopover from '../InfoPopover.jsx';
 import { Lede } from '../Screens/parts.jsx';
 import useForecast from './useForecast.js';
 import {
-  LOCATION_PRESETS, roundCoord, saveForecastLocation, typicalHouseLoadPerDay
+  LOCATION_PRESETS, roundCoord, saveForecastLocation, typicalHouseLoadPerDay, spareForDay
 } from '../../data/forecast.js';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -263,14 +263,23 @@ export default function SolarForecast({ state, onConfigChange }) {
   // be reported as what is actually going spare for the car. Energy only.
   const houseLoad = typicalHouseLoadPerDay(state?.monthlyDigests);
 
-  const days = raw.map((d, i) => ({
-    ...d,
-    index: i,
-    weekday: dayOf(d.date).getDay(),
-    spoken: spokenDay(d.date, i),
-    dateLabel: shortDate(d.date),
-    spareKwh: hasKwh && d.kwh != null && houseLoad != null ? Math.max(0, d.kwh - houseLoad) : null
-  }));
+  const days = raw.map((d, i) => {
+    // Measured from days this roof actually had, where there are enough of
+    // them; the old production-minus-house-load subtraction otherwise.
+    const spare = hasKwh ? spareForDay(cal, d, houseLoad) : null;
+    return {
+      ...d,
+      index: i,
+      weekday: dayOf(d.date).getDay(),
+      spoken: spokenDay(d.date, i),
+      dateLabel: shortDate(d.date),
+      spareKwh: spare?.kwh ?? null,
+      spareBasis: spare?.basis ?? null,
+      spareDays: spare?.n ?? null
+    };
+  });
+  const spareIsMeasured = days.some((d) => d.spareBasis?.startsWith('measured'));
+  const spareSampleDays = days.find((d) => d.spareBasis?.startsWith('measured'))?.spareDays ?? null;
 
   const ranked = days.filter((d) => (hasKwh ? d.kwh != null : d.radiationMj != null))
     .sort((a, b) => (hasKwh ? b.kwh - a.kwh : b.radiationMj - a.radiationMj));
@@ -524,11 +533,17 @@ export default function SolarForecast({ state, onConfigChange }) {
               </p>
             )}
             <p>
-              &quot;Spare for the car&quot; is the day&apos;s expected production less what
-              your house alone has typically drawn per day over recent months. It is a
-              whole-day energy figure, not a plan for the day: it does not know when the
-              sun and your appliances coincide, or where the battery will be sitting.
+              {spareIsMeasured
+                ? `"Spare for the car" is measured, not assumed: on the ${spareSampleDays} past days when this roof made about as much as the day shown, this is how much energy actually went spare - what was exported, plus what the car took straight off the panels. Your house, your appliances and your battery are all already inside that figure, because it is what really happened.`
+                : '"Spare for the car" is the day\u2019s expected production less what your house alone has typically drawn per day over recent months. It is a whole-day energy figure, not a plan for the day: it does not know when the sun and your appliances coincide, or where the battery will be sitting. Once there are enough comparable days on record it switches to what actually went spare on them.'}
             </p>
+            {spareIsMeasured && (
+              <p className="small">
+                It counts what left the property, so it stays on the cautious side: energy
+                the car could have taken from the battery is not in it, because whether that
+                is there tomorrow depends on where the battery is sitting.
+              </p>
+            )}
             <p>
               These are daily totals, so nothing here is converted into dollars — the
               same limit that keeps Plan Comparison to EV charging only.

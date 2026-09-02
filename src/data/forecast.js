@@ -104,6 +104,30 @@ const MIN_BAND_PAIRS = 20;
 const CAP_HEADROOM = 1.1;
 const MIN_CAP_SAMPLES = 60;
 
+// Recency. A roof is not the same roof it was two years ago: panels degrade,
+// dirt builds up, a tree grows into the afternoon sun. Weighting the fit by
+// age lets it track that drift without throwing away the older days that give
+// the seasonal picture its shape. One year to half weight is slow enough that
+// a single dirty month cannot swing it.
+const RECENCY_HALF_LIFE_DAYS = 365;
+
+// Seasonality. kWh per MJ is not one number across the year: a 40C February
+// day derates the panels and clips the inverter, and the same MJ arriving
+// through a low winter sun meets more shade. One global ratio splits the
+// difference and is wrong at both ends of the year. These are multiplicative
+// adjustments to the global ratio, one per half-month, each fitted from a
+// wide window around it so neighbouring days cannot jump.
+const SEASON_BUCKETS = 24;
+const SEASON_WINDOW_DAYS = 45;
+const MIN_SEASON_SAMPLES = 30;
+const SEASON_CLAMP = { low: 0.75, high: 1.25 };
+
+// "Spare for the car", measured rather than subtracted. Neighbours are days
+// whose production was within this much of the day being projected.
+const SPARE_TOLERANCE = 0.2;
+const SPARE_SEASON_WINDOW_DAYS = 60;
+const MIN_SPARE_NEIGHBOURS = 15;
+
 export const FORECAST_DAYS = 7;
 
 // Public geography, not anybody's address: coarse anchors for the Perth
@@ -317,9 +341,39 @@ function percentile(sorted, p) {
   return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
 }
 
-function fit(pairs) {
-  const radTotal = pairs.reduce((a, p) => a + p.radiationMj, 0);
-  const kwhTotal = pairs.reduce((a, p) => a + p.kwh, 0);
+// Day of the year, 0-365, used for every seasonal comparison. Leap years
+// shift it by a day late in the year, which is far inside the window widths
+// these are compared over.
+function dayOfYear(dateIso) {
+  const d = dayFromIso(dateIso);
+  return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+}
+
+// Distance between two days of the year, the short way round, so 28 December
+// and 3 January are six days apart rather than 359.
+function seasonDistance(a, b) {
+  const raw = Math.abs(a - b);
+  return Math.min(raw, 365 - raw);
+}
+
+// Exponential decay by age, so recent days count for more without older ones
+// being thrown away. Applied to the LEVEL (the fitted ratio), never to the
+// band: a spread is not something that decays, and the accuracy log supersedes
+// the fit's band anyway once it has measured one.
+function recencyWeight(dateIso, todayIso) {
+  const age = daysBetween(dateIso, todayIso);
+  if (age == null || age <= 0) return 1;
+  return Math.pow(0.5, age / RECENCY_HALF_LIFE_DAYS);
+}
+
+function fit(pairs, todayIso = iso(new Date())) {
+  let radTotal = 0;
+  let kwhTotal = 0;
+  for (const p of pairs) {
+    const w = p.date ? recencyWeight(p.date, todayIso) : 1;
+    radTotal += w * p.radiationMj;
+    kwhTotal += w * p.kwh;
+  }
   if (!(radTotal > 0)) return null;
   const kwhPerMj = kwhTotal / radTotal;
 
@@ -350,6 +404,55 @@ function monthsCovered(pairs) {
   return new Set(pairs.map((p) => p.date.slice(5, 7))).size;
 }
 
+// One multiplicative adjustment per half-month, each fitted from every pair
+// within SEASON_WINDOW_DAYS of that point in the year - so the windows overlap
+// heavily and the factor moves smoothly through the year instead of stepping
+// at month boundaries. A bucket with too few days in its window stays null and
+// that part of the year simply gets the global ratio, which is the same "no
+// verdict without the data" rule used everywhere else.
+function seasonalFactors(pairs, kwhPerMj, todayIso) {
+  if (!(kwhPerMj > 0) || !pairs.length) return null;
+  const withDoy = pairs.map((p) => ({ ...p, doy: dayOfYear(p.date) }));
+  const factors = new Array(SEASON_BUCKETS).fill(null);
+  let fitted = 0;
+
+  for (let b = 0; b < SEASON_BUCKETS; b += 1) {
+    const centre = ((b + 0.5) / SEASON_BUCKETS) * 365;
+    let expected = 0;
+    let actual = 0;
+    let n = 0;
+    for (const p of withDoy) {
+      if (seasonDistance(p.doy, centre) > SEASON_WINDOW_DAYS) continue;
+      const w = recencyWeight(p.date, todayIso);
+      expected += w * p.radiationMj * kwhPerMj;
+      actual += w * p.kwh;
+      n += 1;
+    }
+    if (n < MIN_SEASON_SAMPLES || !(expected > 0)) continue;
+    factors[b] = Math.min(SEASON_CLAMP.high, Math.max(SEASON_CLAMP.low, actual / expected));
+    fitted += 1;
+  }
+  return fitted ? { factors, fitted } : null;
+}
+
+// The seasonal adjustment for one date, or 1 when this part of the year has
+// not been seen often enough to say anything.
+export function seasonalFactorFor(calibration, dateIso) {
+  const s = calibration?.seasonal;
+  if (!s || !dateIso) return 1;
+  const b = Math.min(SEASON_BUCKETS - 1, Math.floor((dayOfYear(dateIso) / 365) * SEASON_BUCKETS));
+  return s.factors[b] ?? 1;
+}
+
+// The one definition of the unadjusted projection: radiation, this roof's
+// fitted ratio, and where in the year the day falls. Both the panel and the
+// accuracy log's scoring go through this, so a measured bias can never be
+// measured against a differently-derived number than the one on screen.
+export function rawKwhFor(calibration, radiationMj, dateIso) {
+  if (!(calibration?.kwhPerMj > 0) || radiationMj == null) return null;
+  return radiationMj * calibration.kwhPerMj * seasonalFactorFor(calibration, dateIso);
+}
+
 // The most this array has ever produced in a day, with a little headroom.
 // Only from a decent run of days: on a handful of rows the "record" is just
 // the sunniest day so far and would clip every good day thereafter.
@@ -359,15 +462,88 @@ function observedCap(dailySeries) {
   return Math.max(...values) * CAP_HEADROOM;
 }
 
+// What has ACTUALLY gone spare, day by day, and how much the roof made that
+// day. Surplus is the energy that demonstrably had nowhere else to go: what
+// was exported, plus what the car took straight off the panels (which would
+// otherwise have been exported too, and must be added back or a day the car
+// charged would read as a day with no surplus).
+//
+// Deliberately NOT including what the car drew from the battery. That energy
+// was stored PV, but it displaced the evening house draw rather than being
+// surplus, and whether it is available tomorrow depends on the battery's state
+// of charge, which nothing here knows. Leaving it out makes the figure err
+// low, which is the safe direction for "how much can the car have".
+//
+// A day whose EV-from-PV was never recorded counts only its export, for the
+// same reason: understating the spare is safer than inventing it.
+function spareSamples(dailySeries) {
+  const rows = [];
+  for (const r of dailySeries ?? []) {
+    if (r?.date == null || r.solarKwh == null || r.gridExportKwh == null) continue;
+    rows.push({
+      date: r.date,
+      doy: dayOfYear(r.date),
+      solarKwh: r.solarKwh,
+      surplusKwh: Math.max(0, r.gridExportKwh + (r.evPvKwh ?? 0))
+    });
+  }
+  return rows.length ? rows : null;
+}
+
+// "Spare for the car" as a measurement rather than a subtraction: on the days
+// this roof made about as much as the day being projected, how much actually
+// went spare? It needs no assumption about when the sun and the load coincide,
+// no model of the battery, and no separate house-load figure - all of that is
+// already inside what was really exported.
+//
+// Neighbours are matched on production first and, when there are enough of
+// them, on time of year as well: 30 kWh in February is not 30 kWh in July once
+// the air conditioning is running.
+export function measuredSpare(calibration, dayKwh, dateIso) {
+  const rows = calibration?.spare;
+  if (!rows || !(dayKwh > 0)) return null;
+
+  const near = rows.filter(
+    (r) => Math.abs(r.solarKwh - dayKwh) <= dayKwh * SPARE_TOLERANCE
+  );
+  if (near.length < MIN_SPARE_NEIGHBOURS) return null;
+
+  let sample = near;
+  let basis = 'measured';
+  if (dateIso) {
+    const doy = dayOfYear(dateIso);
+    const seasonal = near.filter((r) => seasonDistance(r.doy, doy) <= SPARE_SEASON_WINDOW_DAYS);
+    if (seasonal.length >= MIN_SPARE_NEIGHBOURS) {
+      sample = seasonal;
+      basis = 'measured-seasonal';
+    }
+  }
+  const sorted = sample.map((r) => r.surplusKwh).sort((a, b) => a - b);
+  return { kwh: percentile(sorted, 0.5), basis, n: sample.length };
+}
+
+// The figure the panels show, with the honest fallback behind it: the measured
+// one when this household has enough comparable days, otherwise the old
+// production-minus-typical-house-load subtraction, which knows nothing about
+// timing or the battery and is labelled accordingly.
+export function spareForDay(calibration, day, houseLoadPerDay) {
+  if (day?.kwh == null) return null;
+  const measured = measuredSpare(calibration, day.kwh, day.date);
+  if (measured) return measured;
+  if (houseLoadPerDay == null) return null;
+  return { kwh: Math.max(0, day.kwh - houseLoadPerDay), basis: 'subtracted', n: null };
+}
+
 // Prefers day-level pairs (dailySeries x archive radiation). Falls back to
 // whole-month totals, which every ingested month has, when there are not yet
 // 30 days of daily rows - months ingested before v2 have no daily rows at
 // all, so on a real store the monthly path is what runs first.
-export function calibrate(state, radiationByDate) {
+export function calibrate(state, radiationByDate, todayIso = iso(new Date())) {
   if (!radiationByDate || !Object.keys(radiationByDate).length) return null;
 
   const daily = Array.isArray(state?.dailySeries) ? state.dailySeries : [];
   const capKwh = observedCap(daily);
+  const spare = spareSamples(daily);
   const dailyPairs = [];
   let outageDays = 0;
   for (const row of daily) {
@@ -382,12 +558,15 @@ export function calibrate(state, radiationByDate) {
     dailyPairs.push({ date: row.date, radiationMj: rad, kwh: row.solarKwh });
   }
   const seasonMonths = monthsCovered(dailyPairs);
-  const dailyFit = dailyPairs.length >= MIN_DAILY_PAIRS ? fit(dailyPairs) : null;
+  const dailyFit = dailyPairs.length >= MIN_DAILY_PAIRS ? fit(dailyPairs, todayIso) : null;
+  // Only a daily fit can carry a seasonal shape: whole-month totals have one
+  // point per month, which is the very thing being adjusted for.
+  const seasonal = dailyFit ? seasonalFactors(dailyPairs, dailyFit.kwhPerMj, todayIso) : null;
 
   // A daily fit that has seen enough of the year wins outright. One that has
   // not waits for the monthly fit below, and only runs if that cannot.
   if (dailyFit && seasonMonths >= MIN_SEASON_MONTHS) {
-    return { ...dailyFit, method: 'daily', seasonMonths, outageDays, capKwh };
+    return { ...dailyFit, method: 'daily', seasonMonths, outageDays, capKwh, seasonal, spare };
   }
 
   // Monthly fallback: sum the archive's radiation over each COMPLETE month
@@ -407,24 +586,25 @@ export function calibrate(state, radiationByDate) {
     // Only months the archive covered end to end - a half-fetched month
     // would understate the radiation and inflate the factor.
     if (rad == null || daysByMonth[d.month] < (d.daysInPeriod ?? 28)) continue;
-    monthlyPairs.push({ radiationMj: rad, kwh: d.solarProductionKwh });
+    // Dated at mid-month, purely so the recency weight has something to age.
+    monthlyPairs.push({ date: `${d.month}-15`, radiationMj: rad, kwh: d.solarProductionKwh });
   }
   if (monthlyPairs.length >= MIN_MONTHLY_PAIRS) {
-    const f = fit(monthlyPairs);
+    const f = fit(monthlyPairs, todayIso);
     // No band on a monthly fit: month-to-month scatter is far tighter than
     // day-to-day scatter, so quoting it as a daily range would understate
     // the real spread. A single figure with the caveat is the honest form.
     // (A measured band can still arrive later from the accuracy log, which
     // observes daily misses directly rather than inferring them from a fit.)
     if (f) {
-      return { ...f, lowRatio: null, highRatio: null, method: 'monthly', outageDays, capKwh };
+      return { ...f, lowRatio: null, highRatio: null, method: 'monthly', outageDays, capKwh, spare };
     }
   }
 
   // Some evidence beats none: a daily fit too narrow to have seen the year is
   // still better than no figure, so it runs when no monthly fit qualifies.
   if (dailyFit) {
-    return { ...dailyFit, method: 'daily', seasonMonths, outageDays, capKwh, narrowSeason: true };
+    return { ...dailyFit, method: 'daily', seasonMonths, outageDays, capKwh, seasonal, spare, narrowSeason: true };
   }
 
   return {
@@ -455,7 +635,7 @@ export function projectDays(forecastRows, calibration, accuracy = null, today = 
   const cap = (v) => (v != null && calibration?.capKwh != null ? Math.min(v, calibration.capKwh) : v);
 
   return (forecastRows ?? []).map((row) => {
-    const raw = usable && row.radiationMj != null ? row.radiationMj * calibration.kwhPerMj : null;
+    const raw = usable ? rawKwhFor(calibration, row.radiationMj, row.date) : null;
     let kwh = raw == null ? null : raw * bias;
 
     const lead = daysBetween(today, row.date);
@@ -516,13 +696,13 @@ export function typicalHouseLoadPerDay(digests, monthsBack = 3) {
 // The best day in the window to put the car on the charger: the most
 // projected production, with the house's own typical draw taken off so the
 // figure is what is actually going spare.
-export function bestChargeDay(projected, houseLoadPerDay) {
+export function bestChargeDay(projected, houseLoadPerDay, calibration = null) {
   const withKwh = (projected ?? []).filter((d) => d.kwh != null);
   if (!withKwh.length) return null;
-  const scored = withKwh.map((d) => ({
-    ...d,
-    spareKwh: houseLoadPerDay == null ? null : Math.max(0, d.kwh - houseLoadPerDay)
-  }));
+  const scored = withKwh.map((d) => {
+    const spare = spareForDay(calibration, d, houseLoadPerDay);
+    return { ...d, spareKwh: spare?.kwh ?? null, spareBasis: spare?.basis ?? null, spareDays: spare?.n ?? null };
+  });
   const best = scored.reduce((a, b) => (b.kwh > a.kwh ? b : a));
   const rest = scored.filter((d) => d.date !== best.date);
   const averageOther = rest.length ? rest.reduce((a, d) => a + d.kwh, 0) / rest.length : null;
@@ -610,7 +790,7 @@ async function assemble(state, { location, fetchedAt, history, forecastRows, err
   // improved is not judged on the misses of the one it replaced.
   const log = await getForecastLog();
   const accuracy = calibration?.kwhPerMj
-    ? scoreForecastLog(log, state?.dailySeries, calibration.kwhPerMj)
+    ? scoreForecastLog(log, state?.dailySeries, (mj, date) => rawKwhFor(calibration, mj, date))
     : null;
 
   const days = projectDays(forecastRows ?? [], calibration, accuracy);

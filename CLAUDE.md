@@ -433,10 +433,47 @@ are the same ones that killed cloud sync:
   `daily.js:seasonalCheck()`. Don't lower it to make numbers appear sooner.
 - **Energy only, never dollars.** Pricing a forecast day needs the
   time-of-day usage split the app does not have (see Plan Comparison's scope
-  note). `BestChargeDay`'s "spare" figure is a daily energy subtraction —
-  projected production minus the household's typical non-EV daily draw — and
-  says so; it is not an hour-by-hour simulation and knows nothing about the
-  battery's state.
+  note). The "spare for the car" figure is a whole-day energy figure either
+  way, and is not an hour-by-hour simulation.
+- **"Spare" is MEASURED where it can be** (v2.9, `measuredSpare()`). It used
+  to be projected production minus the household's typical non-EV daily draw,
+  which knowingly modelled neither the timing within the day nor the battery.
+  It is now the median surplus on past days when this roof produced about as
+  much (±20%), narrowed to a ±60-day window of the year when there are ≥15 such
+  days, because 30 kWh in February is not 30 kWh in July once the air
+  conditioning is running. The old subtraction remains the fallback below those
+  gates, and `spareBasis` says which produced the figure.
+  Surplus is `gridExportKwh + evPvKwh`: energy that demonstrably had nowhere
+  else to go, plus what the car took straight off the panels (which would
+  otherwise have been exported, so a day the car charged must not read as a day
+  with no surplus). It deliberately EXCLUDES what the car drew from the
+  battery - that was stored PV displacing the evening house draw, and whether
+  it is there tomorrow depends on a state of charge nothing here knows. The
+  figure therefore errs low, which is the safe direction for "how much can the
+  car have". A day whose `evPvKwh` was never recorded counts only its export,
+  for the same reason.
+- **The fit carries a seasonal shape** (v2.9, `seasonalFactors()`). One global
+  kWh/MJ is wrong at both ends of the year: a 40°C day derates the panels and
+  clips the inverter, and the same MJ through a low winter sun meets more
+  shade. There are now 24 half-month multiplicative adjustments to the global
+  ratio, each fitted from every pair within ±45 days of it so the windows
+  overlap and the factor cannot step at a month boundary, gated at 30 samples
+  per window and clamped to 0.75-1.25. On a two-year synthetic household with a
+  12% summer derate, this cut the mean absolute error over the last year from
+  4.78% to 1.74%. Only a DAILY fit can carry one - whole-month totals have one
+  point per month, which is the very thing being adjusted for.
+- **`rawKwhFor()` is the single definition of the unadjusted projection** and
+  both the panel and the accuracy log's scoring go through it. If the seasonal
+  shape were applied on screen but not in scoring, the measured bias would
+  absorb the seasonal error the shape already handles and correct it twice.
+- **The fit is weighted by recency** (v2.9, `RECENCY_HALF_LIFE_DAYS`, 365). A
+  roof is not the roof it was two years ago: panels degrade, dirt builds up, a
+  tree grows into the afternoon sun. Weighting the LEVEL by age tracks that
+  without discarding the older days that give the seasonal shape its samples.
+  The band is deliberately NOT weighted - a spread is not something that
+  decays, and the accuracy log supersedes the fit's band anyway. On a synthetic
+  household degrading 5%/yr the weighted fit sits 1.5% closer to what the roof
+  is doing now.
 - **Projections are capped at what the array has actually done** (v2.8):
   110% of the observed daily record, once there are ≥60 daily rows to know
   what that record is. A projection above everything the roof has ever
@@ -488,8 +525,9 @@ naming the best day, then shows only the days this household acts on:
   every row, so uncertainty is never a footnote. A monthly-fitted calibration
   has no daily band, so those rows draw a plain fill instead and the
   InfoPopover says why.
-- "Spare for the car" is `typicalHouseLoadPerDay()` subtracted from the day's
-  projection — energy only, a whole-day figure, and labelled as such.
+- "Spare for the car" is the measured surplus on comparable past days, with
+  `typicalHouseLoadPerDay()` subtraction as the fallback (see above) — energy
+  only, a whole-day figure, and labelled with whichever basis produced it.
 
 ## Forecast accuracy (since v2.8)
 
