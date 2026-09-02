@@ -10,3 +10,13 @@ dist-ssr
 # (see design/forecast/README.md) rather than committing the output.
 design/**/*.html
 !design/**/*.dc.html
+
+# Backup files, in either direction. A real backup carries the household's
+# whole history, and committing one is the failure mode CLAUDE.md warns is
+# UNRECOVERABLE: GitHub keeps old commits reachable by SHA even after a
+# revert or a force-push, so the only real fix is deleting and recreating
+# the repository. `git add -A` after a download landed in this directory is
+# all it would take, so the names are excluded here rather than relied on
+# to never appear.
+roi-backup*.json
+*.encrypted.json
