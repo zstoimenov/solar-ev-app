@@ -12,6 +12,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // A HAND-WRITTEN service worker (src/sw.js), not a generated one. The
+      // generated worker cannot carry a `periodicsync` handler, which is what
+      // fires the forecast notifications with no server behind them. It still
+      // precaches the same app shell - see src/sw.js.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
         name: 'Solar, Battery & EV ROI',
@@ -27,11 +34,15 @@ export default defineConfig({
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
-      workbox: {
+      injectManifest: {
+        // A CLASSIC worker, not an ES module one. Module service workers are
+        // Chrome-only; building IIFE keeps the offline shell working in every
+        // browser that had it before this file was hand-written.
+        rollupFormat: 'iife',
         // Offline app shell only. No data is precached beyond the shell +
-        // the shipped seed file; the app never makes data network calls.
-        globPatterns: ['**/*.{js,css,html,png,svg,json,webmanifest}'],
-        navigateFallback: `${BASE}index.html`
+        // the shipped seed file; the only data call the app makes is the
+        // weather forecast, which caches itself in IndexedDB.
+        globPatterns: ['**/*.{js,css,html,png,svg,json,webmanifest}']
       }
     })
   ]

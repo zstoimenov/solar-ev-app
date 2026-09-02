@@ -21,6 +21,7 @@ import { AlertIcon, CheckCircleIcon, ClockIcon } from '../Dashboard/icons.jsx';
 import { BigStat, Lede, CompareBar } from './parts.jsx';
 import { monthToDate, paceToMonthEnd, typicalForMonth, seasonalCheck } from '../../data/daily.js';
 import { backupStaleness } from '../../data/storage.js';
+import ForecastAlert from '../ForecastAlert.jsx';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -90,6 +91,11 @@ export default function Today({ state, appMeta, onGoTo }) {
 
   return (
     <div className="screen">
+      {/* Anything the phone should have said and could not - see
+          ForecastAlert.jsx. It renders nothing unless alerts are on and one is
+          actually due, and showing it here counts as having been delivered. */}
+      <ForecastAlert state={state} onGoTo={onGoTo} />
+
       {season?.below && (
         <div className="attention">
           <span className="attention-icon"><AlertIcon /></span>

@@ -685,3 +685,12 @@ header.top .date-range-filter { flex-shrink: 0; }
 .forecast-presets { display: flex; flex-wrap: wrap; gap: .4rem; }
 .forecast-presets button { font-size: .78rem; }
 .err-text { color: var(--red); }
+
+/* Notification status rows (Data -> Alerts). A dot plus the word, never the
+   dot alone: colour is a confirmation here, not the message. */
+.fc-status-row { display: flex; align-items: baseline; gap: .5rem; padding: .28rem 0; border-bottom: 1px solid var(--border); }
+.fc-status-row:last-of-type { border-bottom: 0; }
+.fc-status-label { flex: 1 1 auto; font-size: .9rem; }
+.ok-dot, .warn-dot { flex: 0 0 auto; width: .5rem; height: .5rem; border-radius: 50%; }
+.ok-dot { background: var(--green); }
+.warn-dot { background: #fbbf24; }

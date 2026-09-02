@@ -51,7 +51,15 @@ src/
               from this household's own history; see "Weather forecast" below),
               forecastAccuracy.js (the forecast scoring itself against what the
               roof actually produced - the log, the bias, the per-lead-day
-              error bands; see "Forecast accuracy" below)
+              error bands; see "Forecast accuracy" below),
+              notify.js (PURE: decides whether the forecast is worth an alert
+              and what it says - shared by the service worker and the app),
+              notifyClient.js (the page half: permission, periodic-sync
+              registration, and the status report; see "Notifications" below)
+  sw.js       the HAND-WRITTEN service worker: the offline app shell, plus the
+              `periodicsync` handler that fires the forecast alerts. Built by
+              vite-plugin-pwa in `injectManifest` mode - a generated worker
+              cannot carry that handler.
   ingest/     parseFronius.js, parseWattpilot.js, parseSynergy.js (client-side
               XLSX/CSV parsing; the Synergy one ALSO folds a 30-minute file
               into a 48-bucket profile - see "Synergy interval data" below), parseWattpilotSessions.js (the Wattpilot MOBILE
@@ -581,6 +589,68 @@ Verified against a two-year synthetic household: `calibrate()` recovers a
 known factor to 0.06%, a deliberately 8%-high forecast is detected as a 0.93
 bias, and measured error widens from ~7% at lead 0 to ~14% at lead 6.
 
+## Notifications (since v2.10)
+
+Three forecast alerts - the weekend, the week's best day, and a standout
+tomorrow - fired by the phone itself. `data/notify.js` decides, `src/sw.js`
+delivers, `components/ForecastAlert.jsx` says whatever never got delivered the
+next time the app is opened.
+
+**There is no server and no push subscription, and there must not be one.** The
+service worker wakes on `periodicsync`, reads this household's own IndexedDB,
+makes the same keyless Open-Meteo request the panel already makes, and shows the
+notification locally. Nothing new leaves the device. Web Push was considered and
+rejected on the same grounds as cloud sync: it needs a server holding a VAPID
+private key and the subscription endpoint, and the bundle is public.
+
+What that costs is precision about WHEN, and the design absorbs that rather than
+hiding it:
+
+- **Nothing is scheduled to a time.** Chrome decides when a periodic sync runs;
+  `minInterval` (4h) is a floor it is free to ignore, and an app that is rarely
+  opened is fired rarely or never. So each alert has a WINDOW of hours it may
+  fire in - weekend Thu 06:00 to end of Fri, week Sun 12:00 to end of Mon,
+  tomorrow any afternoon - and goes out on the first sync that lands inside it.
+- **A PERIOD KEY makes it idempotent**, not a timestamp. Each candidate carries
+  the key it may only be sent once for (the coming Saturday's date, that week's
+  Monday, tomorrow's date), so a second sync in the same window, or the next
+  day's sync, sends nothing. Sunday evening and Monday morning share one key on
+  purpose.
+- **The app's catch-up counts as delivery.** `ForecastAlert` on Today re-runs
+  the SAME decision on open and shows anything still unsent, then marks it sent
+  so the phone does not buzz hours later with advice already read. This is why
+  the decision lives in a pure module with no DOM and no IndexedDB - two
+  deliverers, one decision. It ignores quiet hours (the household is already
+  looking at the screen) and nothing else.
+- **Restraint is the feature.** The daily alert fires only when tomorrow is 25%
+  above or below what this time of year normally gives (from this household's
+  own `dailySeries`, gated at 15 comparable days) or is clearly the best day
+  left in the week. An ordinary Tuesday says nothing. At most one alert a day,
+  and the weekend outranks the week, which outranks tomorrow.
+- **The same evidence gate as everywhere else**: no alerts at all until there is
+  a fitted kWh figure (see the forecast section above). "Tomorrow looks sunny" is
+  not worth a permission prompt.
+- **Quiet hours are fixed at 21:00-07:00, deliberately not configurable** - the
+  same call as the rejected shift-scheduling feature. The only settings are the
+  master switch and one toggle per alert type.
+- **The Alerts page reports the whole chain, not a switch.** Installed,
+  permission, background sync registered, last sync, last alert, last reason.
+  Local notifications depend on four things a household cannot see, and when
+  nothing arrives "broken" and "Chrome has not fired yet" look identical.
+- **Android's own notification switch is separate from the browser permission**,
+  so `showNotification()` can still be refused. That refusal is caught and
+  reported in plain language, and the period is NOT marked sent - a refusal must
+  not silently consume the one alert that period was allowed.
+- `notifyState` lives outside the backup like `weatherCache` and `forecastLog`,
+  and is deliberately not restored: permissions are per device, and a restore
+  must not start a new phone notifying on someone else's schedule.
+
+`src/sw.js` also owns the offline app shell now. It replaced a generated worker,
+so `precacheAndRoute` + the navigation fallback there must keep doing what that
+one did - test an offline reload after touching it. It is built as **iife**, not
+an ES module: module service workers are Chrome-only and the shell has to keep
+working everywhere it used to.
+
 ## Synergy interval data (since v2.4)
 
 Synergy's `MA_IntervalDataHistory.csv` now comes with **one row per 30
@@ -808,6 +878,12 @@ are why, and undoing them re-creates the problem.
 
 There's no automated test suite. Verify by hand:
 1. `npm run build` must succeed.
+1b. If you touched `src/sw.js` or the PWA config, test the BUILT worker, not
+   the dev server: `npm run build && npx vite preview`, then check the worker
+   activates, that an offline reload still renders the app, and that posting
+   `{type:'notify-check'}` to `registration.active` answers. Headless Chromium
+   refuses the notification permission outright, so whether a notification
+   actually appears can only be checked on a real phone.
 2. Run `npm run dev`, use Playwright (Chromium is pre-installed at
    `/opt/pw-browsers/...`, module at
    `/opt/node22/lib/node_modules/playwright/index.mjs`) at a 412×915
