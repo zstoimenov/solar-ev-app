@@ -24,6 +24,7 @@ import ChargingLogEditor from './Ingest/ChargingLogEditor.jsx';
 import TariffPlanEditor from './Ingest/TariffPlanEditor.jsx';
 import EvSessionsUploader from './Ingest/EvSessionsUploader.jsx';
 import PaybackSettingsEditor from './Ingest/PaybackSettingsEditor.jsx';
+import NotificationSettings from './Ingest/NotificationSettings.jsx';
 import ExportRestore from './ExportRestore.jsx';
 
 const APP_VERSION = 'app_v1';
@@ -56,6 +57,7 @@ const CATEGORIES = [
     ]
   },
   { key: 'payback', label: 'Payback' },
+  { key: 'alerts', label: 'Alerts' },
   { key: 'backup', label: 'Backup' }
 ];
 
@@ -290,6 +292,7 @@ export default function IngestWizard({
       {subsection === 'tariffPlans' && <TariffPlanEditor state={state} onChange={onChange} />}
       {subsection === 'evSessions' && <EvSessionsUploader state={state} onChange={onChange} />}
       {category === 'payback' && <PaybackSettingsEditor state={state} onChange={onChange} />}
+      {category === 'alerts' && <NotificationSettings state={state} />}
       {category === 'backup' && <ExportRestore state={state} appMeta={appMeta} onChange={onChange} />}
 
       {category === 'upload' && preview && (() => {

@@ -22,6 +22,12 @@ const WEATHER_KEY = 'weatherCache';
 // data, and it must never enter validate() or the backup file. Losing it
 // costs the measured error bars until a few weeks of days rebuild them.
 const FORECAST_LOG_KEY = 'forecastLog';
+// Notification settings and delivery bookkeeping. Outside `state` for the same
+// reason as the two above: it is device-local plumbing, not household data. It
+// is also deliberately NOT restored from a backup - permissions are per device,
+// and a restore should not start a new phone notifying on someone else's
+// schedule. Written by both the app and the service worker.
+const NOTIFY_KEY = 'notifyState';
 
 let _dbp = null;
 function db() {
@@ -94,6 +100,16 @@ export async function putForecastLog(log) {
   return log;
 }
 
+// --- Notification state (never part of the backup) -------------------------
+export async function getNotifyState() {
+  return (await (await db()).get(STORE, NOTIFY_KEY)) ?? null;
+}
+
+export async function putNotifyState(next) {
+  await (await db()).put(STORE, next, NOTIFY_KEY);
+  return next;
+}
+
 // Validate + forward-migrate a parsed backup object, then replace the store.
 // Throws SchemaError on any problem WITHOUT touching the existing store
 // (no partial load).
@@ -132,6 +148,7 @@ export async function resetState() {
   // The accuracy log is scored against dailySeries; with the store wiped it
   // would score against nothing and report a phantom history.
   await (await db()).delete(STORE, FORECAST_LOG_KEY);
+  await (await db()).delete(STORE, NOTIFY_KEY);
   return empty;
 }
 
