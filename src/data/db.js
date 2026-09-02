@@ -16,6 +16,12 @@ const META_KEY = 'appMeta'; // holds { lastExportedCount, lastExportedAt } - gua
 // re-fetched at any time, so it must never enter the schema, the backup
 // file, or validate(). Losing it costs one HTTP request.
 const WEATHER_KEY = 'weatherCache';
+// Forecast accuracy log: what the panel projected, so it can later be scored
+// against what the roof actually produced. Like the weather cache, it lives
+// OUTSIDE `state` - it is the app checking its own homework, not household
+// data, and it must never enter validate() or the backup file. Losing it
+// costs the measured error bars until a few weeks of days rebuild them.
+const FORECAST_LOG_KEY = 'forecastLog';
 
 let _dbp = null;
 function db() {
@@ -77,6 +83,17 @@ export async function putWeatherCache(cache) {
   return cache;
 }
 
+// --- Forecast accuracy log (never part of the backup) ----------------------
+// Read/written by data/forecast.js via data/forecastAccuracy.js.
+export async function getForecastLog() {
+  return (await (await db()).get(STORE, FORECAST_LOG_KEY)) ?? null;
+}
+
+export async function putForecastLog(log) {
+  await (await db()).put(STORE, log, FORECAST_LOG_KEY);
+  return log;
+}
+
 // Validate + forward-migrate a parsed backup object, then replace the store.
 // Throws SchemaError on any problem WITHOUT touching the existing store
 // (no partial load).
@@ -112,6 +129,9 @@ export async function resetState() {
   };
   await putState(empty);
   await (await db()).delete(STORE, META_KEY);
+  // The accuracy log is scored against dailySeries; with the store wiped it
+  // would score against nothing and report a phantom history.
+  await (await db()).delete(STORE, FORECAST_LOG_KEY);
   return empty;
 }
 
