@@ -290,11 +290,83 @@ Cloudflare Pages available) would give the app its own origin. Deliberately
 not done yet — it needs a domain decision and a data migration, since moving
 origin leaves the old IndexedDB behind (export first, restore after).
 
-Cloud sync was explicitly **considered and declined** (2026-08) in favour of
-local hardening. If it's ever revisited: the bundle is public, so it can
-never carry an API token; encrypt client-side with the existing
-`data/crypto.js` so the backend only ever holds ciphertext, and gate access
-with a real identity login rather than a bundled secret.
+Cloud **sync** was explicitly considered and declined (2026-08) in favour of
+local hardening, and remains declined. Cloud **backup** was built in 2026-09
+against the three conditions that decision set out - see the next section.
+The distinction is the whole point: nothing merges, nothing writes in the
+background, and IndexedDB is still the only source of truth.
+
+## Encrypted cloud backup (since v2.13)
+
+`data/cloud.js` + `components/Ingest/CloudBackup.jsx`, backed by one Supabase
+table (`supabase/migrations/0001_backups.sql`). This is the second networked
+feature in the app, and it exists only because it answers, one by one, the
+three conditions the 2026-08 cloud-sync refusal set:
+
+- **"The bundle can never carry an API token."** It doesn't. `cloudKeys.js`
+  holds a Supabase *publishable* key, which names the project and authorises
+  nothing: every row sits behind RLS keyed on `auth.uid()`, so without a
+  signed-in session the key reads nothing and writes nothing. Do not confuse
+  this with a weather API key, where the key *is* the authorisation - that
+  kind is still forbidden.
+- **"Encrypt client-side so the backend only holds ciphertext."** `encryptJson()`
+  from the existing `data/crypto.js` runs before the row is built, and there is
+  **no plaintext upload path to pick by accident**. `pullSnapshot()` refuses any
+  row that is not an encrypted envelope rather than importing it - plaintext in
+  that table would mean the encryption path was bypassed, which is a bug to fail
+  loudly on. Don't add a "skip encryption" option.
+- **"Gate access with a real identity login."** Email one-time code
+  (`signInWithOtp` + `verifyOtp`), PKCE flow so no token ever lands in a URL.
+  `shouldCreateUser: false` is the code half of a dashboard setting that is
+  equally load-bearing: **"Allow new users to sign up" must stay OFF.** With it
+  on, the public key lets a stranger open an account on the project. They still
+  could not read the household's rows, but they could burn the free tier.
+
+Rules that must not be broken:
+
+- **It is a SECOND backup, never the only one.** A free Supabase project pauses
+  after ~7 days idle and is deleted after 90 days paused, and this household
+  ingests monthly. `.github/workflows/supabase-keepalive.yml` pings it daily to
+  prevent that, but the file export in `ExportRestore.jsx` stays the primary
+  durability story and its stale-backup nag is untouched. `cloudStaleness()` in
+  `data/storage.js` is a **sibling** of `backupStaleness()`, deliberately not a
+  merge of it - two backups, two failure modes, two different fixes.
+- **The passphrase is never stored.** Every push and every pull asks for it.
+  That is the cost of ciphertext-only and it is the accepted trade, the same one
+  the encrypted file export already makes.
+- **What leaks, by choice:** `month_count`, `first_month`, `last_month` and
+  `app_version` are plaintext columns so the snapshot list is readable without
+  decrypting everything. That reveals "N months, dated X to Y" and nothing else -
+  no energy figure, no dollar figure, no location. If that is ever unwanted,
+  write them `null`; don't encrypt them separately, which would just move the
+  problem.
+- **The table is append-only.** There is deliberately no UPDATE policy, so a bad
+  push can never overwrite a good snapshot. The truncation guard
+  (`pushPreflight()`) is the same one the file export has had since v1.14.
+- **A restore goes through `importState()`**, so it hits exactly the same
+  validation and forward-migration choke point as a file restore. Never bypass
+  it.
+- **`authSession` and `cloudMeta` live outside `state`**, like `weatherCache` /
+  `forecastLog` / `notifyState`, and both are deleted by `resetState()`. The
+  session is a credential and must never travel inside a backup file. It is in
+  IndexedDB rather than localStorage - supabase-js is given a custom storage
+  adapter - so `db.js`'s "no localStorage for app data" rule survives having a
+  third-party client in the tree.
+- **`weatherCache`, `forecastLog` and `notifyState` are NOT uploaded.** They are
+  device-local by design; restoring them onto a new phone would report a phantom
+  history and start it notifying on someone else's schedule.
+- **No background push and no service-worker involvement.** A background push
+  would need the passphrase, which is never stored. `src/sw.js` is untouched, and
+  nothing auto-syncs on `putState` - nine call sites each rewrite the whole
+  document, so auto-pushing would send ~300 KB when one tariff row is edited.
+- **The page is lazily loaded.** It is the only importer of the Supabase client
+  (~62 kB gzipped); a household that never turns the feature on should not pay
+  for it on first paint. Keep the `lazy()`/`Suspense` boundary in
+  `IngestWizard.jsx` if you touch that file.
+
+Still rejected on unchanged grounds: two-way sync, Web Push (still needs a
+server holding a VAPID private key), and proxying Open-Meteo through an Edge
+Function (it is keyless, so there is nothing to hide).
 
 ## Daily series (since v2.0)
 

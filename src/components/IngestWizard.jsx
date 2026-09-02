@@ -26,7 +26,7 @@
 // and nothing is hidden behind a horizontal scroll (see the note in CLAUDE.md
 // about the 12-month table, where a scroll hides the rightmost column).
 
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { parseFronius } from '../ingest/parseFronius.js';
 import { parseWattpilot } from '../ingest/parseWattpilot.js';
 import { parseSynergy } from '../ingest/parseSynergy.js';
@@ -41,6 +41,10 @@ import EvSessionsUploader from './Ingest/EvSessionsUploader.jsx';
 import PaybackSettingsEditor from './Ingest/PaybackSettingsEditor.jsx';
 import NotificationSettings from './Ingest/NotificationSettings.jsx';
 import ExportRestore from './ExportRestore.jsx';
+// Lazily loaded: it is the only importer of the Supabase client, which is
+// ~62 kB gzipped. A household that never turns cloud backup on should not pay
+// for it on first paint, and one that does pays once, on opening this page.
+const CloudBackup = lazy(() => import('./Ingest/CloudBackup.jsx'));
 
 const APP_VERSION = 'app_v1';
 const empty = { fronius: null, wattpilot: null, synergy: null };
@@ -86,6 +90,10 @@ const PAGES = [
   {
     key: 'backup', group: 'Setup', label: 'Backup',
     blurb: 'Export a copy, restore one, or clear what is stored in this browser.'
+  },
+  {
+    key: 'cloud', group: 'Setup', label: 'Cloud Backup',
+    blurb: 'Keep an encrypted second copy off this device, in case the browser loses it.'
   }
 ];
 
@@ -130,7 +138,7 @@ function previewValue(key, value) {
 // stale-backup banner's "Back up now") can jump straight to a page here, and
 // null means the index.
 export default function IngestWizard({
-  state, appMeta, page, onPageChange, onChange, onIngested
+  state, appMeta, cloudMeta, page, onPageChange, onChange, onIngested
 }) {
   const [files, setFiles] = useState(empty);
   const [manual, setManual] = useState({
@@ -324,6 +332,11 @@ export default function IngestWizard({
       {page === 'payback' && <PaybackSettingsEditor state={state} onChange={onChange} />}
       {page === 'alerts' && <NotificationSettings state={state} />}
       {page === 'backup' && <ExportRestore state={state} appMeta={appMeta} onChange={onChange} />}
+      {page === 'cloud' && (
+        <Suspense fallback={<p className="small">Loading cloud backup…</p>}>
+          <CloudBackup state={state} cloudMeta={cloudMeta} onChange={onChange} />
+        </Suspense>
+      )}
 
       {page === 'upload' && preview && (() => {
         const rows = Object.entries(preview.digest).map(([k, v]) => [k, v, rowStatus(k, v)]);

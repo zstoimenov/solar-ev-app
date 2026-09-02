@@ -13,6 +13,24 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.13.0',
+    date: '2026-09-02',
+    changes: [
+      'Your data can now be backed up off this phone, encrypted. Data → Cloud ' +
+        'Backup asks for a passphrase, scrambles the whole store on this device, ' +
+        'and uploads only the scrambled version, so the service holding it cannot ' +
+        'read a single figure. On a new phone, sign in and pull it back.',
+      'Signing in is a code emailed to you - there is no password to keep.',
+      'The passphrase cannot be recovered. If you lose it, that copy is gone, ' +
+        'so use the same one each time and write it down somewhere safe.',
+      'This is a SECOND copy, not a replacement for the file backup. Keep ' +
+        'exporting files as well: the free cloud service goes to sleep when it ' +
+        'is not used, and is cleared out if it sleeps for three months.',
+      'The Data screen now nags separately when the cloud copy has fallen ' +
+        'behind, the same way it already nags about the file backup.'
+    ]
+  },
+  {
     version: 'v2.12.0',
     date: '2026-09-02',
     changes: [

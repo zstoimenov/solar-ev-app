@@ -18,7 +18,7 @@ import React, { useState } from 'react';
 import IngestWizard from '../IngestWizard.jsx';
 import StorageHealth from '../StorageHealth.jsx';
 
-export default function DataScreen({ state, appMeta, onChange, onIngested }) {
+export default function DataScreen({ state, appMeta, cloudMeta, onChange, onIngested }) {
   const [page, setPage] = useState(null);
 
   return (
@@ -26,14 +26,20 @@ export default function DataScreen({ state, appMeta, onChange, onIngested }) {
       <StorageHealth
         state={state}
         appMeta={appMeta}
+        cloudMeta={cloudMeta}
         onBackup={() => {
           setPage('backup');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        onCloudBackup={() => {
+          setPage('cloud');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
       <IngestWizard
         state={state}
         appMeta={appMeta}
+        cloudMeta={cloudMeta}
         page={page}
         onPageChange={(next) => {
           setPage(next);

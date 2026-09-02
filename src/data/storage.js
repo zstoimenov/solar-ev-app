@@ -104,3 +104,30 @@ export function backupStaleness({ monthCount, lastExportedCount, lastExportedAt 
   }
   return null;
 }
+
+// The same question asked of the CLOUD copy. A sibling of backupStaleness()
+// rather than a change to it: the two are different backups with different
+// failure modes and different fixes (find the file / press the button), and
+// merging them would repeat the mistake the comment above warns about.
+//
+// Returns null when cloud backup is switched off - an unused feature is not
+// a problem to nag about.
+export function cloudStaleness({ enabled, monthCount, lastPushedCount, lastPushedAt }) {
+  if (!enabled) return null;
+  if (monthCount === 0) return null;
+  if (lastPushedCount == null) {
+    return { level: 'warn', text: 'Nothing has been backed up to the cloud yet.' };
+  }
+  const unpushed = monthCount - lastPushedCount;
+  if (unpushed > 0) {
+    return {
+      level: 'warn',
+      text: `${unpushed} month${unpushed === 1 ? '' : 's'} ingested since your last cloud backup.`
+    };
+  }
+  const age = daysSince(lastPushedAt);
+  if (age != null && age >= STALE_BACKUP_DAYS) {
+    return { level: 'warn', text: `Last cloud backup was ${age} days ago.` };
+  }
+  return null;
+}

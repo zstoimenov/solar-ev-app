@@ -28,6 +28,18 @@ const FORECAST_LOG_KEY = 'forecastLog';
 // and a restore should not start a new phone notifying on someone else's
 // schedule. Written by both the app and the service worker.
 const NOTIFY_KEY = 'notifyState';
+// The Supabase session for the optional encrypted cloud backup. Outside
+// `state` like the three above, and for the strongest reason of them all: it
+// is a credential, not household data, and it must never travel inside a
+// backup file that gets saved to Notion. It lives here rather than in
+// localStorage so the rule in this file's header still holds now that a
+// third-party client is in the tree - supabase-js is handed these as a custom
+// storage adapter rather than being left on its default.
+const AUTH_KEY = 'authSession';
+// What the last successful cloud push contained: the same guard inputs
+// appMeta holds for the file export, kept separate because the two are
+// different backups that fail in different ways and are fixed differently.
+const CLOUD_KEY = 'cloudMeta';
 
 let _dbp = null;
 function db() {
@@ -110,6 +122,42 @@ export async function putNotifyState(next) {
   return next;
 }
 
+// --- Cloud session + push bookkeeping (never part of the backup) -----------
+// Read/written by data/cloud.js. getAuthSession/putAuthSession/delAuthSession
+// are shaped as a key-value pair because supabase-js's storage adapter asks
+// for getItem/setItem/removeItem; the wrapper lives in cloud.js so this file
+// keeps knowing nothing about that library.
+export async function getAuthSession() {
+  return (await (await db()).get(STORE, AUTH_KEY)) ?? null;
+}
+
+export async function putAuthSession(value) {
+  await (await db()).put(STORE, value, AUTH_KEY);
+  return value;
+}
+
+export async function delAuthSession() {
+  await (await db()).delete(STORE, AUTH_KEY);
+}
+
+// Spread over the defaults for the same reason getAppMeta() does: a record
+// written by an earlier version must read back as null, not undefined.
+export async function getCloudMeta() {
+  const stored = await (await db()).get(STORE, CLOUD_KEY);
+  return { lastPushedAt: null, lastPushedCount: null, lastPushedId: null, ...(stored ?? {}) };
+}
+
+// Called only on a completed push, never on a pull - the mirror of
+// recordExport()'s rule, and for the same reason: a restore is not a backup.
+export async function recordCloudPush({ count, id }) {
+  const meta = await getCloudMeta();
+  meta.lastPushedCount = count;
+  meta.lastPushedId = id;
+  meta.lastPushedAt = new Date().toISOString();
+  await (await db()).put(STORE, meta, CLOUD_KEY);
+  return meta;
+}
+
 // Validate + forward-migrate a parsed backup object, then replace the store.
 // Throws SchemaError on any problem WITHOUT touching the existing store
 // (no partial load).
@@ -149,6 +197,10 @@ export async function resetState() {
   // would score against nothing and report a phantom history.
   await (await db()).delete(STORE, FORECAST_LOG_KEY);
   await (await db()).delete(STORE, NOTIFY_KEY);
+  // A wiped store must not keep a signed-in session, nor claim a cloud push
+  // it can no longer account for.
+  await (await db()).delete(STORE, AUTH_KEY);
+  await (await db()).delete(STORE, CLOUD_KEY);
   return empty;
 }
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { loadOrSeed } from './data/seed.js';
-import { getState, getAppMeta } from './data/db.js';
+import { getState, getAppMeta, getCloudMeta } from './data/db.js';
 import { recomputeCumulative } from './data/compute.js';
 import { APP_VERSION } from './version.js';
 import HealthBanner from './components/HealthBanner.jsx';
@@ -46,6 +46,9 @@ const DEFAULT_MONTH_WINDOW = 12;
 export default function App() {
   const [state, setState] = useState(null);
   const [appMeta, setAppMeta] = useState({ lastExportedCount: null, lastExportedAt: null });
+  // Cloud push bookkeeping, loaded alongside appMeta so the stale-backup
+  // banner can speak for both backups from one refresh.
+  const [cloudMeta, setCloudMeta] = useState({ lastPushedAt: null, lastPushedCount: null, lastPushedId: null });
   const [loadError, setLoadError] = useState(null);
   const [screen, setScreen] = useState('Home');
   const [notesOpen, setNotesOpen] = useState(false);
@@ -53,9 +56,10 @@ export default function App() {
   const [toMonth, setToMonth] = useState(null);
 
   const refresh = useCallback(async () => {
-    const [s, m] = await Promise.all([getState(), getAppMeta()]);
+    const [s, m, c] = await Promise.all([getState(), getAppMeta(), getCloudMeta()]);
     setState(s);
     setAppMeta(m);
+    setCloudMeta(c);
   }, []);
 
   useEffect(() => {
@@ -100,7 +104,7 @@ export default function App() {
           personal data. Load your private JSON backup file below to restore your
           dataset — it is then stored only in this browser (IndexedDB) and never uploaded.
         </div>
-        <StorageHealth state={state} appMeta={appMeta} onBackup={() => {}} />
+        <StorageHealth state={state} appMeta={appMeta} cloudMeta={cloudMeta} onBackup={() => {}} />
         <div className="panel">
           <h2>Restore your data</h2>
           <ExportRestore state={state} appMeta={appMeta} onChange={refresh} />
@@ -210,6 +214,7 @@ export default function App() {
         <DataScreen
           state={state}
           appMeta={appMeta}
+          cloudMeta={cloudMeta}
           onChange={refresh}
           onIngested={() => setScreen('Home')}
         />

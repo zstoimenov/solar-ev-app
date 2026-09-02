@@ -1,0 +1,46 @@
+# Keeps the free-tier Supabase project awake.
+#
+# Supabase pauses a free project after ~7 days of low activity, and its own
+# guidance is that "a few user requests to the database each day" is what
+# prevents it. This household ingests once a month, so without this the cloud
+# backup would routinely be asleep at the moment it is needed. A paused
+# project can be resumed from the dashboard for 90 days and is deleted after
+# that - which is exactly why the file export in the Backup page remains the
+# primary backup and this is only the second copy.
+#
+# The request moves no data: it asks for at most one id, and row-level
+# security means the anon key it uses can read nothing anyway. The key is the
+# same publishable one already in the public bundle (src/data/cloudKeys.js),
+# so there is no secret here to leak.
+
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '17 21 * * *' # daily, 05:17 Perth time
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the REST endpoint
+        env:
+          SUPABASE_URL: https://xlhqigvzwavidsiwojiy.supabase.co
+          SUPABASE_KEY: sb_publishable_2e2eIVRO9BrZA7JF4o2L-w_PF_7lV1f
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "apikey: ${SUPABASE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_KEY}" \
+            "${SUPABASE_URL}/rest/v1/backups?select=id&limit=1")
+          echo "HTTP ${code}"
+          # 200 is a live project answering with zero rows (RLS hides them all
+          # from an anon caller, which is the point). 540 is Supabase's own
+          # "project paused" code and means this job started running too late
+          # to help - fail so it is visible rather than silently useless.
+          case "${code}" in
+            200|206) echo "Project is awake." ;;
+            540) echo "::error::Project is PAUSED - resume it in the Supabase dashboard."; exit 1 ;;
+            *) echo "::error::Unexpected status ${code}."; exit 1 ;;
+          esac
