@@ -93,12 +93,11 @@ function client() {
         storageKey: 'roi-app-auth',
         persistSession: true,
         autoRefreshToken: true,
-        // PKCE, not implicit: the magic link comes back with a short-lived
-        // code in the query string rather than the access token itself, so no
-        // session token ever lands in a URL that could be precached, shared
-        // or left in history. The verifier is held by the adapter above.
-        detectSessionInUrl: true,
-        flowType: 'pkce'
+        // Nothing arrives by URL any more - sign-in is email + password, so
+        // there is no redirect to parse. Left off rather than harmlessly on,
+        // so the client never inspects the address bar of a page that also
+        // shows household data.
+        detectSessionInUrl: false
       }
     });
   }
@@ -130,45 +129,63 @@ function toCloudError(error, fallback) {
 }
 
 // --- Sign in ---------------------------------------------------------------
-// Email one-time code rather than a password: nothing to store, and no
-// password field on a page anyone can open. The household types the 6-digit
-// code from the email, or follows the link.
-export async function signInWithEmail(email) {
+// Email + PASSWORD, not the emailed one-time code this started as. The switch
+// was forced by what the free tier actually does, and each reason is a hard
+// blocker rather than an inconvenience:
+//
+//   - Supabase's built-in mail server only delivers to addresses on the
+//     project ORGANISATION's team. Any other address fails with "Email
+//     address not authorized" and no message is ever sent.
+//   - Customising the Magic Link template (needed to put {{ .Token }} in the
+//     email, because signInWithOtp sends a LINK by default) was not available
+//     on this project, so there was no six-digit code to type.
+//   - A PKCE magic link only completes in the browser that requested it. On a
+//     phone, a link opened from a mail app frequently lands somewhere else.
+//
+// A password removes all three: no message is sent, so nothing can fail to
+// arrive. The account is still created by hand in the dashboard and signups
+// stay off, so this is not a way to register - only to prove who you are.
+//
+// The earlier objection ("no password field on a page anyone can open") does
+// not survive contact with how this works: the password is verified by
+// Supabase, never by the bundle; the bundle holds no secret either way; RLS
+// still scopes every row to the signed-in user; and the backup itself is
+// encrypted with a SEPARATE passphrase, so a stolen password yields
+// ciphertext and nothing else.
+export async function signInWithPassword(email, password) {
   const trimmed = (email ?? '').trim();
-  if (!trimmed) throw new CloudError('Enter the email address for your Supabase account.');
-  const { error } = await client().auth.signInWithOtp({
-    email: trimmed,
-    options: {
-      // Never silently create an account for an unknown address - the code
-      // half of the dashboard's "signups off" setting.
-      shouldCreateUser: false,
-      // The app's own base URL, which is what has to be allowlisted in
-      // Supabase's URL configuration. window.location.href would carry a
-      // stale query or fragment into the allowlist check.
-      emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`
-    }
-  });
+  const pass = password ?? '';
+  if (!trimmed) throw new CloudError('Enter the email address of your Supabase account.');
+  if (!pass) throw new CloudError('Enter the password for your Supabase account.');
+
+  const { data, error } = await client().auth.signInWithPassword({ email: trimmed, password: pass });
   if (error) {
-    // shouldCreateUser:false is the code-side half of "signups are off": an
-    // unknown address must not silently become a new account.
-    if (/signup|not found|disabled/i.test(error.message ?? '')) {
+    const m = error.message ?? '';
+    // Three different failures that used to collapse into one misleading
+    // message. Each names its own remedy, because the fix for each is in a
+    // different place and guessing wrong costs an afternoon.
+    if (/logins? are disabled|email logins/i.test(m)) {
       throw new CloudError(
-        'No account exists for that address. Cloud backup is set up for one ' +
-        'household account only.'
+        'Email sign-in is switched off for this Supabase project. Turn the ' +
+        'Email provider on under Authentication -> Sign In / Providers.'
       );
     }
-    throw toCloudError(error, 'Could not send the sign-in code.');
+    if (/email not confirmed|not confirmed/i.test(m)) {
+      throw new CloudError(
+        'That account exists but its email was never confirmed. In the Supabase ' +
+        'dashboard, open Authentication -> Users, and confirm the address.'
+      );
+    }
+    if (/invalid login credentials|invalid.*password/i.test(m)) {
+      throw new CloudError(
+        'That email and password were not accepted. If the account has not been ' +
+        'created yet, make it once in the Supabase dashboard under ' +
+        'Authentication -> Users -> Add user (tick "Auto Confirm User"). The app ' +
+        'deliberately cannot create accounts.'
+      );
+    }
+    throw toCloudError(error, 'Could not sign in.');
   }
-  return true;
-}
-
-export async function verifyOtp(email, token) {
-  const code = (token ?? '').trim();
-  if (!code) throw new CloudError('Enter the code from the email.');
-  const { data, error } = await client().auth.verifyOtp({
-    email: (email ?? '').trim(), token: code, type: 'email'
-  });
-  if (error) throw toCloudError(error, 'That code was not accepted. Codes expire - request a new one.');
   return data?.user ?? null;
 }
 

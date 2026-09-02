@@ -15,7 +15,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   cloudConfig, saveCloudEnabled,
-  signInWithEmail, verifyOtp, signOut, currentUser,
+  signInWithPassword, signOut, currentUser,
   pushPreflight, pushSnapshot, listSnapshots, pullSnapshot, deleteSnapshot
 } from '../../data/cloud.js';
 import InfoPopover from '../InfoPopover.jsx';
@@ -35,8 +35,7 @@ export default function CloudBackup({ state, cloudMeta, onChange }) {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
+  const [password, setPassword] = useState('');
   const [passphrase, setPassphrase] = useState('');
   const [snapshots, setSnapshots] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -89,24 +88,18 @@ export default function CloudBackup({ state, cloudMeta, onChange }) {
       await saveCloudEnabled(false);
       setUser(null);
       setSnapshots([]);
+      setPassword('');
       onChange?.();
     });
   }
 
-  async function handleSendCode() {
+  async function handleSignIn() {
     await run(async () => {
-      await signInWithEmail(email);
-      setCodeSent(true);
-      setMsg({ type: 'ok', text: `Sent a sign-in code to ${email.trim()}. It expires shortly.` });
-    });
-  }
-
-  async function handleVerify() {
-    await run(async () => {
-      const u = await verifyOtp(email, code);
+      const u = await signInWithPassword(email, password);
       setUser(u);
-      setCode('');
-      setCodeSent(false);
+      // Held only long enough to sign in. The session that follows is what
+      // persists; there is no reason to keep the password in component state.
+      setPassword('');
       await refreshSnapshots();
       setMsg({ type: 'ok', text: 'Signed in.' });
     });
@@ -117,6 +110,7 @@ export default function CloudBackup({ state, cloudMeta, onChange }) {
       await signOut();
       setUser(null);
       setSnapshots([]);
+      setPassword('');
       setMsg({ type: 'ok', text: 'Signed out on this device.' });
     });
   }
@@ -175,8 +169,8 @@ export default function CloudBackup({ state, cloudMeta, onChange }) {
       Your whole store is encrypted on this device with AES-GCM, using a key derived
       from the passphrase you type, and only the resulting ciphertext is uploaded.
       Supabase holds bytes it cannot read, and the passphrase is never stored or sent.
-      Access is gated by a sign-in code emailed to your account, and row-level security
-      means the project&apos;s public key on its own can read nothing.
+      Access is gated by a Supabase account sign-in, and row-level security means the
+      project&apos;s public key on its own can read nothing.
       Four small details are stored readable so this list is usable without decrypting
       everything: how many months a snapshot holds, its first and last month, and the
       app version. No energy or dollar figure, and no location.
@@ -220,32 +214,38 @@ export default function CloudBackup({ state, cloudMeta, onChange }) {
 
       {!checking && !user && (
         <>
+          <p className="small">
+            The account is created once in the Supabase dashboard, not from here -
+            this app deliberately cannot register new accounts. Signing in is
+            needed once per device; after that the session persists.
+          </p>
           <label className="field">
             <span>Account email</span>
             <input
-              type="email" value={email} autoComplete="email"
+              type="email" value={email} autoComplete="username"
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
             />
           </label>
-          {codeSent && (
-            <label className="field">
-              <span>Sign-in code from the email</span>
-              <input
-                type="text" inputMode="numeric" value={code}
-                onChange={(e) => setCode(e.target.value)} placeholder="123456"
-              />
-            </label>
-          )}
+          <label className="field">
+            <span>Account password</span>
+            <input
+              type="password" value={password} autoComplete="current-password"
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && email.trim() && password) handleSignIn(); }}
+            />
+          </label>
+          <p className="small">
+            This is the Supabase account password, and it is <strong>not</strong> the
+            passphrase that encrypts your backup. They are two different secrets on
+            purpose: this one only proves who you are, and can be reset from the
+            dashboard; the passphrase is what makes the data unreadable, and cannot.
+          </p>
           <div className="row" style={{ marginTop: '.5rem' }}>
-            <button className="primary" onClick={handleSendCode} disabled={busy || !email.trim()}>
-              {codeSent ? 'Send another code' : 'Send me a sign-in code'}
-            </button>
-            {codeSent && (
-              <button className="primary" onClick={handleVerify} disabled={busy || !code.trim()}>
-                Sign in
-              </button>
-            )}
+            <button
+              className="primary" onClick={handleSignIn}
+              disabled={busy || !email.trim() || !password}
+            >Sign in</button>
             <button className="ghost" onClick={handleDisable} disabled={busy}>Turn off</button>
           </div>
         </>

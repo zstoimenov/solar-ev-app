@@ -315,12 +315,41 @@ three conditions the 2026-08 cloud-sync refusal set:
   row that is not an encrypted envelope rather than importing it - plaintext in
   that table would mean the encryption path was bypassed, which is a bug to fail
   loudly on. Don't add a "skip encryption" option.
-- **"Gate access with a real identity login."** Email one-time code
-  (`signInWithOtp` + `verifyOtp`), PKCE flow so no token ever lands in a URL.
-  `shouldCreateUser: false` is the code half of a dashboard setting that is
-  equally load-bearing: **"Allow new users to sign up" must stay OFF.** With it
-  on, the public key lets a stranger open an account on the project. They still
+- **"Gate access with a real identity login."** Supabase Auth, email +
+  password (`signInWithPassword`). **"Allow new users to sign up" must stay
+  OFF**, and the app has no registration path at all - with signups on, the
+  public key would let a stranger open an account on the project. They still
   could not read the household's rows, but they could burn the free tier.
+
+**The account is created by hand, once, in the dashboard** (Authentication ->
+Users -> Add user, with a password and "Auto Confirm User" ticked). Nothing in
+the app can create it, and nothing in the app should be changed so it can.
+Note the ordering trap this creates: turning signups off *before* the account
+exists locks you out of your own project, and the dashboard is the only way
+back in. That exact sequence cost an afternoon on 2026-09-02.
+
+**Why password and not the emailed one-time code this shipped with.** The OTP
+version was written first and could not work on a free project. Three
+independent blockers, all discovered only against the live project:
+
+- Supabase's built-in mail server **only delivers to addresses on the
+  organisation's team**. Every other address fails with "Email address not
+  authorized" and no message is sent. A custom SMTP provider is the only fix,
+  and that is a whole external dependency for one household's login.
+- `signInWithOtp` sends a **magic link, not a code**, unless the Magic Link
+  template is edited to include `{{ .Token }}` - and template customisation was
+  not available on this project. The app's UI asked for six digits that the
+  email never contained.
+- A PKCE magic link only completes **in the browser that requested it**. Tapping
+  a link from a phone's mail app routinely opens a different one.
+
+A password sends no message, so none of the three can occur. The old objection
+("no password field on a public page") does not hold up: the password is checked
+by Supabase and never by the bundle, the bundle carries no secret either way,
+RLS still scopes every row, and the backup is encrypted with a **separate**
+passphrase - so a stolen password buys ciphertext. Keep the two secrets
+distinct and say so in the UI: the password is resettable, the passphrase is
+not.
 
 Rules that must not be broken:
 
