@@ -624,59 +624,106 @@ header.top .date-range-filter { flex-shrink: 0; }
 .delta-note { margin: .35rem 0 0; font-size: .72rem; color: var(--muted); }
 
 /* --- 7-day solar forecast -----------------------------------------------
-   Arranged around the decision, not the calendar: a verdict block, then only
-   the days this household acts on (today, tomorrow, the weekend, and the
-   standout day when it is none of those). Magnitude is length on a shared
-   scale and the range IS the bar, so uncertainty never has to be a footnote.
-   The best day is marked by a left rule and a word as well as brightness. */
+   Arranged around the decision, not the calendar: a one-line verdict, the
+   whole week as ONE strip of seven columns on a shared scale, then a card
+   saying everything about whichever column is selected.
+
+   It replaced two full day rows + a sparkline + the weekend card (v2.14) -
+   three renderings of one week, four to five lines of prose per day, and a
+   panel taller than the phone. The strip is the single rendering; the card
+   is where the words went.
+
+   ONE hue throughout, because this is a magnitude: height and brightness
+   carry it and nothing here is a category. The best day gets a dot and a
+   name in the verdict, the selected day a ring and the card below - colour
+   is never the only thing saying which is which. */
 .fc-verdict {
   background: var(--panel-2); border: 1px solid rgba(250, 204, 21, .28);
-  border-radius: 10px; padding: .75rem .85rem; margin-bottom: .9rem;
+  border-radius: 10px; padding: .6rem .85rem; margin-bottom: .8rem;
 }
-.fc-verdict .label { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
-.fc-verdict-head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin-top: .2rem; }
-.fc-verdict-day { font-size: 1.6rem; font-weight: 700; color: var(--accent); letter-spacing: -.02em; line-height: 1.1; }
-.fc-verdict-value { font-size: .95rem; font-weight: 600; color: var(--text); }
-.fc-verdict-sub { font-size: .8rem; color: var(--muted); margin-top: .3rem; line-height: 1.45; text-wrap: pretty; }
+.fc-verdict-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.fc-verdict .label { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; }
+.fc-verdict-head { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; margin-top: .1rem; }
+.fc-verdict-day { font-size: 1.45rem; font-weight: 700; color: var(--accent); letter-spacing: -.02em; line-height: 1.15; }
+.fc-verdict-value { font-size: .95rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.fc-verdict-lift {
+  font-size: .68rem; color: var(--muted); white-space: nowrap;
+  border: 1px solid var(--border); border-radius: 999px; padding: .05rem .4rem;
+}
 
-.fc-rows { display: flex; flex-direction: column; gap: .8rem; }
-.fc-rows-rest { margin-top: .8rem; }
-.fc-row { padding-left: .5rem; border-left: 3px solid transparent; }
-.fc-row.best { border-left-color: var(--accent); }
-.fc-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
-.fc-row-name { font-size: .84rem; font-weight: 600; min-width: 0; }
-.fc-row-date { display: block; font-size: .68rem; font-weight: 400; color: var(--muted); margin-top: .1rem; }
-.fc-row-value { font-size: .84rem; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* The week strip. Seven equal columns; the 2px grid gap is the surface
+   spacer that keeps adjacent fills from reading as one block. */
+.fc-strip {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px; align-items: end;
+}
+.fc-col {
+  display: flex; flex-direction: column; align-items: center; gap: .15rem;
+  min-width: 0; padding: .3rem .1rem .35rem; border: 1px solid transparent;
+  border-radius: 10px; background: transparent; color: var(--text);
+  font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+/* Saturday and Sunday stay findable without a legend - a barely-there wash
+   plus a label in full-strength ink. The wash alone was a slab that competed
+   with the selection ring for attention. */
+.fc-col.weekend { background: rgba(255, 255, 255, .02); }
+.fc-col.weekend .fc-col-label { color: var(--text); }
+.fc-col.selected { border-color: rgba(250, 204, 21, .55); background: var(--panel-2); }
+.fc-col-flag { height: .5rem; font-size: .5rem; line-height: .5rem; color: var(--accent); }
+.fc-col-sky { color: var(--muted); line-height: 0; }
+.fc-col.best .fc-col-sky, .fc-col.selected .fc-col-sky { color: var(--text); }
+.fc-col-value {
+  font-size: .7rem; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+}
+.fc-col.best .fc-col-value, .fc-col.selected .fc-col-value { color: var(--text); }
 
-/* The range bar: the dim extent is the likely range, the bright line is the
-   middle of it. One hue throughout - length carries the magnitude. */
-.fc-track {
-  position: relative; height: 10px; border-radius: 5px;
-  background: var(--panel-2); margin-top: .35rem;
+/* The column itself: a solid stem to the LOW end of the likely range, a dim
+   extent to the HIGH end, and a bright line at the middle - the figure
+   quoted everywhere else. Uncertainty is the bar, not a footnote. */
+.fc-col-track {
+  display: block; position: relative; width: 100%; max-width: 22px; height: 88px;
+  border-bottom: 1px solid var(--border);
 }
-.fc-band { position: absolute; top: 0; bottom: 0; background: rgba(250, 204, 21, .22); border-radius: 5px; }
-.fc-row.best .fc-band { background: rgba(250, 204, 21, .34); }
-.fc-mark {
-  position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1.5px;
-  background: rgba(250, 204, 21, .8); border-radius: 2px;
+.fc-col-stack {
+  display: block; position: absolute; left: 0; right: 0; bottom: 0;
+  border-radius: 4px 4px 0 0; overflow: hidden;
 }
-.fc-row.best .fc-mark { background: var(--accent); }
-.fc-fill { height: 100%; background: rgba(250, 204, 21, .5); border-radius: 5px; }
-.fc-row.best .fc-fill { background: var(--accent); }
-.fc-row-note { font-size: .72rem; color: var(--muted); margin-top: .3rem; line-height: 1.4; text-wrap: pretty; }
+.fc-col-band { position: absolute; inset: 0; background: rgba(250, 204, 21, .18); }
+.fc-col-solid { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(250, 204, 21, .42); }
+.fc-col-mark { position: absolute; left: 0; right: 0; height: 2px; background: rgba(250, 204, 21, .85); }
+.fc-col.best .fc-col-band { background: rgba(250, 204, 21, .3); }
+.fc-col.best .fc-col-solid { background: rgba(250, 204, 21, .68); }
+.fc-col.best .fc-col-mark, .fc-col.selected .fc-col-mark { background: var(--accent); }
+.fc-col.selected .fc-col-solid { background: rgba(250, 204, 21, .6); }
+.fc-col-label {
+  font-size: .64rem; color: var(--muted); max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fc-col.selected .fc-col-label { color: var(--text); font-weight: 600; }
 
-/* The other days stay one tap away rather than gone - this is also where a
-   rotating day off gets looked up. */
-.fc-more {
-  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
-  width: 100%; min-height: 44px; margin-top: .9rem; padding: .4rem .75rem;
-  background: transparent; color: var(--text); border: 1px solid var(--border);
-  border-radius: 10px; font: inherit; cursor: pointer;
+/* The selected day in full - the day rows' four lines of prose, for one day
+   at a time instead of two days at once. */
+.fc-detail {
+  background: var(--panel-2); border-radius: 10px;
+  padding: .65rem .85rem; margin-top: .7rem;
 }
-.fc-more:hover { background: rgba(255, 255, 255, .04); }
-.fc-spark { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
-.fc-spark span { width: 5px; background: rgba(250, 204, 21, .35); border-radius: 3px; }
-.fc-spark span.best { background: var(--accent); }
+.fc-detail-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: .5rem; flex-wrap: wrap;
+}
+.fc-detail-day { font-size: .92rem; font-weight: 700; min-width: 0; }
+.fc-detail-date { font-weight: 400; color: var(--muted); font-size: .72rem; margin-left: .4rem; }
+.fc-detail-value { font-size: .92rem; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fc-detail-range { font-weight: 400; color: var(--muted); font-size: .7rem; margin-left: .35rem; }
+.fc-detail-stats {
+  display: flex; flex-wrap: wrap; gap: .3rem .9rem;
+  margin-top: .4rem; font-size: .74rem; color: var(--muted);
+}
+.fc-detail-stat { display: inline-flex; align-items: center; gap: .28rem; }
+.fc-detail-stat strong { color: var(--text); font-weight: 600; }
+.fc-detail-icon { color: var(--muted); line-height: 0; }
+.fc-detail-note { font-size: .72rem; color: var(--accent); margin-top: .4rem; }
 
 /* The coming weekend as one card: two days side by side rather than two more
    full rows. The better day carries a tick and its name in the foot line, so
@@ -710,12 +757,9 @@ header.top .date-range-filter { flex-shrink: 0; }
    is the same accent the forecast panel uses, so the two read as the same
    quantity. The "now" line is dashed and labelled - a colour alone would not
    say what it marks. */
-.sun-curve { display: block; width: 100%; height: auto; margin: .5rem 0 .25rem; overflow: visible; }
+.sun-curve { display: block; width: 100%; height: auto; margin: .5rem 0 .25rem; overflow: hidden; }
 .sun-curve-tick { fill: var(--muted); font-size: 10px; }
 .sun-curve-row { display: flex; align-items: baseline; gap: .4rem; }
-
-/* Sunrise/sunset alongside a forecast row (Energy). */
-.fc-row-sun { font-size: .7rem; color: var(--muted); margin-top: .25rem; font-variant-numeric: tabular-nums; }
 
 .forecast-foot-row {
   display: flex; align-items: center; justify-content: space-between; gap: .5rem;

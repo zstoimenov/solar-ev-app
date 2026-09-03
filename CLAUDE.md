@@ -607,33 +607,49 @@ are the same ones that killed cloud sync:
   cool-down, and `useForecast` de-duplicates the two panels' fetches.
 
 **The panel is arranged around the decision, not the calendar** (v2.6, from
-the design canvas in `design/forecast/`). It leads with a verdict block
-naming the best day, then shows only the days this household acts on:
+the design canvas in `design/forecast/`; re-cut to a week strip in v2.14). It
+leads with a one-line verdict naming the best day, then draws the whole week
+once, then says everything about one day at a time:
 
-- **Today and tomorrow get a full row each** — the two days decided in the
-  next 24 hours. On a **Friday** Sunday joins as a third row, so the whole
-  weekend is on screen as rows and the card below drops out rather than
-  showing Saturday twice.
-- **The coming weekend is ONE card, not two more rows** (v2.7): the two days
-  side by side, each with its own figure and bar so they are directly
-  comparable, plus the combined total and spare-for-the-car. Saturday and
-  Sunday are when the car normally goes on the charger, so the weekend earns
-  a permanent place — but two more full rows made the panel too tall to take
-  in at a glance, which was the whole point of the rework. Any 7-day window
-  contains exactly one Saturday and one Sunday, so both are always available.
-  The card shows **only while both weekend days are still ahead of the rows
-  above**; from Friday onwards the rows are the weekend, so it drops out.
-- The remaining days are behind a "Rest of the week" toggle — one tap away,
-  never gone, and where a day off gets looked up.
-- **A rotating weekday off needs no configuration.** The verdict block names
-  the best day of the week whichever day it falls on, so the household sees
-  it on whatever day they are home. A shift-scheduling feature was considered
-  and rejected as more configuration than it is worth — don't add one.
-- **The range IS the bar**: the dim extent is the fitted 20th-80th percentile
-  band and the bright line is the middle of it, on one shared scale across
-  every row, so uncertainty is never a footnote. A monthly-fitted calibration
-  has no daily band, so those rows draw a plain fill instead and the
-  InfoPopover says why.
+- **The week is ONE strip of seven columns** (v2.14), on one shared scale.
+  This replaced two full day rows + a "Rest of the week" sparkline toggle —
+  three renderings of the same seven days, four to five lines of prose each,
+  735px closed and 1172px open on a 915px phone. Do not reintroduce per-day
+  rows: the strip is the "one fact, one rendering" rule applied to the panel
+  that broke it worst. Every day is permanently visible, so a **rotating
+  weekday off** no longer costs a tap to look up (and still needs no roster
+  configuration — a shift-scheduling feature was considered and rejected).
+- **The range IS the column**: a solid stem to the 20th percentile, a dim
+  extent to the 80th, and a bright line at the middle — the figure quoted
+  everywhere else. One shared scale across all seven, so uncertainty is never
+  a footnote. A monthly-fitted calibration has no daily band, so those columns
+  draw a plain fill and the InfoPopover says why.
+- **The per-day prose lives in ONE card that follows the selection**, not on
+  every row. It opens on today and carries the figure, the likely range, the
+  sky in a word, the temperatures, the spare-for-the-car figure and the
+  best/quietest note. Selection is held as a **date** and falls back to
+  `days[0]` when that date leaves the window — which is what happens the first
+  time the app is opened the next day.
+- **The coming weekend is still ONE card of its own** (v2.7, kept at v2.14):
+  the two days side by side with the combined total and spare. The strip
+  answers "which day of the week"; the card answers "which of the two", which
+  is the question actually asked on a Saturday morning. Sat/Sun also carry a
+  faint wash and full-strength labels in the strip so they are findable
+  without a legend. Unlike pre-v2.14 it no longer drops out from Friday — it
+  is not duplicating a row any more, because there are no rows.
+- **The sky glyph is cloud cover + rainfall** (v2.14) — four states
+  (clear / some cloud / overcast / showers-or-rain) from `cloudPct` and
+  `rainMm`, which the API already returned and the UI threw away. It is a
+  DAILY MEAN, so it can disagree with a bright kWh figure; the InfoPopover
+  says so. Every glyph carries a word in the detail card — never a picture
+  alone.
+- **Sunrise/sunset are NOT here** (v2.14). They were printed identically on
+  both featured rows and said nothing a household acts on twice; Home's
+  `SunCurve` shows them against the shape of the day, which is where they
+  mean something. Don't add them back to this panel.
+- **Colour is never the only encoding.** One hue throughout (the accent),
+  because this is a magnitude. The best day carries a dot AND is named in the
+  verdict; the selected day carries a ring AND is the card below.
 - "Spare for the car" is the measured surplus on comparable past days, with
   `typicalHouseLoadPerDay()` subtraction as the fallback (see above) — energy
   only, a whole-day figure, and labelled with whichever basis produced it.
@@ -663,6 +679,13 @@ full rows.
 - **Energy only, like the rest of the forecast.** Pricing an hour needs a
   time-of-day usage split for the whole household (see Plan Comparison's
   scope note); the curve is kWh and daylight, never dollars.
+- **Every point is clamped into the drawn window** (v2.14). The hour marks sit
+  at the MIDDLE of their hour, so the first and last of them fall half an hour
+  outside `[start, end]`; unclamped — and the SVG was `overflow: visible` —
+  the curve painted itself ~13px outside its own box at both ends, over the
+  panel's padding and almost to the card's edge. The SVG is now
+  `overflow: hidden` as well, so a future off-window point clips instead of
+  escaping. If you widen the drawn window, widen the clamp with it.
 - **Clock strings are never parsed into a `Date`.** `sunrise`/`sunset` arrive
   as local strings ("2026-09-02T06:23") because the request asks for
   `timezone=auto`, and they are formatted by splitting the string - the same

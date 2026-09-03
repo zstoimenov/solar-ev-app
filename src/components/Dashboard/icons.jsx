@@ -146,3 +146,46 @@ export function ClockIcon(props) {
     </svg>
   );
 }
+
+// --- Sky icons (the 7-day forecast strip) --------------------------------
+// Four states, picked from cloud cover and rainfall in
+// Dashboard/SolarForecast.jsx:skyFor(). Same 24px grid and 1.6 stroke as
+// everything above, drawn in currentColor so a column can dim its own glyph
+// without a second colour entering the palette. They carry a word in the
+// day's detail card, never a glyph alone.
+
+export function ClearIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <circle cx="12" cy="12" r="4.4" />
+      <path d="M12 2.4v2.2M12 19.4v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.4 12h2.2M19.4 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6" />
+    </svg>
+  );
+}
+
+export function PartlyCloudyIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <circle cx="8.6" cy="8.6" r="3.1" />
+      <path d="M8.6 2.6v1.6M3.4 8.6H1.8M4.9 4.9 3.8 3.8M12.3 4.9l1.1-1.1" />
+      <path d="M9.4 19.4h8.4a3.3 3.3 0 0 0 .5-6.6 4.6 4.6 0 0 0-8.7-1.2 3.4 3.4 0 0 0-.2 7.8Z" />
+    </svg>
+  );
+}
+
+export function CloudyIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <path d="M7.4 19.4h9.4a4 4 0 0 0 .6-8 5.4 5.4 0 0 0-10.2-1.4 3.7 3.7 0 0 0 .2 9.4Z" />
+    </svg>
+  );
+}
+
+export function RainIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <path d="M7.6 15.6h9a3.7 3.7 0 0 0 .6-7.4 5.1 5.1 0 0 0-9.7-1.3 3.5 3.5 0 0 0 .1 8.7Z" />
+      <path d="M9 18.4l-.8 2.4M12.4 18.4l-.8 2.4M15.8 18.4l-.8 2.4" />
+    </svg>
+  );
+}

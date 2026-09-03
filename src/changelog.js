@@ -13,6 +13,28 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.14.0',
+    date: '2026-09-03',
+    changes: [
+      'The 7-day forecast is now one picture instead of three. All seven days ' +
+        'stand side by side as columns you can compare at a glance, so a day ' +
+        'off no longer has to be looked up behind a toggle - it is already on ' +
+        'screen.',
+      'Tap any day to see it in full underneath: what it should give, the ' +
+        'likely range, the temperatures, and how much is going spare for the ' +
+        'car. It opens on today.',
+      'Each day now shows what the sky is doing - clear, some cloud, overcast ' +
+        'or showers. The app was already being told this and was throwing it ' +
+        'away.',
+      'Sunrise and sunset have gone from the Energy forecast. They were ' +
+        'printed twice and said the same thing both times; Home still shows ' +
+        'them drawn against the shape of the day.',
+      'The whole panel is shorter than the old one was even before you opened ' +
+        'it, and about 40% shorter than it became once you had.',
+      'Fixed the sun curve on Home spilling outside its card.'
+    ]
+  },
+  {
     version: 'v2.13.0',
     date: '2026-09-02',
     changes: [
