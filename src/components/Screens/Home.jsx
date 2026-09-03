@@ -1,13 +1,29 @@
-// Home - "how am I doing?"
+// Home - "is there anything to do, what is happening now, and what has it all
+// added up to?"
 //
-// Four things, in this order: anything wrong, the total, how far to payback,
-// how this month is going. Nothing else earns a place here.
+// Ordered by RATE OF CHANGE, not by importance (v2.15). Everything above the
+// fold changes between one open and the next; everything below it steps once
+// a month at ingest. The screen used to be the other way round: it opened on
+// "$12,480 saved so far", a figure that had not moved since the last upload,
+// and a household opening the app on a Tuesday was shown last month's news.
 //
-// It was called Today until v2.10, which undersold it: the total saved, the
-// payback ring and the milestones are all-time figures, and only the
-// month-to-date block is about now. "Home" is what a landing screen is.
+// Four blocks, in this order:
+//   1. Anything wrong or owed  - alarms first, then the two chores. The
+//      chores are quietly styled but sit HIGH, because "your data stops two
+//      months ago" changes how every figure below it should be read.
+//   2. What is happening now   - the week's verdict, then today's sun curve.
+//   3. This month so far       - pace against a normal month of the same name.
+//   4. What it has all added up to - one panel: the total, the payback ring
+//      and the milestones.
 //
-// What was deliberately REMOVED in the v2.1 content pass:
+// Block 4 was three panels until v2.15, and two of them said the same thing:
+// the ring said "$8,400 to go, on track for 2031" and the Milestones panel
+// then said "Battery - $8,400 to go, about 2031". That is the app's own "one
+// fact, one rendering" rule broken on its own landing screen. The milestone
+// list now carries only what the ring cannot: which components are already
+// paid off.
+//
+// What was deliberately REMOVED in the v2.1 content pass, and stays removed:
 //   - "per day" alongside "per month" and the total. Three phrasings of one
 //     number is not three facts.
 //   - the three raw month-to-date kWh figures (generated / into the car /
@@ -24,8 +40,9 @@ import InfoPopover from '../InfoPopover.jsx';
 import { AlertIcon, CheckCircleIcon, ClockIcon } from '../Dashboard/icons.jsx';
 import { BigStat, Lede, CompareBar } from './parts.jsx';
 import { monthToDate, paceToMonthEnd, typicalForMonth, seasonalCheck } from '../../data/daily.js';
-import { backupStaleness } from '../../data/storage.js';
+import { backupStaleness, ingestStaleness } from '../../data/storage.js';
 import ForecastAlert from '../ForecastAlert.jsx';
+import WeekVerdict from '../Dashboard/WeekVerdict.jsx';
 import SunCurve from '../Dashboard/SunCurve.jsx';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -85,6 +102,12 @@ export default function Home({ state, appMeta, onGoTo }) {
   const monthDigest = dailyMonth ? digests.find((d) => d.month === dailyMonth) : null;
 
   const season = seasonalCheck(daily);
+
+  // The two chores. Different failures with different fixes, so two helpers
+  // and two rows rather than one merged nag: overdue means "upload the files
+  // you have not imported", stale means "get a copy of what is here off this
+  // phone". See data/storage.js.
+  const overdue = ingestStaleness({ lastMonth: c.coverage?.lastMonth ?? state.meta?.dateRange?.last });
   const stale = backupStaleness({
     monthCount: digests.length,
     lastExportedCount: appMeta.lastExportedCount,
@@ -96,6 +119,8 @@ export default function Home({ state, appMeta, onGoTo }) {
 
   return (
     <div className="screen">
+      {/* 1. Anything wrong or owed ------------------------------------- */}
+
       {/* Anything the phone should have said and could not - see
           ForecastAlert.jsx. It renders nothing unless alerts are on and one is
           actually due, and showing it here counts as having been delivered. */}
@@ -129,50 +154,30 @@ export default function Home({ state, appMeta, onGoTo }) {
         </div>
       )}
 
-      <BigStat
-        label="Saved so far"
-        value={money(combined)}
-        tone="green"
-      >
-        <Lede>
-          {perMonth != null
-            ? <>About <strong>{money(perMonth)} a month</strong> since {monthLabel(c.coverage?.firstMonth)}.</>
-            : <>Across {months} month{months === 1 ? '' : 's'} of data.</>}
-        </Lede>
-        <InfoPopover label="What this total covers" className="metric-info">
-          Money kept by your solar and battery, plus the saving from driving
-          electric instead of the old petrol car. It does not include the
-          lease-versus-loan advantage, which is a fixed yearly figure and is
-          deliberately never added in — see the Money screen.
-        </InfoPopover>
-      </BigStat>
-
-      {totals && (
-        <div className="panel payback-panel">
-          <div className="payback-ring-wrap">
-            <PaybackRing pct={paybackPct} />
-            <div className="payback-ring-label">
-              <div className="payback-pct">{paybackPct == null ? '—' : `${Math.round(paybackPct)}%`}</div>
-              <div className="label">paid back</div>
-            </div>
-          </div>
-          <div className="payback-copy">
-            <div className="payback-headline">{money(totals.remainingAud)} to go</div>
-            <p className="small">
-              of the {money(totals.oopAud)} the hardware cost
-              {nextComponent?.estPaybackYear && nextComponent.estPaybackYear !== 'Paid off'
-                ? `, on track for ${nextComponent.estPaybackYear}`
-                : ''}.
-            </p>
-          </div>
+      {overdue && (
+        <div className="chore">
+          <span className="chore-icon"><AlertIcon /></span>
+          <span className="chore-text">{overdue.text}</span>
+          <button className="ghost small-btn" onClick={() => onGoTo('Data')}>Upload</button>
         </div>
       )}
 
-      {/* The day ahead. Renders nothing until a forecast location is set -
-          the app makes no outbound request on its own - and nothing when the
-          cached forecast carries no hourly shape. See SunCurve.jsx. */}
+      {stale && (
+        <div className="chore">
+          <span className="chore-icon"><AlertIcon /></span>
+          <span className="chore-text">{stale.text}</span>
+          <button className="ghost small-btn" onClick={() => onGoTo('Data')}>Back up</button>
+        </div>
+      )}
+
+      {/* 2. What is happening now --------------------------------------
+          Both render nothing until a forecast location is set - the app makes
+          no outbound request on its own - and the curve renders nothing when
+          the cached forecast carries no hourly shape. See SunCurve.jsx. */}
+      <WeekVerdict state={state} />
       <SunCurve state={state} />
 
+      {/* 3. This month so far ------------------------------------------ */}
       {mtd && (
         <div className="panel">
           <div className="panel-head">
@@ -223,37 +228,71 @@ export default function Home({ state, appMeta, onGoTo }) {
         </div>
       )}
 
-      {(paidOff.length > 0 || nextComponent) && (
-        <div className="panel">
-          <h3 className="panel-title">Milestones</h3>
-          <div className="milestone-list">
+      {/* 4. What it has all added up to ---------------------------------
+          One panel, because it is one story told at three sizes: the total,
+          how much of the hardware that total has bought back, and which
+          pieces are square. The ring already says what is left to go and
+          when, so the milestone list carries only what is already done. */}
+      <BigStat
+        label="Saved so far"
+        value={money(combined)}
+        tone="green"
+      >
+        <Lede>
+          {perMonth != null
+            ? <>About <strong>{money(perMonth)} a month</strong> since {monthLabel(c.coverage?.firstMonth)}.</>
+            : <>Across {months} month{months === 1 ? '' : 's'} of data.</>}
+          <InfoPopover label="What this total covers" className="section-info">
+            Money kept by your solar and battery, plus the saving from driving
+            electric instead of the old petrol car. It does not include the
+            lease-versus-loan advantage, which is a fixed yearly figure and is
+            deliberately never added in — see the Money screen.
+          </InfoPopover>
+        </Lede>
+
+        {totals && (
+          <div className="allsaved-payback">
+            <div className="payback-ring-wrap">
+              <PaybackRing pct={paybackPct} />
+              <div className="payback-ring-label">
+                <div className="payback-pct">{paybackPct == null ? '—' : `${Math.round(paybackPct)}%`}</div>
+                <div className="label">paid back</div>
+              </div>
+            </div>
+            <div className="payback-copy">
+              <div className="payback-headline">{money(totals.remainingAud)} to go</div>
+              <p className="small">
+                of the {money(totals.oopAud)} the hardware cost
+                {nextComponent?.estPaybackYear && nextComponent.estPaybackYear !== 'Paid off'
+                  ? `, on track for ${nextComponent.estPaybackYear}`
+                  : ''}.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {paidOff.length > 0 && (
+          <div className="milestone-list allsaved-milestones">
             {paidOff.map((p) => (
               <div className="milestone" key={p.component}>
                 <span className="milestone-icon done"><CheckCircleIcon /></span>
                 <div>{p.component} has paid for itself</div>
               </div>
             ))}
-            {nextComponent && (
-              <div className="milestone">
-                <span className="milestone-icon"><ClockIcon /></span>
-                <div>
-                  {nextComponent.component} — {money(nextComponent.remainingAud)} to go
-                  {nextComponent.estPaybackYear && nextComponent.estPaybackYear !== 'Paid off'
-                    ? `, about ${nextComponent.estPaybackYear}` : ''}
-                </div>
-              </div>
-            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {stale && (
-        <div className="chore">
-          <span className="chore-icon"><AlertIcon /></span>
-          <span className="chore-text">{stale.text}</span>
-          <button className="ghost small-btn" onClick={() => onGoTo('Data')}>Back up</button>
-        </div>
-      )}
+        {/* Nothing paid off yet: name the one being worked on, since the
+            list above would otherwise be empty and say nothing at all. */}
+        {paidOff.length === 0 && nextComponent && (
+          <div className="milestone-list allsaved-milestones">
+            <div className="milestone">
+              <span className="milestone-icon"><ClockIcon /></span>
+              <div>Paying off {nextComponent.component} first</div>
+            </div>
+          </div>
+        )}
+      </BigStat>
 
       {!mtd && (
         <p className="small screen-foot">

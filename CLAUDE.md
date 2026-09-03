@@ -37,7 +37,9 @@ recreating the repository (see git history around 2026-07 for the precedent).
 src/
   data/       schema.js (contract + validate()), db.js (IndexedDB, the ONLY
               persistence layer), storage.js (browser storage DURABILITY -
-              persist()/estimate() + backup staleness, see below), seed.js
+              persist()/estimate() + THREE staleness checks: the file backup,
+              the cloud copy, and (since v2.15) the ingest itself, see below),
+              seed.js
               (first-run loader), daily.js (helpers over the optional
               dailySeries[] - month-to-date, pace, typical-for-month,
               seasonal check; see "Daily series" below), compare.js (one month
@@ -81,7 +83,8 @@ src/
               RangeChips/Deltas - the ONLY presentational primitives the screens
               use; see "Presenting information" below),
               Dashboard/{MonthlyProduction,MonthlyComparison,PlanComparison,
-              DailyCalendar,SolarForecast,BestChargeDay,SunCurve,useForecast}
+              DailyCalendar,SolarForecast,BestChargeDay,SunCurve,WeekVerdict,
+              useForecast}
   version.js  APP_VERSION shown in the header - bump on every change (see below)
 ```
 
@@ -995,13 +998,47 @@ are why, and undoing them re-creates the problem.
   headings and no answer, which was the single biggest reason it felt
   useless. Don't reintroduce collapse-by-default on Home.
   `Collapsible.jsx` is still available for genuinely secondary content.
-- **Home shows nothing it cannot derive.** (Called Today until v2.10 - it
-  was renamed because the total saved, the payback ring and the milestones are
-  all-time figures, and only the month-to-date block is about now.) Each block (attention item,
-  payback ring, month-to-date, milestones) renders only when its inputs
-  exist. Never fill a gap with an estimate to keep the layout even — the
-  one sanctioned estimate in the app is `paybackPreTracking`, and it is
+- **Home is ordered by RATE OF CHANGE, not by importance** (since v2.15).
+  Four blocks: anything wrong or owed, what is happening now (the week's
+  verdict + today's sun curve), this month so far, then what it has all added
+  up to. Everything above the fold differs between one open and the next;
+  everything below it steps once a month at ingest. It used to be the other
+  way round — it opened on "$12,480 saved so far", a figure that had not moved
+  since the last upload, so a household opening the app on a Tuesday was shown
+  last month's news. (The screen was called Today until v2.10 and renamed for
+  exactly this mismatch; renaming it was treating the label rather than the
+  content.) Don't promote an all-time figure back to the top to make the
+  screen feel weightier.
+- **The total, the payback ring and the milestones are ONE panel** (since
+  v2.15). They were three, and two of them said the same thing: the ring read
+  "$8,400 to go, on track for 2031" and the Milestones panel then read
+  "Battery — $8,400 to go, about 2031". That is the app's own "one fact, one
+  rendering" rule broken on its own landing screen. The milestone list now
+  carries only what the ring cannot — which components are already paid off —
+  and falls back to naming the one being paid off first when none are, so the
+  section is never empty and never a second copy of the ring.
+- **`WeekVerdict` is one line and must stay one line.** The full seven-day
+  picture is Energy's strip and the charging decision is Car's
+  `BestChargeDay`; Home's version says only which day is the good one, so a
+  household that opens Home and closes it again has still been told the useful
+  thing. If it grows a second sentence, a chart or an InfoPopover it has
+  become a third copy of the same panel and should be deleted instead. It
+  shares the cached fetch through `useForecast`, so it costs no extra request.
+- **Home shows nothing it cannot derive.** Each block renders only when its
+  inputs exist. Never fill a gap with an estimate to keep the layout even —
+  the one sanctioned estimate in the app is `paybackPreTracking`, and it is
   labelled as one.
+- **The two chores are quietly styled but sit HIGH** (since v2.15).
+  `ingestStaleness()` (a month has not been uploaded) and `backupStaleness()`
+  (what is here has no copy off the phone) both render as `.chore` rows above
+  the content, not in the footer, because "your data stops two months ago"
+  changes how every figure below it should be read. `ingestStaleness()` is a
+  SIBLING of the other two staleness helpers, deliberately not a merge of
+  them: three different failures with three different fixes (upload the files,
+  export a file, push to the cloud). It fires at two or more calendar months
+  behind, because a month can only be uploaded once it has ended — being one
+  month behind is simply the month in progress, and nagging about that would
+  train the household to ignore the row.
 - **Screen scoping: three periods, one control** (since v2.2). Energy, Car
   and Money each carry the same `RangeChips` row at the top of the screen —
   *This month* / *Range* / *All time*, one **segmented control** since v2.14

@@ -13,6 +13,24 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.15.0',
+    date: '2026-09-03',
+    changes: [
+      'Home is reordered around what actually changes. It now opens on the ' +
+        'week ahead and today\u2019s sun, then this month so far, with the ' +
+        'all-time total and payback underneath. Before this, the first thing ' +
+        'on screen was a figure that only moved once a month.',
+      'Home tells you when a month has not been uploaded. Nothing in the app ' +
+        'used to say this, so a skipped upload left every screen quietly ' +
+        'showing older numbers with no sign anything was missing.',
+      'One line at the top of Home names the best solar day this week and ' +
+        'roughly how much of it is spare for the car.',
+      'The total saved, the payback ring and the milestones are one panel ' +
+        'instead of three. The ring and the milestone list had been giving ' +
+        'the same \u201Cto go\u201D figure twice.'
+    ]
+  },
+  {
     version: 'v2.14.1',
     date: '2026-09-03',
     changes: [
