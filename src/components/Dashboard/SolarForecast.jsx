@@ -3,8 +3,7 @@
 //
 // It leads with the answer (the best solar day), then draws the whole week as
 // ONE strip of seven columns, then says everything about whichever day is
-// selected in a card underneath, and finally shows the coming weekend as a
-// two-up card - the days the car normally gets charged.
+// selected in a card underneath. That is the whole panel.
 //
 // WHY A STRIP (v2.14). The panel used to render the same seven days three
 // times over: two full rows at the top, a sparkline on the toggle, and the
@@ -12,9 +11,17 @@
 // open on a 915px phone, and four to five lines of prose per day. The strip
 // is one rendering of the week - every day permanently visible, comparable by
 // height on a shared scale - and the per-day prose collapses into one card
-// that follows the selection. Nothing was dropped: the temperatures, the
-// likely range, the spare-for-the-car figure and the best/quietest notes all
-// live in that card, and the weekend keeps its own card as before.
+// that follows the selection: the temperatures, the likely range, the
+// spare-for-the-car figure and the best/quietest notes all live there.
+//
+// THE WEEKEND CARD WENT TOO (v2.14.1). It survived the first cut on the
+// grounds that the strip answers "which day of the week" while the card
+// answers "which of the two" - but Saturday and Sunday are ADJACENT columns
+// on that strip, drawn to the same scale and the same ramp, so the comparison
+// was already being made a second time three inches lower. It was the last
+// duplicate rendering left in the panel. Tapping either column gives that
+// day in full. If a combined weekend total is ever wanted back, it belongs on
+// the strip as one line, not as a card that redraws two days.
 //
 // The "Rest of the week" toggle is gone with the rows. It existed because the
 // other five days had nowhere to be; on the strip they are simply there, so a
@@ -304,82 +311,6 @@ function DayDetail({ day, hasKwh }) {
   );
 }
 
-// The coming weekend as ONE card: the two days side by side, each with its
-// own figure and bar so they are directly comparable, plus the combined
-// total. Saturday and Sunday are when the car goes on the charger, so they
-// keep a card of their own even though the strip above also shows them - the
-// question it answers is "which of the two", not "which day of the week".
-//
-// Its bars take their colour from the SAME ramp and the SAME scale as the
-// strip, so two 12 kWh days look identical here and up there. They used to be
-// painted brighter for being the better of the two, which put a second
-// meaning on a fill that now means magnitude - and made two equal days look
-// unequal. Which one to pick is carried by the tick and the foot line, as it
-// always was.
-function WeekendCard({ days, scaleMax, hasKwh }) {
-  const [sat, sun] = days;
-  const valueOf = (d) => (hasKwh ? d.kwh : d.sunshineHours);
-  const shown = (d) =>
-    valueOf(d) == null ? '—' : hasKwh ? Math.round(d.kwh) : `${Math.round(d.sunshineHours)} h`;
-
-  const totalKwh = hasKwh && sat.kwh != null && sun.kwh != null ? sat.kwh + sun.kwh : null;
-  const totalSpare =
-    sat.spareKwh != null && sun.spareKwh != null ? sat.spareKwh + sun.spareKwh : null;
-  // Which of the two is worth choosing. Marked with a tick and named in
-  // words, never by colour alone.
-  const better =
-    valueOf(sat) != null && valueOf(sun) != null
-      ? valueOf(sun) > valueOf(sat) ? sun : sat
-      : null;
-
-  return (
-    <div className="fc-weekend">
-      <div className="fc-weekend-head">
-        <span className="label">This weekend</span>
-        <span className="small">
-          {totalKwh != null ? `${Math.round(totalKwh)} kWh` : ''}
-          {totalKwh != null && totalSpare != null ? ` · ${Math.round(totalSpare)} spare` : ''}
-        </span>
-      </div>
-
-      <div className="fc-weekend-days">
-        {days.map((d) => {
-          const isBetter = better && d.date === better.date;
-          const pct = scaleMax > 0 && valueOf(d) != null
-            ? Math.min(100, (valueOf(d) / scaleMax) * 100)
-            : 0;
-          const level = solarLevel(valueOf(d), scaleMax);
-          return (
-            <div className="fc-weekend-day" key={d.date}>
-              <div className="fc-weekend-day-head">
-                <span className={isBetter ? 'fc-weekend-name best' : 'fc-weekend-name'}>
-                  {DAY_NAMES[d.weekday]}{isBetter ? ' ✓' : ''}
-                </span>
-                <span className="fc-weekend-value">{shown(d)}</span>
-              </div>
-              <div className="fc-weekend-track">
-                <div
-                  className={`fc-weekend-fill${level == null ? '' : ` lvl-${level}`}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <div className="fc-weekend-sub">
-                {d.spareKwh != null ? `${Math.round(d.spareKwh)} kWh spare · ` : ''}
-                {deg(d.tMinC)}–{deg(d.tMaxC)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="fc-weekend-foot">
-        {hasKwh ? 'kWh expected' : 'Hours of sun'}
-        {better ? ` · ${DAY_NAMES[better.weekday]} is the better of the two.` : ''}
-      </div>
-    </div>
-  );
-}
-
 export default function SolarForecast({ state, onConfigChange }) {
   const { data, loading, reload, hasLocation } = useForecast(state);
   const [changing, setChanging] = useState(false);
@@ -441,16 +372,9 @@ export default function SolarForecast({ state, onConfigChange }) {
     : null;
   const quietest = ranked.length > 1 ? ranked[ranked.length - 1] : null;
 
-  // The coming weekend keeps a card of its own. Any 7-day window contains
-  // exactly one Saturday and one Sunday, so both are always available.
-  const saturday = days.find((d) => d.weekday === 6) ?? null;
-  const sunday = days.find((d) => d.weekday === 0) ?? null;
-  const weekend = saturday && sunday ? [saturday, sunday] : null;
-
-  // One scale for every column in the panel, so days are comparable by height
-  // and the weekend card's bars line up with the strip's. It is the week's own
-  // best day - not the top of any range - so the best day fills its column and
-  // lands on the ramp's brightest step.
+  // One scale for every column, so days are comparable by height. It is the
+  // week's own best day - not the top of any range - so the best day fills its
+  // column and lands on the ramp's brightest step.
   const scaleMax = hasKwh
     ? Math.max(...days.map((d) => d.kwh ?? 0), 0)
     : Math.max(...days.map((d) => d.sunshineHours ?? 0), 0);
@@ -540,10 +464,6 @@ export default function SolarForecast({ state, onConfigChange }) {
       <StripLegend hasKwh={hasKwh} />
 
       {selected && <DayDetail day={selected} hasKwh={hasKwh} />}
-
-      {weekend && (
-        <WeekendCard days={weekend} scaleMax={scaleMax} hasKwh={hasKwh} />
-      )}
 
       {!hasKwh && (
         <div className="panel-foot">
