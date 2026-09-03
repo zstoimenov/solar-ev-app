@@ -393,8 +393,18 @@ header.top .date-range-filter { flex-shrink: 0; }
 }
 .attention .small-btn:hover { background: rgba(255,255,255,.06); }
 
-/* --- Payback ring --- */
-.payback-panel { display: flex; gap: 1rem; align-items: center; }
+/* --- Payback ring ---
+   Lives inside the "Saved so far" headline panel since v2.15 (it was its own
+   panel, directly under the total it is a fraction of, which read as two
+   separate answers to one question). .allsaved-payback is the rule that turns
+   it into a section of that panel rather than a panel of its own. */
+.allsaved-payback {
+  display: flex; gap: 1rem; align-items: center;
+  border-top: 1px solid var(--border); margin-top: .9rem; padding-top: .9rem;
+}
+.allsaved-milestones {
+  border-top: 1px solid var(--border); margin-top: .9rem; padding-top: .9rem;
+}
 .payback-ring-wrap { flex: 0 0 auto; position: relative; width: 96px; height: 96px; }
 .payback-ring-label {
   position: absolute; inset: 0;
@@ -514,7 +524,7 @@ header.top .date-range-filter { flex-shrink: 0; }
 }
 
 @media (max-width: 600px) {
-  .payback-panel { gap: .85rem; }
+  .allsaved-payback { gap: .85rem; }
   .headline-value { font-size: 2.1rem; }
 }
 
@@ -611,6 +621,19 @@ header.top .date-range-filter { flex-shrink: 0; }
   display: inline-block; width: .65rem; height: .65rem; border-radius: 3px;
   margin-right: .35rem; vertical-align: baseline;
 }
+
+/* --- Verdict row: the one line on Home that is different from yesterday --
+   Deliberately not a panel. The week strip on Energy and the charging panel
+   on Car both say more about the same forecast; this is the headline, sized
+   like a headline, and it sits directly above the sun curve it belongs with
+   (hence the tightened margin between the two). See WeekVerdict.jsx. */
+.verdict {
+  display: flex; align-items: flex-start; gap: .6rem;
+  padding: 0 .15rem; margin-bottom: .7rem;
+}
+.verdict-icon { flex: 0 0 auto; color: var(--accent); display: inline-flex; margin-top: 1px; }
+.verdict-text { flex: 1 1 auto; font-size: .92rem; line-height: 1.45; text-wrap: pretty; }
+.verdict-text strong { font-weight: 700; }
 
 /* --- Chore row: a task, deliberately not dressed up as a milestone ----- */
 .chore {

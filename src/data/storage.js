@@ -131,3 +131,53 @@ export function cloudStaleness({ enabled, monthCount, lastPushedCount, lastPushe
   }
   return null;
 }
+
+// The third staleness question, and the one nothing in the app asked before
+// v2.15: is the DATA itself current? The other two guard the copies (is the
+// file backup behind the store, is the cloud copy behind it); this one guards
+// the store against the calendar. A household that skips an upload sees every
+// figure on every screen quietly age with nothing saying so - the app looks
+// exactly as it does when everything is up to date.
+//
+// Kept a sibling of the two above rather than folded into them, for the same
+// reason they are siblings of each other: different failure, different fix
+// (upload this month's files, not export or push what is already here).
+//
+// A month can only be uploaded once it has ended, so being one month behind
+// the current one is the normal, healthy state - that is simply the month in
+// progress. Two or more behind means a completed month was never brought in.
+//
+// Dates are read LOCALLY (getFullYear/getMonth, never toISOString), the same
+// discipline as data/forecast.js: in UTC+8 the UTC date names the previous
+// day for the whole local morning, and on the 1st of a month that is the
+// previous MONTH.
+const STALE_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+const monthIndexOf = (yyyymm) => {
+  const [y, m] = yyyymm.slice(0, 7).split('-').map(Number);
+  return y * 12 + (m - 1);
+};
+
+const monthNameOf = (index) =>
+  `${STALE_MONTH_NAMES[((index % 12) + 12) % 12]} ${Math.floor(index / 12)}`;
+
+export function ingestStaleness({ lastMonth, today = new Date() }) {
+  if (!lastMonth || !/^\d{4}-\d{2}/.test(lastMonth)) return null;
+  const lastIdx = monthIndexOf(lastMonth);
+  const nowIdx = today.getFullYear() * 12 + today.getMonth();
+  const behind = nowIdx - lastIdx;
+  if (behind < 2) return null;
+
+  const missingCount = behind - 1;
+  const firstMissing = monthNameOf(lastIdx + 1);
+  return {
+    level: 'warn',
+    missingCount,
+    firstMissingMonth: firstMissing,
+    lastMonthName: monthNameOf(lastIdx),
+    text: missingCount === 1
+      ? `${firstMissing} has not been uploaded yet — every figure here still ends at ${monthNameOf(lastIdx)}.`
+      : `${missingCount} months have not been uploaded yet, starting with ${firstMissing}.`
+  };
+}
