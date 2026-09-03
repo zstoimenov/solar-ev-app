@@ -171,11 +171,17 @@ function LocationSetup({ onSaved }) {
 // The week as seven columns on one shared scale, so the answer to "which day"
 // is a shape rather than seven numbers to compare in your head.
 //
-// Each column stacks the uncertainty rather than hiding it: a solid stem up
-// to the LOW end of the likely range, a dim extent from there to the HIGH
-// end, and a bright line at the middle - the figure quoted everywhere else.
-// A monthly-fitted calibration has no daily band, so those columns are a
-// plain fill and the InfoPopover says why.
+// THE BAR IS THE FIGURE; THE WHISKER IS THE RANGE. The first cut stacked
+// them - a solid fill to the low end, a dimmer fill to the high end, a bright
+// line at the middle - and it was unreadable: three tones of one hue in one
+// shape, which reads as a bar with a cap on it rather than as a range. Two
+// facts now get two SHAPES: a plain fill for the projected kWh, and an
+// I-beam whisker spanning the 20th-80th percentile in neutral ink, which is
+// the one uncertainty idiom people already know. A small legend under the
+// strip names both, because a household should not have to infer either.
+//
+// A monthly-fitted calibration has no daily band, so those columns are the
+// bar alone, the legend drops to one item, and the InfoPopover says why.
 //
 // One hue throughout (the accent), because this is a magnitude: brightness
 // and height carry it, and nothing here is a category. The best day is marked
@@ -189,10 +195,6 @@ function WeekStrip({ days, scaleMax, hasKwh, bestDate, selectedDate, onSelect })
       {days.map((d) => {
         const value = hasKwh ? d.kwh : d.sunshineHours;
         const hasBand = hasKwh && d.kwhLow != null && d.kwhHigh != null;
-        const top = hasBand ? Math.max(d.kwhHigh, d.kwh ?? 0) : value;
-        const topPct = pct(top);
-        // Heights inside the stack are relative to the stack, not the track.
-        const within = (v) => (topPct > 0 ? Math.min(100, (pct(v) / topPct) * 100) : 0);
         const isBest = d.date === bestDate;
         const isSelected = d.date === selectedDate;
         const { Icon, label: skyLabel } = skyFor(d);
@@ -222,22 +224,41 @@ function WeekStrip({ days, scaleMax, hasKwh, bestDate, selectedDate, onSelect })
             <span className="fc-col-sky" aria-hidden="true"><Icon width="16" height="16" /></span>
             <span className="fc-col-value">{shown}</span>
             <span className="fc-col-track">
-              <span className="fc-col-stack" style={{ height: `${topPct}%` }}>
-                {hasBand ? (
-                  <>
-                    <span className="fc-col-band" />
-                    <span className="fc-col-solid" style={{ height: `${within(d.kwhLow)}%` }} />
-                    <span className="fc-col-mark" style={{ bottom: `${within(d.kwh)}%` }} />
-                  </>
-                ) : (
-                  <span className="fc-col-solid" style={{ height: '100%' }} />
-                )}
-              </span>
+              <span className="fc-col-fill" style={{ height: `${pct(value)}%` }} />
+              {hasBand && (
+                <span
+                  className="fc-col-range"
+                  style={{
+                    bottom: `${pct(d.kwhLow)}%`,
+                    height: `${Math.max(0, pct(d.kwhHigh) - pct(d.kwhLow))}%`
+                  }}
+                />
+              )}
             </span>
             <span className="fc-col-label">{d.stripLabel}</span>
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// What the two shapes in a column mean, named rather than left to be worked
+// out. Swatches, not a sentence: it is the shortest honest way to say it, and
+// the second row only exists when there is a range to explain.
+function StripLegend({ hasKwh, hasBand }) {
+  return (
+    <div className="fc-legend">
+      <span className="fc-legend-item">
+        <span className="fc-legend-bar" aria-hidden="true" />
+        {hasKwh ? 'kWh expected' : 'Hours of sun'}
+      </span>
+      {hasBand && (
+        <span className="fc-legend-item">
+          <span className="fc-legend-range" aria-hidden="true" />
+          likely range
+        </span>
+      )}
     </div>
   );
 }
@@ -506,6 +527,11 @@ export default function SolarForecast({ state, onConfigChange }) {
         onSelect={setPicked}
       />
 
+      <StripLegend
+        hasKwh={hasKwh}
+        hasBand={hasKwh && days.some((d) => d.kwhLow != null && d.kwhHigh != null)}
+      />
+
       {selected && <DayDetail day={selected} hasKwh={hasKwh} />}
 
       {weekend && (
@@ -558,10 +584,10 @@ export default function SolarForecast({ state, onConfigChange }) {
                   : 'The fit spans a full year of your own days, so it already carries how this roof behaves across the seasons.'}
             </p>
             <p>
-              Each column is read from the bottom up: the solid part is the low end of
-              the likely range, the dim part above it the high end, and the bright line
-              is the figure quoted — the middle. Tap a column to see that day in full.
-              {cal.lowRatio == null && ' A monthly-fitted estimate has no daily range, so the columns are a plain fill until there are enough daily readings.'}
+              In each column the filled bar is the figure expected for that day, and the
+              thin line beside it is the range that figure could land in. Tap a column to
+              see that day in full.
+              {cal.lowRatio == null && ' A monthly-fitted estimate has no daily range, so there is no line on the columns until there are enough daily readings.'}
             </p>
 
             {leadRows.length > 0 ? (

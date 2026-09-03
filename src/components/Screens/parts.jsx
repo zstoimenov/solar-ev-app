@@ -147,9 +147,13 @@ export function ProgressRow({ name, status, statusTone = '', parts, caption }) {
 // (all three scopes would be the same data).
 export const RANGES = ['month', 'window', 'all'];
 
+// Short enough to sit in one segmented control at 412px without ellipsis.
+// "Range" rather than "Selected range": picking it reveals the From/To row
+// directly underneath, which says what is being ranged far better than the
+// extra word did.
 const RANGE_LABELS = {
   month: 'This month',
-  window: 'Selected range',
+  window: 'Range',
   all: 'All time'
 };
 

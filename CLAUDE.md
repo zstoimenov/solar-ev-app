@@ -619,11 +619,19 @@ once, then says everything about one day at a time:
   that broke it worst. Every day is permanently visible, so a **rotating
   weekday off** no longer costs a tap to look up (and still needs no roster
   configuration — a shift-scheduling feature was considered and rejected).
-- **The range IS the column**: a solid stem to the 20th percentile, a dim
-  extent to the 80th, and a bright line at the middle — the figure quoted
-  everywhere else. One shared scale across all seven, so uncertainty is never
-  a footnote. A monthly-fitted calibration has no daily band, so those columns
-  draw a plain fill and the InfoPopover says why.
+- **Two facts, two SHAPES**: the filled bar is the projected kWh, and an
+  I-beam whisker in neutral ink spans the 20th-80th percentile. One shared
+  scale across all seven, so uncertainty is never a footnote. The first v2.14
+  cut stacked both into one bar — a solid stem to the low end, a dimmer fill
+  to the high end, a bright line at the middle — and it was unreadable:
+  three tones of ONE hue in ONE shape reads as a bar wearing a cap, not as a
+  range, and the household said so. Don't encode a second quantity as another
+  shade of the same fill. The whisker stays neutral, not a third yellow: it is
+  an annotation on the value, not another quantity. A monthly-fitted
+  calibration has no daily band, so those columns are the bar alone.
+- **A small legend names both shapes** (`StripLegend`), because a household
+  should not have to infer what a bar and a whisker mean. Swatches, not a
+  sentence — and the range item only renders when there is a range to explain.
 - **The per-day prose lives in ONE card that follows the selection**, not on
   every row. It opens on today and carries the figure, the likely range, the
   sky in a word, the temperatures, the spare-for-the-car figure and the
@@ -978,7 +986,11 @@ are why, and undoing them re-creates the problem.
   labelled as one.
 - **Screen scoping: three periods, one control** (since v2.2). Energy, Car
   and Money each carry the same `RangeChips` row at the top of the screen —
-  *This month* / *Selected range* / *All time* — with the From/To
+  *This month* / *Range* / *All time*, one **segmented control** since v2.14
+  (three separate 44px blocks with gaps spent ~60px of a 915px phone on
+  mutually exclusive options that read as one control; it is 38px now, and
+  each segment is still ~127px wide so the target stays comfortable) — with
+  the From/To
   `DateRangeFilter` shown inline underneath only while *Selected range* is
   picked. `App.jsx` builds one `scopes = { month, window, all }` object and
   the screen just chooses; there is no range control in the header any more
