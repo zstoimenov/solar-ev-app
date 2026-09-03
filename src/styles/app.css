@@ -726,10 +726,6 @@ header.top .date-range-filter { flex-shrink: 0; }
 .fc-col-fill.lvl-1 { background: #ae8f15; }
 .fc-col-fill.lvl-2 { background: #d4ad15; }
 .fc-col-fill.lvl-3 { background: var(--accent); }
-.fc-weekend-fill.lvl-0 { background: #887014; }
-.fc-weekend-fill.lvl-1 { background: #ae8f15; }
-.fc-weekend-fill.lvl-2 { background: #d4ad15; }
-.fc-weekend-fill.lvl-3 { background: var(--accent); }
 .fc-col-label {
   font-size: .64rem; color: var(--muted); max-width: 100%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -770,33 +766,6 @@ header.top .date-range-filter { flex-shrink: 0; }
 .fc-detail-stat strong { color: var(--text); font-weight: 600; }
 .fc-detail-icon { color: var(--muted); line-height: 0; }
 .fc-detail-note { font-size: .72rem; color: var(--accent); margin-top: .4rem; }
-
-/* The coming weekend as one card: two days side by side rather than two more
-   full rows. The better day carries a tick and its name in the foot line, so
-   the accent fill is confirmation rather than the message. */
-.fc-weekend {
-  background: var(--panel-2); border-radius: 10px;
-  padding: .75rem .85rem; margin-top: .9rem;
-}
-.fc-weekend-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: .5rem; margin-bottom: .65rem;
-}
-.fc-weekend .label { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
-.fc-weekend-days { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
-.fc-weekend-day-head { display: flex; align-items: baseline; justify-content: space-between; gap: .4rem; }
-.fc-weekend-name { font-size: .8rem; color: var(--text); min-width: 0; }
-.fc-weekend-name.best { color: var(--accent); font-weight: 600; }
-.fc-weekend-value { font-size: .84rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fc-weekend-track {
-  height: 6px; border-radius: 3px; background: var(--panel);
-  overflow: hidden; margin-top: .35rem;
-}
-/* Coloured by the shared ramp on the strip's scale - never by which day is
-   the better of the two, which is what the tick and the foot line say. */
-.fc-weekend-fill { height: 100%; border-radius: 3px; }
-.fc-weekend-sub { font-size: .68rem; color: var(--muted); margin-top: .35rem; }
-.fc-weekend-foot { font-size: .72rem; color: var(--muted); margin-top: .65rem; line-height: 1.4; text-wrap: pretty; }
 
 /* --- The day's sun curve (Home) ----------------------------------------
    Sunrise to sunset with the day's forecast yield spread across it. ONE hue,

@@ -653,13 +653,16 @@ once, then says everything about one day at a time:
   best/quietest note. Selection is held as a **date** and falls back to
   `days[0]` when that date leaves the window — which is what happens the first
   time the app is opened the next day.
-- **The coming weekend is still ONE card of its own** (v2.7, kept at v2.14):
-  the two days side by side with the combined total and spare. The strip
-  answers "which day of the week"; the card answers "which of the two", which
-  is the question actually asked on a Saturday morning. Sat/Sun also carry a
-  faint wash and full-strength labels in the strip so they are findable
-  without a legend. Unlike pre-v2.14 it no longer drops out from Friday — it
-  is not duplicating a row any more, because there are no rows.
+- **There is NO separate weekend card** (removed v2.14.1, ending the v2.7
+  decision). It survived the v2.14 cut on the grounds that the strip answers
+  "which day of the week" while a card answers "which of the two" — but
+  Saturday and Sunday are ADJACENT columns on that strip, on the same scale
+  and the same ramp, so the card was drawing the same comparison a second time
+  three inches lower. It was the last duplicate rendering left in the panel.
+  Sat/Sun stay findable via a faint wash and full-strength labels in the
+  strip, and tapping either gives that day in full. The combined weekend total
+  is the one thing that went with it; if it is ever wanted back it belongs on
+  the strip as one line, never as a card that redraws two days.
 - **The sky glyph is cloud cover + rainfall** (v2.14) — four states
   (clear / some cloud / overcast / showers-or-rain) from `cloudPct` and
   `rainMm`, which the API already returned and the UI threw away. It is a

@@ -13,6 +13,16 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.14.1',
+    date: '2026-09-03',
+    changes: [
+      'The separate weekend card is gone from the 7-day forecast. Saturday ' +
+        'and Sunday sit next to each other in the week strip already, on the ' +
+        'same scale and the same shading, so the card was drawing the same ' +
+        'two days a second time. Tap either one for the full day.'
+    ]
+  },
+  {
     version: 'v2.14.0',
     date: '2026-09-03',
     changes: [
