@@ -492,6 +492,13 @@ header.top .date-range-filter { flex-shrink: 0; }
 }
 .calendar-cell.pad { background: transparent; }
 .calendar-cell.nodata { background: transparent; border: 1px solid var(--border); }
+/* The calendar's four steps. They run darker than the forecast strip's
+   (below) on purpose: a cell carries its day NUMBER on the fill, so each step
+   has to hold legible ink, and the dark end is what gives the light ink its
+   contrast. The strip's bars carry no text and sit alone on the panel, so
+   they need the opposite. Same hue, same buckets, same meaning - see
+   Screens/parts.jsx:solarLevel(). Don't merge the two sets of stops; forcing
+   one makes both worse, which was tried. */
 .calendar-cell.lvl-0 { background: #33301c; }
 .calendar-cell.lvl-1 { background: #6b5f1b; }
 .calendar-cell.lvl-2 { background: #b0921a; }
@@ -690,67 +697,56 @@ header.top .date-range-filter { flex-shrink: 0; }
 }
 .fc-col.best .fc-col-value, .fc-col.selected .fc-col-value { color: var(--text); }
 
-/* TWO FACTS, TWO SHAPES. The bar is the figure expected; the I-beam whisker
-   beside it is the range that figure could land in. The first cut stacked
-   both into one bar as three tones of the accent - it read as a bar wearing
-   a cap, not as a range, which is exactly the confusion this replaces.
-   The whisker is neutral ink, not a third yellow: it is an annotation on the
-   value, not another quantity, so it must not compete with the fill. */
+/* ONE BAR PER DAY, and colour carries magnitude - the shared solar ramp
+   above, scaled to the week's own best day. Two earlier cuts drew the
+   20th-80th range onto the column too (stacked tones, then an I-beam
+   whisker); both made a reader decode the picture. The range is words on the
+   selected day's card now, and the column is one shape saying one thing.
+
+   Nothing here repaints for being best or selected. The best day is the
+   week's maximum, so the ramp already puts it on the brightest step; a second
+   meaning on the fill is exactly what made the earlier versions unreadable.
+   Selection rides on the ring and the label, best-ness on the dot. */
 .fc-col-track {
   display: block; position: relative; width: 100%; max-width: 22px; height: 88px;
   border-bottom: 1px solid var(--border);
 }
 .fc-col-fill {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  background: rgba(250, 204, 21, .45); border-radius: 4px 4px 0 0;
+  position: absolute; left: 0; right: 0; bottom: 0; min-height: 3px;
+  border-radius: 4px 4px 0 0;
 }
-.fc-col.best .fc-col-fill { background: var(--accent); }
-.fc-col.selected .fc-col-fill { background: rgba(250, 204, 21, .8); }
-/* An I-beam: 2px stem down the middle, 9px caps top and bottom. */
-.fc-col-range {
-  position: absolute; left: 50%; transform: translateX(-50%);
-  width: 9px; min-height: 6px;
-  border-top: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
-  background: linear-gradient(
-    to right,
-    transparent calc(50% - 1px), var(--muted) calc(50% - 1px),
-    var(--muted) calc(50% + 1px), transparent calc(50% + 1px)
-  );
-}
-.fc-col.best .fc-col-range, .fc-col.selected .fc-col-range {
-  border-color: var(--text);
-  background: linear-gradient(
-    to right,
-    transparent calc(50% - 1px), var(--text) calc(50% - 1px),
-    var(--text) calc(50% + 1px), transparent calc(50% + 1px)
-  );
-}
+/* The strip's four steps. Same hue and same buckets as the calendar, lifted
+   so the dimmest bar still reads against the panel: measured against #1e293b
+   these are 3.05 / 4.69 / 6.82 / 9.55 to 1, where the calendar's bottom step
+   sits at 1.1 - fine under a day number, invisible as a 22px bar. Lightness
+   rises strictly (0.169 / 0.287 / 0.439 / 0.636), which is what a sequential
+   ramp is judged on; adjacent steps are close by design, and every bar
+   carries its own figure above it. */
+.fc-col-fill.lvl-0 { background: #887014; }
+.fc-col-fill.lvl-1 { background: #ae8f15; }
+.fc-col-fill.lvl-2 { background: #d4ad15; }
+.fc-col-fill.lvl-3 { background: var(--accent); }
+.fc-weekend-fill.lvl-0 { background: #887014; }
+.fc-weekend-fill.lvl-1 { background: #ae8f15; }
+.fc-weekend-fill.lvl-2 { background: #d4ad15; }
+.fc-weekend-fill.lvl-3 { background: var(--accent); }
 .fc-col-label {
   font-size: .64rem; color: var(--muted); max-width: 100%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .fc-col.selected .fc-col-label { color: var(--text); font-weight: 600; }
 
-/* Names the two shapes above. Swatches rather than a sentence - it is the
-   shortest honest way to say what a bar and a whisker are. */
+/* The ramp named at both ends - the calendar's own legend, reused, because
+   it is the same ramp meaning the same thing. */
 .fc-legend {
-  display: flex; flex-wrap: wrap; gap: .15rem .9rem;
-  margin-top: .5rem; font-size: .66rem; color: var(--muted);
+  display: flex; align-items: center; gap: .4rem;
+  margin-top: .55rem; font-size: .66rem; color: var(--muted);
 }
-.fc-legend-item { display: inline-flex; align-items: center; gap: .3rem; }
-.fc-legend-bar {
-  width: 8px; height: 11px; border-radius: 2px 2px 0 0;
-  background: rgba(250, 204, 21, .45);
+.fc-legend-ramp {
+  flex: 1 1 auto; max-width: 90px; height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, #887014, #ae8f15, #d4ad15, var(--accent));
 }
-.fc-legend-range {
-  width: 9px; height: 11px;
-  border-top: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
-  background: linear-gradient(
-    to right,
-    transparent calc(50% - 1px), var(--muted) calc(50% - 1px),
-    var(--muted) calc(50% + 1px), transparent calc(50% + 1px)
-  );
-}
+.fc-legend-unit { margin-left: auto; white-space: nowrap; }
 
 /* The selected day in full - the day rows' four lines of prose, for one day
    at a time instead of two days at once. */
@@ -796,8 +792,9 @@ header.top .date-range-filter { flex-shrink: 0; }
   height: 6px; border-radius: 3px; background: var(--panel);
   overflow: hidden; margin-top: .35rem;
 }
-.fc-weekend-fill { height: 100%; background: rgba(250, 204, 21, .45); border-radius: 3px; }
-.fc-weekend-fill.best { background: var(--accent); }
+/* Coloured by the shared ramp on the strip's scale - never by which day is
+   the better of the two, which is what the tick and the foot line say. */
+.fc-weekend-fill { height: 100%; border-radius: 3px; }
 .fc-weekend-sub { font-size: .68rem; color: var(--muted); margin-top: .35rem; }
 .fc-weekend-foot { font-size: .72rem; color: var(--muted); margin-top: .65rem; line-height: 1.4; text-wrap: pretty; }
 
