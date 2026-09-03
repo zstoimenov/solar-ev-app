@@ -446,15 +446,27 @@ header.top .date-range-filter { flex-shrink: 0; }
 }
 
 /* --- Range chips + chart/table toggle (Energy) --- */
-.range-filter-row { display: flex; justify-content: flex-end; margin: -.5rem 0 1rem; }
-.range-chips { display: flex; gap: .4rem; margin-bottom: 1rem; }
+/* Sits directly under .range-chips while "Range" is selected. Its top margin
+   is 0 because the control above now carries its own .7rem - the old -.5rem
+   was cancelling the taller chips' 1rem. */
+.range-filter-row { display: flex; justify-content: flex-end; margin: 0 0 .8rem; }
+/* The period control on Energy / Car / Money. ONE segmented control rather
+   than three separate 44px blocks with gaps: the three options are mutually
+   exclusive, so they read as one control, and the old version spent ~60px of
+   a 915px phone saying so. Each segment is still ~127px wide, so the touch
+   target stays comfortable at a shorter height. */
+.range-chips {
+  display: flex; gap: 2px; margin-bottom: .7rem; padding: 3px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px;
+}
 .range-chips button {
-  flex: 1 1 0; min-height: 44px; min-width: 0;
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: .4rem .5rem; font: inherit; font-size: .8rem; cursor: pointer;
+  flex: 1 1 0; min-height: 30px; min-width: 0;
+  background: transparent; color: var(--muted); border: 0;
+  border-radius: 999px; padding: .2rem .4rem; font: inherit; font-size: .74rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
 }
 .range-chips button.active {
-  background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 600;
+  background: var(--accent); color: #1a1a1a; font-weight: 600;
 }
 .mini-toggle { display: flex; gap: .25rem; flex-shrink: 0; }
 .mini-toggle button {
@@ -480,6 +492,13 @@ header.top .date-range-filter { flex-shrink: 0; }
 }
 .calendar-cell.pad { background: transparent; }
 .calendar-cell.nodata { background: transparent; border: 1px solid var(--border); }
+/* The calendar's four steps. They run darker than the forecast strip's
+   (below) on purpose: a cell carries its day NUMBER on the fill, so each step
+   has to hold legible ink, and the dark end is what gives the light ink its
+   contrast. The strip's bars carry no text and sit alone on the panel, so
+   they need the opposite. Same hue, same buckets, same meaning - see
+   Screens/parts.jsx:solarLevel(). Don't merge the two sets of stops; forcing
+   one makes both worse, which was tried. */
 .calendar-cell.lvl-0 { background: #33301c; }
 .calendar-cell.lvl-1 { background: #6b5f1b; }
 .calendar-cell.lvl-2 { background: #b0921a; }
@@ -678,29 +697,56 @@ header.top .date-range-filter { flex-shrink: 0; }
 }
 .fc-col.best .fc-col-value, .fc-col.selected .fc-col-value { color: var(--text); }
 
-/* The column itself: a solid stem to the LOW end of the likely range, a dim
-   extent to the HIGH end, and a bright line at the middle - the figure
-   quoted everywhere else. Uncertainty is the bar, not a footnote. */
+/* ONE BAR PER DAY, and colour carries magnitude - the shared solar ramp
+   above, scaled to the week's own best day. Two earlier cuts drew the
+   20th-80th range onto the column too (stacked tones, then an I-beam
+   whisker); both made a reader decode the picture. The range is words on the
+   selected day's card now, and the column is one shape saying one thing.
+
+   Nothing here repaints for being best or selected. The best day is the
+   week's maximum, so the ramp already puts it on the brightest step; a second
+   meaning on the fill is exactly what made the earlier versions unreadable.
+   Selection rides on the ring and the label, best-ness on the dot. */
 .fc-col-track {
   display: block; position: relative; width: 100%; max-width: 22px; height: 88px;
   border-bottom: 1px solid var(--border);
 }
-.fc-col-stack {
-  display: block; position: absolute; left: 0; right: 0; bottom: 0;
-  border-radius: 4px 4px 0 0; overflow: hidden;
+.fc-col-fill {
+  position: absolute; left: 0; right: 0; bottom: 0; min-height: 3px;
+  border-radius: 4px 4px 0 0;
 }
-.fc-col-band { position: absolute; inset: 0; background: rgba(250, 204, 21, .18); }
-.fc-col-solid { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(250, 204, 21, .42); }
-.fc-col-mark { position: absolute; left: 0; right: 0; height: 2px; background: rgba(250, 204, 21, .85); }
-.fc-col.best .fc-col-band { background: rgba(250, 204, 21, .3); }
-.fc-col.best .fc-col-solid { background: rgba(250, 204, 21, .68); }
-.fc-col.best .fc-col-mark, .fc-col.selected .fc-col-mark { background: var(--accent); }
-.fc-col.selected .fc-col-solid { background: rgba(250, 204, 21, .6); }
+/* The strip's four steps. Same hue and same buckets as the calendar, lifted
+   so the dimmest bar still reads against the panel: measured against #1e293b
+   these are 3.05 / 4.69 / 6.82 / 9.55 to 1, where the calendar's bottom step
+   sits at 1.1 - fine under a day number, invisible as a 22px bar. Lightness
+   rises strictly (0.169 / 0.287 / 0.439 / 0.636), which is what a sequential
+   ramp is judged on; adjacent steps are close by design, and every bar
+   carries its own figure above it. */
+.fc-col-fill.lvl-0 { background: #887014; }
+.fc-col-fill.lvl-1 { background: #ae8f15; }
+.fc-col-fill.lvl-2 { background: #d4ad15; }
+.fc-col-fill.lvl-3 { background: var(--accent); }
+.fc-weekend-fill.lvl-0 { background: #887014; }
+.fc-weekend-fill.lvl-1 { background: #ae8f15; }
+.fc-weekend-fill.lvl-2 { background: #d4ad15; }
+.fc-weekend-fill.lvl-3 { background: var(--accent); }
 .fc-col-label {
   font-size: .64rem; color: var(--muted); max-width: 100%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .fc-col.selected .fc-col-label { color: var(--text); font-weight: 600; }
+
+/* The ramp named at both ends - the calendar's own legend, reused, because
+   it is the same ramp meaning the same thing. */
+.fc-legend {
+  display: flex; align-items: center; gap: .4rem;
+  margin-top: .55rem; font-size: .66rem; color: var(--muted);
+}
+.fc-legend-ramp {
+  flex: 1 1 auto; max-width: 90px; height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, #887014, #ae8f15, #d4ad15, var(--accent));
+}
+.fc-legend-unit { margin-left: auto; white-space: nowrap; }
 
 /* The selected day in full - the day rows' four lines of prose, for one day
    at a time instead of two days at once. */
@@ -746,8 +792,9 @@ header.top .date-range-filter { flex-shrink: 0; }
   height: 6px; border-radius: 3px; background: var(--panel);
   overflow: hidden; margin-top: .35rem;
 }
-.fc-weekend-fill { height: 100%; background: rgba(250, 204, 21, .45); border-radius: 3px; }
-.fc-weekend-fill.best { background: var(--accent); }
+/* Coloured by the shared ramp on the strip's scale - never by which day is
+   the better of the two, which is what the tick and the foot line say. */
+.fc-weekend-fill { height: 100%; border-radius: 3px; }
 .fc-weekend-sub { font-size: .68rem; color: var(--muted); margin-top: .35rem; }
 .fc-weekend-foot { font-size: .72rem; color: var(--muted); margin-top: .65rem; line-height: 1.4; text-wrap: pretty; }
 

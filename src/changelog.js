@@ -23,9 +23,16 @@ export const CHANGELOG = [
       'Tap any day to see it in full underneath: what it should give, the ' +
         'likely range, the temperatures, and how much is going spare for the ' +
         'car. It opens on today.',
+      'Each column is one day, and brighter means a bigger day - the same ' +
+        'shading the day-by-day calendar already uses for the month behind ' +
+        'you. The range a figure could land in is on the day\'s own card, in ' +
+        'words, rather than drawn onto the column.',
       'Each day now shows what the sky is doing - clear, some cloud, overcast ' +
         'or showers. The app was already being told this and was throwing it ' +
         'away.',
+      'The This month / Range / All time buttons on Energy, Car and Money are ' +
+        'now one slim control instead of three chunky ones, giving about a ' +
+        'third of a screen-inch back to the content underneath.',
       'Sunrise and sunset have gone from the Energy forecast. They were ' +
         'printed twice and said the same thing both times; Home still shows ' +
         'them drawn against the shape of the day.',

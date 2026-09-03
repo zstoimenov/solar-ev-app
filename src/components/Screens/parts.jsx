@@ -145,11 +145,42 @@ export function ProgressRow({ name, status, statusTone = '', parts, caption }) {
 // the three screens cannot drift into three slightly different controls,
 // and so a chip row is never rendered when there is only one month loaded
 // (all three scopes would be the same data).
+// --- Sequential solar ramp ------------------------------------------------
+// ONE hue (the accent yellow), four steps, dim -> bright: the app's single
+// encoding for "how big a solar day is". Shared by Energy's daily calendar
+// (a month of history) and the forecast strip (a week ahead) so brightness
+// means the same thing in both - which is the whole reason it is here rather
+// than defined twice.
+//
+// Four discrete steps rather than a continuous ramp: a reader can name a
+// step at a glance, which a smooth gradient makes impossible at this size.
+//
+// It shares the BUCKETS, not the exact stops: the two surfaces have opposite
+// contrast needs and forcing one set of hexes makes both worse (tried, and
+// it did). A calendar cell carries its day number ON the fill, so its steps
+// run dark enough to hold light ink; a strip bar carries no text and sits
+// alone on the panel, so its steps are lifted until the dimmest still reads
+// (1.1:1 to 3.05:1 against #1e293b). Both are one hue, both rise strictly in
+// lightness, and both mean "bigger solar day" - which is the part a household
+// actually reads. The stops live beside their own components in app.css.
+export function solarLevel(value, max) {
+  if (value == null) return null;
+  const t = max > 0 ? value / max : 0;
+  if (t < 0.3) return 0;
+  if (t < 0.55) return 1;
+  if (t < 0.8) return 2;
+  return 3;
+}
+
 export const RANGES = ['month', 'window', 'all'];
 
+// Short enough to sit in one segmented control at 412px without ellipsis.
+// "Range" rather than "Selected range": picking it reveals the From/To row
+// directly underneath, which says what is being ranged far better than the
+// extra word did.
 const RANGE_LABELS = {
   month: 'This month',
-  window: 'Selected range',
+  window: 'Range',
   all: 'All time'
 };
 

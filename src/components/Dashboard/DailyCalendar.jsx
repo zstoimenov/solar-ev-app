@@ -15,6 +15,7 @@
 
 import React from 'react';
 import InfoPopover from '../InfoPopover.jsx';
+import { solarLevel } from '../Screens/parts.jsx';
 import { bestDay, zeroDays, daysInMonth } from '../../data/daily.js';
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -23,17 +24,6 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 // Monday-first index (JS getDay() is Sunday-first).
 function mondayIndex(year, month0, day) {
   return (new Date(year, month0, day).getDay() + 6) % 7;
-}
-
-// Four steps rather than a continuous ramp: a reader can name a cell's
-// bucket at a glance, which a smooth gradient makes impossible at this size.
-function bucket(value, max) {
-  if (value == null) return null;
-  const t = max > 0 ? value / max : 0;
-  if (t < 0.3) return 0;
-  if (t < 0.55) return 1;
-  if (t < 0.8) return 2;
-  return 3;
 }
 
 const ordinal = (n) => {
@@ -59,7 +49,7 @@ export default function DailyCalendar({ rows, month }) {
       key: `d-${d}`,
       day: d,
       value: row?.solarKwh ?? null,
-      level: bucket(row?.solarKwh, max)
+      level: solarLevel(row?.solarKwh, max)
     });
   }
 

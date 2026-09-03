@@ -32,9 +32,9 @@
 //   1. Until there is enough history to fit that factor, there are no kWh
 //      figures at all - the panel ranks the week on sunshine hours instead
 //      and says what is missing.
-//   2. Each figure is the middle of a range, so the range is drawn INTO the
-//      column (a solid stem to the low end, a dim extent to the high one, a
-//      bright line at the middle) rather than described in a footnote.
+//   2. Each figure is the middle of a range. The range is stated on the
+//      selected day's card ("likely 14-17"), NOT drawn onto the column - see
+//      the strip's own note below for why that was tried twice and dropped.
 //   3. It is a daily total. It does not know when in the day the sun and the
 //      load line up, which is why nothing here is expressed in dollars.
 //
@@ -44,7 +44,7 @@
 
 import React, { useState } from 'react';
 import InfoPopover from '../InfoPopover.jsx';
-import { Lede } from '../Screens/parts.jsx';
+import { Lede, solarLevel } from '../Screens/parts.jsx';
 import { ClearIcon, PartlyCloudyIcon, CloudyIcon, RainIcon } from './icons.jsx';
 import useForecast from './useForecast.js';
 import {
@@ -171,11 +171,25 @@ function LocationSetup({ onSaved }) {
 // The week as seven columns on one shared scale, so the answer to "which day"
 // is a shape rather than seven numbers to compare in your head.
 //
-// Each column stacks the uncertainty rather than hiding it: a solid stem up
-// to the LOW end of the likely range, a dim extent from there to the HIGH
-// end, and a bright line at the middle - the figure quoted everywhere else.
-// A monthly-fitted calibration has no daily band, so those columns are a
-// plain fill and the InfoPopover says why.
+// ONE BAR PER DAY, AND COLOUR MEANS MAGNITUDE. Two earlier cuts tried to put
+// the 20th-80th range onto the column as well - first as stacked tones of the
+// accent (which read as a bar wearing a cap), then as an I-beam whisker
+// (a second shape competing with the bar). Both failed the same test: a
+// household glancing at seven columns should not have to decode anything.
+// The range now lives as plain words on the selected day's card, where it
+// reads as "likely 14-17" and needs no decoding at all.
+//
+// That frees colour to carry something real. The fill is the app's sequential
+// solar ramp (`solarLevel` in Screens/parts.jsx) - the SAME four steps
+// Energy's daily calendar uses for a month of history, so dim-to-bright means
+// "bigger solar day" whether you are looking forward or back. It is redundant
+// with height on purpose: the two encodings agree, so a bright tall column is
+// unmistakably the good day.
+//
+// Because the ramp is scaled to the week's own best day, the best day is
+// always the brightest step. It is NOT painted brighter for being best - that
+// would make colour mean two things. Selection and best-ness ride entirely on
+// the ring, the dot and the label weight, never on the fill.
 //
 // One hue throughout (the accent), because this is a magnitude: brightness
 // and height carry it, and nothing here is a category. The best day is marked
@@ -188,11 +202,7 @@ function WeekStrip({ days, scaleMax, hasKwh, bestDate, selectedDate, onSelect })
     <div className="fc-strip" role="group" aria-label="The next seven days">
       {days.map((d) => {
         const value = hasKwh ? d.kwh : d.sunshineHours;
-        const hasBand = hasKwh && d.kwhLow != null && d.kwhHigh != null;
-        const top = hasBand ? Math.max(d.kwhHigh, d.kwh ?? 0) : value;
-        const topPct = pct(top);
-        // Heights inside the stack are relative to the stack, not the track.
-        const within = (v) => (topPct > 0 ? Math.min(100, (pct(v) / topPct) * 100) : 0);
+        const level = solarLevel(value, scaleMax);
         const isBest = d.date === bestDate;
         const isSelected = d.date === selectedDate;
         const { Icon, label: skyLabel } = skyFor(d);
@@ -222,22 +232,30 @@ function WeekStrip({ days, scaleMax, hasKwh, bestDate, selectedDate, onSelect })
             <span className="fc-col-sky" aria-hidden="true"><Icon width="16" height="16" /></span>
             <span className="fc-col-value">{shown}</span>
             <span className="fc-col-track">
-              <span className="fc-col-stack" style={{ height: `${topPct}%` }}>
-                {hasBand ? (
-                  <>
-                    <span className="fc-col-band" />
-                    <span className="fc-col-solid" style={{ height: `${within(d.kwhLow)}%` }} />
-                    <span className="fc-col-mark" style={{ bottom: `${within(d.kwh)}%` }} />
-                  </>
-                ) : (
-                  <span className="fc-col-solid" style={{ height: '100%' }} />
-                )}
-              </span>
+              <span
+                className={`fc-col-fill${level == null ? '' : ` lvl-${level}`}`}
+                style={{ height: `${pct(value)}%` }}
+              />
             </span>
             <span className="fc-col-label">{d.stripLabel}</span>
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// The ramp, named at both ends - the same legend Energy's daily calendar
+// carries under its month, because the colour means the same thing in both:
+// dim is a quiet day, bright is a big one. It says what the colour is for
+// without spending a sentence on it.
+function StripLegend({ hasKwh }) {
+  return (
+    <div className="fc-legend">
+      <span className="small">Quiet</span>
+      <span className="fc-legend-ramp" aria-hidden="true" />
+      <span className="small">Best</span>
+      <span className="fc-legend-unit">{hasKwh ? 'kWh expected' : 'hours of sun'}</span>
     </div>
   );
 }
@@ -291,6 +309,13 @@ function DayDetail({ day, hasKwh }) {
 // total. Saturday and Sunday are when the car goes on the charger, so they
 // keep a card of their own even though the strip above also shows them - the
 // question it answers is "which of the two", not "which day of the week".
+//
+// Its bars take their colour from the SAME ramp and the SAME scale as the
+// strip, so two 12 kWh days look identical here and up there. They used to be
+// painted brighter for being the better of the two, which put a second
+// meaning on a fill that now means magnitude - and made two equal days look
+// unequal. Which one to pick is carried by the tick and the foot line, as it
+// always was.
 function WeekendCard({ days, scaleMax, hasKwh }) {
   const [sat, sun] = days;
   const valueOf = (d) => (hasKwh ? d.kwh : d.sunshineHours);
@@ -323,6 +348,7 @@ function WeekendCard({ days, scaleMax, hasKwh }) {
           const pct = scaleMax > 0 && valueOf(d) != null
             ? Math.min(100, (valueOf(d) / scaleMax) * 100)
             : 0;
+          const level = solarLevel(valueOf(d), scaleMax);
           return (
             <div className="fc-weekend-day" key={d.date}>
               <div className="fc-weekend-day-head">
@@ -332,7 +358,10 @@ function WeekendCard({ days, scaleMax, hasKwh }) {
                 <span className="fc-weekend-value">{shown(d)}</span>
               </div>
               <div className="fc-weekend-track">
-                <div className={isBetter ? 'fc-weekend-fill best' : 'fc-weekend-fill'} style={{ width: `${pct}%` }} />
+                <div
+                  className={`fc-weekend-fill${level == null ? '' : ` lvl-${level}`}`}
+                  style={{ width: `${pct}%` }}
+                />
               </div>
               <div className="fc-weekend-sub">
                 {d.spareKwh != null ? `${Math.round(d.spareKwh)} kWh spare · ` : ''}
@@ -418,10 +447,12 @@ export default function SolarForecast({ state, onConfigChange }) {
   const sunday = days.find((d) => d.weekday === 0) ?? null;
   const weekend = saturday && sunday ? [saturday, sunday] : null;
 
-  // One scale for every column in the panel, so days are comparable by
-  // height and the weekend card's bars line up with the strip's.
+  // One scale for every column in the panel, so days are comparable by height
+  // and the weekend card's bars line up with the strip's. It is the week's own
+  // best day - not the top of any range - so the best day fills its column and
+  // lands on the ramp's brightest step.
   const scaleMax = hasKwh
-    ? Math.max(...days.map((d) => d.kwhHigh ?? d.kwh ?? 0), 0)
+    ? Math.max(...days.map((d) => d.kwh ?? 0), 0)
     : Math.max(...days.map((d) => d.sunshineHours ?? 0), 0);
 
   const noteFor = (d) => {
@@ -506,6 +537,8 @@ export default function SolarForecast({ state, onConfigChange }) {
         onSelect={setPicked}
       />
 
+      <StripLegend hasKwh={hasKwh} />
+
       {selected && <DayDetail day={selected} hasKwh={hasKwh} />}
 
       {weekend && (
@@ -558,19 +591,20 @@ export default function SolarForecast({ state, onConfigChange }) {
                   : 'The fit spans a full year of your own days, so it already carries how this roof behaves across the seasons.'}
             </p>
             <p>
-              Each column is read from the bottom up: the solid part is the low end of
-              the likely range, the dim part above it the high end, and the bright line
-              is the figure quoted — the middle. Tap a column to see that day in full.
-              {cal.lowRatio == null && ' A monthly-fitted estimate has no daily range, so the columns are a plain fill until there are enough daily readings.'}
+              Each column is one day: taller and brighter is a bigger day, shaded against
+              the best day of this particular week — the same shading the day-by-day
+              calendar below uses for a month of your own history. Tap a column to see
+              that day in full, including the range the figure could land in.
+              {cal.lowRatio == null && ' A monthly-fitted estimate has no daily range yet, so a day\u2019s card shows the single figure until there are enough daily readings.'}
             </p>
 
             {leadRows.length > 0 ? (
               <>
                 <p>
-                  That range is measured, not assumed: every figure this panel has
-                  shown is recorded and later checked against what your roof actually produced
-                  that day. What is drawn is how wrong this panel has really been that far
-                  ahead, which is why tomorrow is tighter than Sunday.
+                  That range is measured, not assumed: every figure this panel has shown is
+                  recorded and later checked against what your roof actually produced that
+                  day. The range on a day&apos;s card is how wrong this panel has really been
+                  that far ahead, which is why tomorrow&apos;s is tighter than Sunday&apos;s.
                 </p>
                 <div className="small">
                   {leadRows.map((r) => (
@@ -584,10 +618,10 @@ export default function SolarForecast({ state, onConfigChange }) {
             ) : (
               <p>
                 {cal.lowRatio != null
-                  ? 'The range is the middle 60% of your own days around the fit. It does not yet include the weather forecast itself being wrong, which grows through the week: day six or seven is a much softer number than tomorrow.'
-                  : 'There is no range on the columns yet.'}{' '}
+                  ? 'The range on a day\u2019s card is the middle 60% of your own days around the fit. It does not yet include the weather forecast itself being wrong, which grows through the week: day six or seven is a much softer number than tomorrow.'
+                  : 'There is no range on a day\u2019s card yet.'}{' '}
                 Every figure shown here is now recorded and checked against what actually
-                happened, so the columns become a measured range instead. Real production only
+                happened, so that becomes a measured range instead. Real production only
                 arrives with a monthly upload, so that takes a few weeks to appear.
               </p>
             )}

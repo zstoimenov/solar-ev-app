@@ -619,11 +619,34 @@ once, then says everything about one day at a time:
   that broke it worst. Every day is permanently visible, so a **rotating
   weekday off** no longer costs a tap to look up (and still needs no roster
   configuration — a shift-scheduling feature was considered and rejected).
-- **The range IS the column**: a solid stem to the 20th percentile, a dim
-  extent to the 80th, and a bright line at the middle — the figure quoted
-  everywhere else. One shared scale across all seven, so uncertainty is never
-  a footnote. A monthly-fitted calibration has no daily band, so those columns
-  draw a plain fill and the InfoPopover says why.
+- **ONE bar per day, and the fill means magnitude.** Two cuts tried to draw
+  the 20th-80th range onto the column as well — first as stacked tones of the
+  accent (read as a bar wearing a cap), then as an I-beam whisker (a second
+  shape competing with the bar). The household rejected both, and for the same
+  reason: seven columns should not need decoding. **The range is words on the
+  selected day's card** ("likely 14-17"), not a mark on the chart. Don't put
+  it back.
+- **Colour is the sequential solar ramp**, scaled to the week's own best day —
+  the same four buckets (`solarLevel` in `Screens/parts.jsx`) Energy's daily
+  calendar uses for a month of history, so dim-to-bright means "bigger solar
+  day" looking forward or back. Redundant with height on purpose: the two
+  agree, so a tall bright column is unmistakably the good day.
+- **Nothing repaints for being best or selected.** The best day is the week's
+  maximum, so the ramp already lands it on the brightest step; a second
+  meaning on the fill is exactly what made the earlier cuts unreadable.
+  Selection rides on the ring and the label, best-ness on the dot. The weekend
+  card's bars follow the same rule — they used to brighten for being the
+  better of the two, which made two equal days look unequal.
+- **The two surfaces share the buckets, NOT the stops.** A calendar cell
+  carries its day number ON the fill, so its steps run dark enough to hold
+  light ink; a strip bar carries no text and sits alone on the panel, so its
+  steps are lifted (the calendar's bottom step is 1.1:1 against `--panel` —
+  fine under a number, invisible as a 22px bar; the strip's floor is 3.05:1).
+  Forcing one set of hexes was tried and made both worse. Both are one hue and
+  both rise strictly in lightness, which is what a sequential ramp is judged
+  on — not the adjacent-pair ΔE the palette validator applies to categorical
+  sets.
+- **A ramp legend names both ends** (`StripLegend`), matching the calendar's.
 - **The per-day prose lives in ONE card that follows the selection**, not on
   every row. It opens on today and carries the figure, the likely range, the
   sky in a word, the temperatures, the spare-for-the-car figure and the
@@ -978,7 +1001,11 @@ are why, and undoing them re-creates the problem.
   labelled as one.
 - **Screen scoping: three periods, one control** (since v2.2). Energy, Car
   and Money each carry the same `RangeChips` row at the top of the screen —
-  *This month* / *Selected range* / *All time* — with the From/To
+  *This month* / *Range* / *All time*, one **segmented control** since v2.14
+  (three separate 44px blocks with gaps spent ~60px of a 915px phone on
+  mutually exclusive options that read as one control; it is 38px now, and
+  each segment is still ~127px wide so the target stays comfortable) — with
+  the From/To
   `DateRangeFilter` shown inline underneath only while *Selected range* is
   picked. `App.jsx` builds one `scopes = { month, window, all }` object and
   the screen just chooses; there is no range control in the header any more
