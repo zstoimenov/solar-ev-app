@@ -86,10 +86,16 @@ function Chart({ shape, nowHour }) {
   // A point per hour at the middle of that hour, joined with straight
   // segments. No spline: a curve fitted through these would overshoot
   // between them and invent radiation that was never forecast.
+  //
+  // Every point is CLAMPED into the drawn window. The hour marks sit at the
+  // middle of their hour, so the first and last of them fall half an hour
+  // outside [start, end] - unclamped (and with the SVG's overflow visible)
+  // that painted the curve outside its own box and over the panel's padding.
+  const clampX = (h) => Math.max(0, Math.min(W, x(h)));
   const pts = shape.hours
-    .filter((h) => h.hour >= start - 1 && h.hour <= end)
-    .map((h) => `${x(h.hour + 0.5).toFixed(1)},${y(h.share).toFixed(1)}`);
-  const path = `M${x(start).toFixed(1)},${base} L${pts.join(' L')} L${x(end).toFixed(1)},${base} Z`;
+    .filter((h) => h.hour + 1 >= start && h.hour <= end)
+    .map((h) => `${clampX(h.hour + 0.5).toFixed(1)},${y(h.share).toFixed(1)}`);
+  const path = `M${clampX(start).toFixed(1)},${base} L${pts.join(' L')} L${clampX(end).toFixed(1)},${base} Z`;
 
   const nowX = nowHour != null && nowHour >= start && nowHour <= end ? x(nowHour) : null;
 

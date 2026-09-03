@@ -1,16 +1,28 @@
 // SolarForecast - the next 7 days, arranged around the decision rather than
 // around the calendar.
 //
-// It leads with the answer (the best solar day and by how much), then today
-// and tomorrow as full rows, then the rest of the week behind a toggle, and
-// finally ONE combined card for the coming weekend - the days the car
-// normally gets charged.
+// It leads with the answer (the best solar day), then draws the whole week as
+// ONE strip of seven columns, then says everything about whichever day is
+// selected in a card underneath, and finally shows the coming weekend as a
+// two-up card - the days the car normally gets charged.
 //
-// The weekend is a card rather than two more rows because two more rows made
-// the panel too tall to take in at a glance, which was the whole point of
-// the rework. A rotating weekday off is still covered without any roster
-// configuration: the best day of the week is named in the verdict block at
-// the top whichever day it falls on, and the toggle lists the rest.
+// WHY A STRIP (v2.14). The panel used to render the same seven days three
+// times over: two full rows at the top, a sparkline on the toggle, and the
+// weekend card. Three idioms for one set of facts, 735px closed and 1172px
+// open on a 915px phone, and four to five lines of prose per day. The strip
+// is one rendering of the week - every day permanently visible, comparable by
+// height on a shared scale - and the per-day prose collapses into one card
+// that follows the selection. Nothing was dropped: the temperatures, the
+// likely range, the spare-for-the-car figure and the best/quietest notes all
+// live in that card, and the weekend keeps its own card as before.
+//
+// The "Rest of the week" toggle is gone with the rows. It existed because the
+// other five days had nowhere to be; on the strip they are simply there, so a
+// rotating day off no longer costs a tap to look up.
+//
+// Sunrise and sunset were also dropped from here (v2.14). They were printed
+// identically on both featured rows, and Home's sun curve already shows them
+// against the shape of the day, which is where they mean something.
 //
 // The kWh figures are NOT modelled from panel specs. The forecast supplies
 // daily shortwave radiation; data/forecast.js fits kWh-per-MJ from this
@@ -20,8 +32,9 @@
 //   1. Until there is enough history to fit that factor, there are no kWh
 //      figures at all - the panel ranks the week on sunshine hours instead
 //      and says what is missing.
-//   2. Each figure is the middle of a range, so the range is drawn as the
-//      bar itself rather than described in a footnote.
+//   2. Each figure is the middle of a range, so the range is drawn INTO the
+//      column (a solid stem to the low end, a dim extent to the high one, a
+//      bright line at the middle) rather than described in a footnote.
 //   3. It is a daily total. It does not know when in the day the sun and the
 //      load line up, which is why nothing here is expressed in dollars.
 //
@@ -32,6 +45,7 @@
 import React, { useState } from 'react';
 import InfoPopover from '../InfoPopover.jsx';
 import { Lede } from '../Screens/parts.jsx';
+import { ClearIcon, PartlyCloudyIcon, CloudyIcon, RainIcon } from './icons.jsx';
 import useForecast from './useForecast.js';
 import {
   LOCATION_PRESETS, roundCoord, saveForecastLocation, typicalHouseLoadPerDay, spareForDay
@@ -52,33 +66,37 @@ function spokenDay(dateStr, index) {
   return Number.isNaN(d.getTime()) ? dateStr : DAY_NAMES[d.getDay()];
 }
 
-function shortDate(dateStr) {
+// The same thing again, short enough to sit under a 44px-wide column.
+function stripLabel(dateStr, index) {
+  if (index === 0) return 'Today';
   const d = dayOf(dateStr);
-  return Number.isNaN(d.getTime()) ? '' : `${SHORT_DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  return Number.isNaN(d.getTime()) ? dateStr : SHORT_DAYS[d.getDay()];
+}
+
+// "Thu 3 Sep" beside Today and Tomorrow, "9 Sep" beside a day already named
+// by its weekday - otherwise the detail card reads "Wednesday  Wed 9 Sep".
+function shortDate(dateStr, index) {
+  const d = dayOf(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const day = `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  return index <= 1 ? `${SHORT_DAYS[d.getDay()]} ${day}` : day;
 }
 
 const kwh = (n) => (n == null ? '—' : `${Math.round(n)} kWh`);
 const deg = (n) => (n == null ? '—' : `${Math.round(n)}°`);
 
-// Sunrise/sunset, formatted from the local clock STRING the forecast returns
-// ("2026-09-02T06:23"). Deliberately not parsed into a Date - the whole
-// module treats these as local clock times, and a Date is how UTC drift gets
-// back in (see data/forecast.js).
-function sunClock(stamp) {
-  const clock = String(stamp ?? '').split('T')[1];
-  if (!clock) return null;
-  const [h, m] = clock.split(':').map(Number);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-  const suffix = h < 12 ? 'am' : 'pm';
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return m ? `${h12}:${String(m).padStart(2, '0')}${suffix}` : `${h12}${suffix}`;
-}
-
-function daylightLabel(hours) {
-  if (hours == null) return null;
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  return m ? `${h}h ${m}m` : `${h}h`;
+// What the sky is doing, from the cloud cover and rainfall the forecast
+// already returns and the panel used to throw away. Four states is all the
+// resolution a daily mean supports, and each carries a word as well as a
+// glyph - a picture alone is not a label.
+function skyFor(day) {
+  if (day.rainMm != null && day.rainMm >= 1) {
+    return { Icon: RainIcon, label: day.rainMm >= 5 ? 'Rain' : 'Showers' };
+  }
+  if (day.cloudPct == null) return { Icon: ClearIcon, label: 'Clear' };
+  if (day.cloudPct >= 70) return { Icon: CloudyIcon, label: 'Overcast' };
+  if (day.cloudPct >= 30) return { Icon: PartlyCloudyIcon, label: 'Some cloud' };
+  return { Icon: ClearIcon, label: 'Clear' };
 }
 
 function timeLabel(iso) {
@@ -150,60 +168,129 @@ function LocationSetup({ onSaved }) {
   );
 }
 
-// One day, as a labelled row: the range bar carries the uncertainty, the
-// caption says what the day is FOR rather than restating the number.
-// `showSun` is set only on the featured rows (today, tomorrow, and Sunday on
-// a Friday). The rest-of-week list stays as terse as it was - that panel was
-// deliberately kept short, and a third line per day undoes it.
-function DayRow({ day, scaleMax, hasKwh, highlight, showSun = false }) {
-  const pctOf = (v) => (v == null || !(scaleMax > 0) ? 0 : Math.min(100, (v / scaleMax) * 100));
-  const value = hasKwh ? day.kwh : day.sunshineHours;
-  const hasBand = hasKwh && day.kwhLow != null && day.kwhHigh != null;
+// The week as seven columns on one shared scale, so the answer to "which day"
+// is a shape rather than seven numbers to compare in your head.
+//
+// Each column stacks the uncertainty rather than hiding it: a solid stem up
+// to the LOW end of the likely range, a dim extent from there to the HIGH
+// end, and a bright line at the middle - the figure quoted everywhere else.
+// A monthly-fitted calibration has no daily band, so those columns are a
+// plain fill and the InfoPopover says why.
+//
+// One hue throughout (the accent), because this is a magnitude: brightness
+// and height carry it, and nothing here is a category. The best day is marked
+// by a dot AND named in the verdict above; the selected day by a ring AND the
+// card below - colour is never the only thing saying which is which.
+function WeekStrip({ days, scaleMax, hasKwh, bestDate, selectedDate, onSelect }) {
+  const pct = (v) => (v == null || !(scaleMax > 0) ? 0 : Math.min(100, (v / scaleMax) * 100));
 
   return (
-    <div className={`fc-row${highlight ? ' best' : ''}`}>
-      <div className="fc-row-head">
-        <span className="fc-row-name">
+    <div className="fc-strip" role="group" aria-label="The next seven days">
+      {days.map((d) => {
+        const value = hasKwh ? d.kwh : d.sunshineHours;
+        const hasBand = hasKwh && d.kwhLow != null && d.kwhHigh != null;
+        const top = hasBand ? Math.max(d.kwhHigh, d.kwh ?? 0) : value;
+        const topPct = pct(top);
+        // Heights inside the stack are relative to the stack, not the track.
+        const within = (v) => (topPct > 0 ? Math.min(100, (pct(v) / topPct) * 100) : 0);
+        const isBest = d.date === bestDate;
+        const isSelected = d.date === selectedDate;
+        const { Icon, label: skyLabel } = skyFor(d);
+        const shown = value == null ? '—' : hasKwh ? Math.round(value) : `${Math.round(value)}h`;
+
+        const classes = ['fc-col'];
+        if (isSelected) classes.push('selected');
+        if (isBest) classes.push('best');
+        if (d.weekday === 0 || d.weekday === 6) classes.push('weekend');
+
+        return (
+          <button
+            key={d.date}
+            type="button"
+            className={classes.join(' ')}
+            aria-pressed={isSelected}
+            aria-label={
+              `${d.spoken}, ${d.dateLabel}. ${skyLabel}. ` +
+              (value == null
+                ? 'No figure.'
+                : hasKwh ? `${Math.round(value)} kilowatt hours.` : `${Math.round(value)} hours of sun.`) +
+              (isBest ? ' Best day this week.' : '')
+            }
+            onClick={() => onSelect(d.date)}
+          >
+            <span className="fc-col-flag" aria-hidden="true">{isBest ? '●' : ''}</span>
+            <span className="fc-col-sky" aria-hidden="true"><Icon width="16" height="16" /></span>
+            <span className="fc-col-value">{shown}</span>
+            <span className="fc-col-track">
+              <span className="fc-col-stack" style={{ height: `${topPct}%` }}>
+                {hasBand ? (
+                  <>
+                    <span className="fc-col-band" />
+                    <span className="fc-col-solid" style={{ height: `${within(d.kwhLow)}%` }} />
+                    <span className="fc-col-mark" style={{ bottom: `${within(d.kwh)}%` }} />
+                  </>
+                ) : (
+                  <span className="fc-col-solid" style={{ height: '100%' }} />
+                )}
+              </span>
+            </span>
+            <span className="fc-col-label">{d.stripLabel}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Everything the old day row said, for ONE day at a time: the figure and its
+// likely range, the sky in a word, the temperatures, and what is going spare
+// for the car. It follows the strip's selection and starts on today.
+function DayDetail({ day, hasKwh }) {
+  const { Icon, label: skyLabel } = skyFor(day);
+  // "16-16 kWh" is what rounding does to a tight band, and it reads as a
+  // bug. Only show a range once the two ends round to different numbers.
+  const lo = day.kwhLow == null ? null : Math.round(day.kwhLow);
+  const hi = day.kwhHigh == null ? null : Math.round(day.kwhHigh);
+  const range = hasKwh && lo != null && hi != null && hi > lo ? `${lo}–${hi}` : null;
+
+  return (
+    <div className="fc-detail">
+      <div className="fc-detail-head">
+        <span className="fc-detail-day">
           {day.spoken}
-          <span className="fc-row-date">{day.dateLabel} · {deg(day.tMinC)}–{deg(day.tMaxC)}</span>
+          <span className="fc-detail-date">{day.dateLabel}</span>
         </span>
-        <span className="fc-row-value">
+        <span className="fc-detail-value">
           {hasKwh
-            ? kwh(value)
-            : value == null ? '—' : `${Math.round(value)} h sun`}
+            ? kwh(day.kwh)
+            : day.sunshineHours == null ? '—' : `${Math.round(day.sunshineHours)} h sun`}
+          {range && <span className="fc-detail-range">likely {range}</span>}
         </span>
       </div>
 
-      <div className="fc-track">
-        {hasBand ? (
-          <>
-            <div
-              className="fc-band"
-              style={{ left: `${pctOf(day.kwhLow)}%`, width: `${pctOf(day.kwhHigh) - pctOf(day.kwhLow)}%` }}
-            />
-            <div className="fc-mark" style={{ left: `${pctOf(day.kwh)}%` }} />
-          </>
-        ) : (
-          <div className="fc-fill" style={{ width: `${pctOf(value)}%` }} />
+      <div className="fc-detail-stats">
+        <span className="fc-detail-stat">
+          <span className="fc-detail-icon" aria-hidden="true"><Icon width="15" height="15" /></span>
+          {skyLabel}
+        </span>
+        <span className="fc-detail-stat">{deg(day.tMinC)}–{deg(day.tMaxC)}</span>
+        {day.spareKwh != null && (
+          <span className="fc-detail-stat">
+            <strong>{kwh(day.spareKwh)}</strong> spare for the car
+          </span>
         )}
       </div>
 
-      {showSun && (day.sunrise || day.sunset) && (
-        <div className="fc-row-sun">
-          Sun {sunClock(day.sunrise) ?? '—'} to {sunClock(day.sunset) ?? '—'}
-          {day.daylightHours != null && ` · ${daylightLabel(day.daylightHours)} of daylight`}
-        </div>
-      )}
-
-      {day.note && <div className="fc-row-note">{day.note}</div>}
+      {day.note && <div className="fc-detail-note">{day.note}</div>}
     </div>
   );
 }
 
 // The coming weekend as ONE card: the two days side by side, each with its
 // own figure and bar so they are directly comparable, plus the combined
-// total. It replaces two more full-height rows - the panel was getting too
-// tall to take in at a glance, which is what the rework was for.
+// total. Saturday and Sunday are when the car goes on the charger, so they
+// keep a card of their own even though the strip above also shows them - the
+// question it answers is "which of the two", not "which day of the week".
 function WeekendCard({ days, scaleMax, hasKwh }) {
   const [sat, sun] = days;
   const valueOf = (d) => (hasKwh ? d.kwh : d.sunshineHours);
@@ -267,7 +354,10 @@ function WeekendCard({ days, scaleMax, hasKwh }) {
 export default function SolarForecast({ state, onConfigChange }) {
   const { data, loading, reload, hasLocation } = useForecast(state);
   const [changing, setChanging] = useState(false);
-  const [showAll, setShowAll] = useState(false);
+  // Which column the detail card is showing. null means "today", resolved
+  // below - storing the date itself would go stale the moment the forecast
+  // rolls over at midnight.
+  const [picked, setPicked] = useState(null);
 
   if (!hasLocation || changing) {
     return (
@@ -303,7 +393,8 @@ export default function SolarForecast({ state, onConfigChange }) {
       index: i,
       weekday: dayOf(d.date).getDay(),
       spoken: spokenDay(d.date, i),
-      dateLabel: shortDate(d.date),
+      stripLabel: stripLabel(d.date, i),
+      dateLabel: shortDate(d.date, i),
       spareKwh: spare?.kwh ?? null,
       spareBasis: spare?.basis ?? null,
       spareDays: spare?.n ?? null
@@ -321,44 +412,33 @@ export default function SolarForecast({ state, onConfigChange }) {
     : null;
   const quietest = ranked.length > 1 ? ranked[ranked.length - 1] : null;
 
-  // Only the two days decided in the next 24 hours get a full row - except
-  // on a Friday, when the weekend starts tomorrow: Sunday joins as a third
-  // row so the whole weekend is on screen as rows, and the card below drops
-  // out rather than showing Saturday twice.
-  const featured = days.filter((d) => d.index <= 1);
-  if (days[1]?.weekday === 6 && days[2]) featured.push(days[2]);
-  const inRows = new Set(featured.map((d) => d.date));
-  const rest = days.filter((d) => !inRows.has(d.date));
-
-  // The coming weekend as one card. Any 7-day window contains exactly one
-  // Saturday and one Sunday, so both are always available - but the card is
-  // shown ONLY while both are still ahead of the rows above. Once either has
-  // become today or tomorrow (Friday, Saturday, Sunday) the rows are the
-  // weekend, and a card would only repeat them.
+  // The coming weekend keeps a card of its own. Any 7-day window contains
+  // exactly one Saturday and one Sunday, so both are always available.
   const saturday = days.find((d) => d.weekday === 6) ?? null;
   const sunday = days.find((d) => d.weekday === 0) ?? null;
-  const weekend =
-    saturday && sunday && !inRows.has(saturday.date) && !inRows.has(sunday.date)
-      ? [saturday, sunday]
-      : null;
+  const weekend = saturday && sunday ? [saturday, sunday] : null;
 
-  // One scale for every bar in the panel, so rows are comparable by length.
+  // One scale for every column in the panel, so days are comparable by
+  // height and the weekend card's bars line up with the strip's.
   const scaleMax = hasKwh
     ? Math.max(...days.map((d) => d.kwhHigh ?? d.kwh ?? 0), 0)
     : Math.max(...days.map((d) => d.sunshineHours ?? 0), 0);
 
   const noteFor = (d) => {
     if (!hasKwh) return null;
-    if (best && d.date === best.date) {
-      return d.spareKwh != null
-        ? `Best of the week — about ${kwh(d.spareKwh)} spare for the car.`
-        : 'Best of the week.';
-    }
+    if (best && d.date === best.date) return 'The best day this week.';
     if (quietest && d.date === quietest.date) return 'The quietest day this week.';
-    if (d.spareKwh != null) return `About ${kwh(d.spareKwh)} spare for the car.`;
     return null;
   };
   for (const d of days) d.note = noteFor(d);
+
+  // The selection falls back to today whenever the picked day is not in the
+  // window any more - which is what happens the first time the app is opened
+  // on the following day.
+  const selected = days.find((d) => d.date === picked) ?? days[0] ?? null;
+
+  const bestLift =
+    hasKwh && best && otherAvg ? Math.round(((best.kwh - otherAvg) / otherAvg) * 100) : null;
 
   const spreadPct =
     cal?.lowRatio != null && cal?.highRatio != null
@@ -396,71 +476,37 @@ export default function SolarForecast({ state, onConfigChange }) {
         </div>
       )}
 
-      {/* The answer, at the size of the answer. */}
+      {/* The answer, at the size of the answer. One line: the strip below
+          shows how far ahead it is, so the old two-sentence sub-line only
+          restated what the columns already say. */}
       {best && (
         <div className="fc-verdict">
-          <div className="label">{hasKwh ? 'Best day this week' : 'Sunniest day this week'}</div>
+          <div className="fc-verdict-top">
+            <span className="label">{hasKwh ? 'Best day this week' : 'Sunniest day this week'}</span>
+            {bestLift != null && bestLift > 0 && (
+              <span className="fc-verdict-lift">+{bestLift}% on the rest</span>
+            )}
+          </div>
           <div className="fc-verdict-head">
             <span className="fc-verdict-day">{best.spoken}</span>
-            {hasKwh && <span className="fc-verdict-value">{kwh(best.kwh)}</span>}
-          </div>
-          <div className="fc-verdict-sub">
-            {hasKwh && otherAvg != null
-              ? <>Against {kwh(otherAvg)} on the other days.
-                  {best.kwhLow != null && best.kwhHigh != null
-                    && ` Likely ${Math.round(best.kwhLow)}–${Math.round(best.kwhHigh)} kWh.`}</>
-              : <>{best.dateLabel}
-                  {best.sunshineHours != null && ` · ${Math.round(best.sunshineHours)} hours of sun`}</>}
+            {hasKwh
+              ? <span className="fc-verdict-value">{kwh(best.kwh)}</span>
+              : best.sunshineHours != null
+                && <span className="fc-verdict-value">{Math.round(best.sunshineHours)} h sun</span>}
           </div>
         </div>
       )}
 
-      <div className="fc-rows">
-        {featured.map((d) => (
-          <DayRow
-            key={d.date}
-            day={d}
-            scaleMax={scaleMax}
-            hasKwh={hasKwh}
-            showSun
-            highlight={best && d.date === best.date}
-          />
-        ))}
-      </div>
+      <WeekStrip
+        days={days}
+        scaleMax={scaleMax}
+        hasKwh={hasKwh}
+        bestDate={best?.date ?? null}
+        selectedDate={selected?.date ?? null}
+        onSelect={setPicked}
+      />
 
-      {/* The rest of the week: never gone, just not competing for attention.
-          This is also where a day off gets looked up. */}
-      {rest.length > 0 && (
-        <>
-          <button className="fc-more" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll}>
-            <span className="small">{showAll ? 'Hide the other days' : 'Rest of the week'}</span>
-            {!showAll && (
-              <span className="fc-spark" aria-hidden="true">
-                {days.map((d) => {
-                  const v = hasKwh ? d.kwh : d.sunshineHours;
-                  const h = scaleMax > 0 && v != null ? Math.max(8, (v / scaleMax) * 100) : 8;
-                  return (
-                    <span
-                      key={d.date}
-                      className={best && d.date === best.date ? 'best' : ''}
-                      style={{ height: `${h}%` }}
-                    />
-                  );
-                })}
-              </span>
-            )}
-            <span className="small">{showAll ? 'Close' : 'Show'}</span>
-          </button>
-
-          {showAll && (
-            <div className="fc-rows fc-rows-rest">
-              {rest.map((d) => (
-                <DayRow key={d.date} day={d} scaleMax={scaleMax} hasKwh={hasKwh} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      {selected && <DayDetail day={selected} hasKwh={hasKwh} />}
 
       {weekend && (
         <WeekendCard days={weekend} scaleMax={scaleMax} hasKwh={hasKwh} />
@@ -511,11 +557,17 @@ export default function SolarForecast({ state, onConfigChange }) {
                   ? `It is fitted on days spanning only ${cal.seasonMonths} months of the year so far, so it has not yet seen how this roof behaves in every season: a hot day loses efficiency, and a low winter sun casts longer shadows. It re-fits as the year fills in.`
                   : 'The fit spans a full year of your own days, so it already carries how this roof behaves across the seasons.'}
             </p>
+            <p>
+              Each column is read from the bottom up: the solid part is the low end of
+              the likely range, the dim part above it the high end, and the bright line
+              is the figure quoted — the middle. Tap a column to see that day in full.
+              {cal.lowRatio == null && ' A monthly-fitted estimate has no daily range, so the columns are a plain fill until there are enough daily readings.'}
+            </p>
 
             {leadRows.length > 0 ? (
               <>
                 <p>
-                  The range on each bar is measured, not assumed: every figure this panel has
+                  That range is measured, not assumed: every figure this panel has
                   shown is recorded and later checked against what your roof actually produced
                   that day. What is drawn is how wrong this panel has really been that far
                   ahead, which is why tomorrow is tighter than Sunday.
@@ -532,10 +584,10 @@ export default function SolarForecast({ state, onConfigChange }) {
             ) : (
               <p>
                 {cal.lowRatio != null
-                  ? 'The bar is the middle 60% of your own days around the fit, and the line is the middle of it. It does not yet include the weather forecast itself being wrong, which grows through the week: day six or seven is a much softer number than tomorrow.'
-                  : 'There is no range on the bars yet.'}{' '}
+                  ? 'The range is the middle 60% of your own days around the fit. It does not yet include the weather forecast itself being wrong, which grows through the week: day six or seven is a much softer number than tomorrow.'
+                  : 'There is no range on the columns yet.'}{' '}
                 Every figure shown here is now recorded and checked against what actually
-                happened, so the bars become a measured range instead. Real production only
+                happened, so the columns become a measured range instead. Real production only
                 arrives with a monthly upload, so that takes a few weeks to appear.
               </p>
             )}
@@ -567,7 +619,7 @@ export default function SolarForecast({ state, onConfigChange }) {
             <p>
               {spareIsMeasured
                 ? `"Spare for the car" is measured, not assumed: on the ${spareSampleDays} past days when this roof made about as much as the day shown, this is how much energy actually went spare - what was exported, plus what the car took straight off the panels. Your house, your appliances and your battery are all already inside that figure, because it is what really happened.`
-                : '"Spare for the car" is the day\u2019s expected production less what your house alone has typically drawn per day over recent months. It is a whole-day energy figure, not a plan for the day: it does not know when the sun and your appliances coincide, or where the battery will be sitting. Once there are enough comparable days on record it switches to what actually went spare on them.'}
+                : '"Spare for the car" is the day’s expected production less what your house alone has typically drawn per day over recent months. It is a whole-day energy figure, not a plan for the day: it does not know when the sun and your appliances coincide, or where the battery will be sitting. Once there are enough comparable days on record it switches to what actually went spare on them.'}
             </p>
             {spareIsMeasured && (
               <p className="small">
@@ -576,6 +628,12 @@ export default function SolarForecast({ state, onConfigChange }) {
                 is there tomorrow depends on where the battery is sitting.
               </p>
             )}
+            <p>
+              The sky icon is the day&apos;s average cloud cover and expected rainfall, which
+              is why a bright day can still sit under a cloud: it is a daily mean, not an
+              hour-by-hour outlook. Sunrise and sunset are on the Home screen, drawn against
+              the shape of the day.
+            </p>
             <p>
               These are daily totals, so nothing here is converted into dollars — the
               same limit that keeps Plan Comparison to EV charging only.
