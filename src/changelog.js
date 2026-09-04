@@ -13,6 +13,16 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.17.2',
+    date: '2026-09-04',
+    changes: [
+      'Home no longer says the same thing twice. Once a month has ended, ' +
+        '\u201CAugust so far \u2014 day 31 of 31\u201D is gone and only the ' +
+        'full write-up of that month remains; the pace panel comes back when ' +
+        'there is a month actually in progress to pace.'
+    ]
+  },
+  {
     version: 'v2.17.1',
     date: '2026-09-04',
     changes: [
