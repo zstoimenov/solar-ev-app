@@ -661,8 +661,23 @@ once, then says everything about one day at a time:
   it opens. What stays on screen is the timestamp, because this panel serves a
   cached forecast when a fetch fails and a stale one is otherwise
   indistinguishable from a fresh one. Don't put prose back under the strip.
+- **The selected day's card is TWO ROWS, not three** (v2.17.1). It was a head
+  row that pushed the kWh figure to the right and left **76px of nothing** in
+  between, then a stats row, then a whole line of prose reading "The best day
+  this week". Now: the day and date on the left of row one with the figure and
+  its likely range STACKED into that empty width on the right, and one
+  full-width stats row under it (sky, temperatures, radiation, spare). 91px ->
+  63px, or 79px when a range is present. Do not narrow the stats row to sit
+  beside the figure - that was tried first and it forces "spare" onto a line
+  of its own, giving the whole saving back.
+- **Best/quietest is a CHIP beside the date, never a sentence** (v2.17.1). The
+  verdict at the top of the panel already names the best day in larger type,
+  so a line saying it again three inches lower was the panel's own duplicate
+  rendering. As a chip it costs no height and still confirms which day you
+  landed on.
 - **The day's radiation figure sits beside the date on the detail card**
-  (v2.16) - the forecast's own `radiationMj`, in MJ/m2, deliberately
+  (v2.16; in the stats row since v2.17.1) - the forecast's own `radiationMj`,
+  in MJ/m2, deliberately
   unconverted so it can be read straight across against another forecast
   quoting the same quantity. It is the INPUT to the kWh figure, not a second
   version of it, which is why it is not on the columns: the strip stays one
@@ -947,6 +962,64 @@ month would have cost on a plan the household is not on. It lives outside
 `buildDigest.js` because nothing it computes is ever stored, and it shares
 `groupPlans()`/`bandCoverageMinutes()` with the EV-only `PlanComparison.jsx`
 so the two comparisons can never disagree about a plan's bands.
+
+## Insights: the app explaining its own numbers (since v2.17)
+
+`data/insights.js` (pure, like `notify.js`) + `Dashboard/MonthStory.jsx` on
+Home. Two things: the month just gone in plain sentences, and a decomposition
+of why its saving differs from a reference month.
+
+**The one property that licenses the money breakdown to exist.** The combined
+saving is EXACTLY the sum of five figures already stored on every digest:
+
+```
+combined = gridCostAvoided + exportCredit + counterfactual
+           - evElectricityCost - evHomeChargingCost
+```
+
+So the change between two months is five subtractions. Nothing is
+apportioned, weighted, estimated or modelled - which is the only reason a
+"why did it move" feature belongs in an app that refuses guesses everywhere
+else. `buildDigest.js` remains the only place a financial figure is PRODUCED;
+this module reads stored ones and subtracts them, and stores nothing.
+
+- **The sum is checked on every call, and the check is shown.** If the parts
+  do not reconcile with the total to within a cent or two, the panel prints an
+  explicit "not accounted for" row and points at Recompute Financials. The
+  usual cause is a pre-v1.10 month with no `evHomeChargingCostAud` (an
+  optional field). **Never widen `RECONCILE_TOLERANCE_AUD` until awkward
+  months pass, and never spread the residual across the other rows** - a
+  breakdown that swallows its own residual is a story, not an explanation.
+- **The volume/price split uses the SYMMETRIC (Bennet) form**,
+  `dq*(p0+p1)/2 + dp*(q0+q1)/2`, which sums to `d(q*p)` exactly with no cross
+  term. The naive `dq*p0 + dp*q0` leaves a residual that has to be explained
+  or hidden. Both rates are recovered exactly from stored fields: the import
+  rate is `gridCostAvoided / (consumption - import)` (the supply charge is in
+  both the baseline and the actual, so it cancels), the feed-in rate is
+  `exportCredit / export`.
+- **Only ONE split is shown**, and it prefers a row where both halves moved -
+  that is the case the split exists to reveal (you exported more AND the rate
+  was cut). A half worth under 10% of the row gets no clause of its own:
+  "the rate went from 8.00 to 8.00" is a sentence about nothing.
+- **Home charging deliberately has no split.** That figure blends two rates
+  (import on the grid share, feed-in on the solar share), so there is no
+  single price to recover and inventing one would be the exact guess this
+  module avoids.
+- **MonthStory reads the last COMPLETE month, not the latest digest.** A
+  partial month is four days against thirty and every comparison it makes is
+  dominated by that - the biggest mover comes out as "the length of the
+  month", which is true, useless, and buries everything worth knowing. Same
+  line `daily.js:typicalForMonth()` already takes, and the month in progress
+  is what the panel ABOVE it is for.
+- **Rows that round to zero are dropped**, not folded; below-threshold rows
+  are folded into "Everything else" only when there are two or more of them.
+- **The sentences are ENERGY, the rows are MONEY.** Saying the same thing in
+  both is the duplicate-rendering trap. When this shipped, the
+  month-in-progress panel's footnote ("$414 saved this month - your own power
+  covered 72%") was REMOVED: MonthStory says both properly, with something to
+  compare against, so it is said once instead of twice at two lengths.
+- The narrative returns **segments** (`{text, em}`), not strings or markup, so
+  a pure module can emphasise figures without importing React.
 
 ## Null convention
 

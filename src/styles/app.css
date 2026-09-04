@@ -669,6 +669,43 @@ header.top .date-range-filter { flex-shrink: 0; }
 .delta-change.bad { color: var(--red); }
 .delta-note { margin: .35rem 0 0; font-size: .72rem; color: var(--muted); }
 
+/* --- The month just gone, explained (Home / MonthStory) -----------------
+   The sentences on top are the month's ENERGY; the rows underneath are its
+   MONEY, decomposed into the five stored figures the saving is the sum of.
+   Two subjects, deliberately - see MonthStory.jsx.
+
+   The rows borrow the delta rows' shape on purpose: both are "a figure and
+   how it moved", and a household should not have to learn two idioms for the
+   same idea because they sit on different screens. */
+.story-line { margin: 0 0 .45rem; }
+.story-line:last-of-type { margin-bottom: 0; }
+.story-money { margin-top: .9rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+.story-compare-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .5rem; margin-bottom: .4rem;
+}
+.story-compare-head .label {
+  color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em;
+}
+
+.attrib { margin-top: .6rem; display: flex; flex-direction: column; gap: .35rem; }
+.attrib-row {
+  display: flex; align-items: baseline; gap: .5rem;
+  padding: .4rem .55rem; background: var(--panel-2); border-radius: 8px;
+}
+.attrib-label { flex: 1 1 auto; min-width: 0; font-size: .8rem; }
+.attrib-caption { display: block; color: var(--muted); font-size: .68rem; }
+/* The sign is a character, never colour alone - the tint only confirms it. */
+.attrib-amount {
+  min-width: 4.6rem; text-align: right; font-size: .82rem; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--muted);
+}
+.attrib-amount.good { color: var(--green); }
+.attrib-amount.bad { color: var(--red); }
+.attrib-split { margin: .55rem 0 0; font-size: .76rem; color: var(--muted); line-height: 1.5; }
+.attrib-split strong { color: var(--text); font-weight: 600; }
+.attrib-note { margin: .45rem 0 0; font-size: .72rem; color: var(--muted); }
+
 /* --- 7-day solar forecast -----------------------------------------------
    Arranged around the decision, not the calendar: a one-line verdict, the
    whole week as ONE strip of seven columns on a shared scale, then a card
@@ -771,32 +808,53 @@ header.top .date-range-filter { flex-shrink: 0; }
 }
 .fc-legend-unit { margin-left: auto; white-space: nowrap; }
 
-/* The selected day in full - the day rows' four lines of prose, for one day
-   at a time instead of two days at once. */
+/* The selected day in full. TWO COLUMNS since v2.17.1: it used to be three
+   stacked rows whose head row pushed the kWh figure to the right and left
+   76px of nothing in between, at 412px. The left column is the day and its
+   conditions, the right is the figure with its likely range stacked under
+   it - so that empty width now carries the range, and the card lost a row.
+   See DayDetail in SolarForecast.jsx. */
 .fc-detail {
   background: var(--panel-2); border-radius: 10px;
-  padding: .65rem .85rem; margin-top: .7rem;
+  padding: .6rem .85rem; margin-top: .7rem;
 }
 .fc-detail-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: .5rem; flex-wrap: wrap;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: .7rem;
 }
-.fc-detail-day { font-size: .92rem; font-weight: 700; min-width: 0; }
+.fc-detail-day { flex: 1 1 auto; }
+/* Right-aligned and hugging its content: the figure is what the eye comes
+   back to, so it keeps a hard edge to line up against, and the range sits
+   under it in width that was previously empty. */
+.fc-detail-figure {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end;
+  text-align: right;
+}
+.fc-detail-day { font-size: .92rem; font-weight: 700; min-width: 0; line-height: 1.4; }
 .fc-detail-date { font-weight: 400; color: var(--muted); font-size: .72rem; margin-left: .4rem; }
-/* The forecast's own radiation total, sitting with the date because it
-   describes the day rather than this roof. Tabular so successive days line
-   up as you tap along the strip. */
+/* "best day" / "quietest" - a whole line of prose reduced to a chip. The
+   verdict at the top of the panel already names the best day in larger type;
+   this only confirms which day you have landed on. */
+.fc-detail-mark {
+  display: inline-block; margin-left: .4rem; padding: .05rem .35rem;
+  border: 1px solid rgba(250, 204, 21, .45); border-radius: 999px;
+  color: var(--accent); font-size: .62rem; font-weight: 600;
+  letter-spacing: .02em; vertical-align: .08em; white-space: nowrap;
+}
+/* The forecast's own radiation total. Tabular so successive days line up as
+   you tap along the strip. */
 .fc-detail-rad { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fc-detail-value { font-size: .92rem; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.fc-detail-range { font-weight: 400; color: var(--muted); font-size: .7rem; margin-left: .35rem; }
+.fc-detail-value {
+  font-size: 1.05rem; font-weight: 700; white-space: nowrap;
+  font-variant-numeric: tabular-nums; line-height: 1.25;
+}
+.fc-detail-range { color: var(--muted); font-size: .68rem; white-space: nowrap; }
 .fc-detail-stats {
-  display: flex; flex-wrap: wrap; gap: .3rem .9rem;
-  margin-top: .4rem; font-size: .74rem; color: var(--muted);
+  display: flex; flex-wrap: wrap; gap: .2rem .5rem;
+  margin-top: .3rem; font-size: .74rem; color: var(--muted);
 }
 .fc-detail-stat { display: inline-flex; align-items: center; gap: .28rem; }
-.fc-detail-stat strong { color: var(--text); font-weight: 600; }
 .fc-detail-icon { color: var(--muted); line-height: 0; }
-.fc-detail-note { font-size: .72rem; color: var(--accent); margin-top: .4rem; }
+.fc-detail-stat strong { color: var(--text); font-weight: 600; }
 
 /* The forecast's foot, reduced to one line (v2.16): when it was last checked,
    and the way into the explanation. Everything else it used to print - how

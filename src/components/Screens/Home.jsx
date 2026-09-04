@@ -44,6 +44,7 @@ import { backupStaleness, ingestStaleness } from '../../data/storage.js';
 import ForecastAlert from '../ForecastAlert.jsx';
 import WeekVerdict from '../Dashboard/WeekVerdict.jsx';
 import SunCurve from '../Dashboard/SunCurve.jsx';
+import MonthStory from '../Dashboard/MonthStory.jsx';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -96,10 +97,6 @@ export default function Home({ state, appMeta, onGoTo }) {
   const mtd = dailyMonth ? monthToDate(daily, dailyMonth) : null;
   const pace = paceToMonthEnd(mtd);
   const typical = dailyMonth ? typicalForMonth(digests, dailyMonth) : null;
-
-  // This month's money and self-sufficiency come from the digest, which is
-  // the source of truth for both - the daily rows carry energy only.
-  const monthDigest = dailyMonth ? digests.find((d) => d.month === dailyMonth) : null;
 
   const season = seasonalCheck(daily);
 
@@ -214,19 +211,17 @@ export default function Home({ state, appMeta, onGoTo }) {
             </Lede>
           )}
 
-          {monthDigest && (
-            <p className="panel-foot">
-              {monthDigest.combinedSavingAud != null && (
-                <><strong>{money(monthDigest.combinedSavingAud)}</strong> saved this month</>
-              )}
-              {monthDigest.selfSufficiencyPct != null && (
-                <> · your own power covered <strong>{Math.round(monthDigest.selfSufficiencyPct)}%</strong> of
-                what the house used</>
-              )}
-            </p>
-          )}
         </div>
       )}
+
+      {/* 3b. The month just gone, explained ----------------------------
+          The panel above is the month IN PROGRESS, in kWh, as a pace. This
+          is the month as ingested: what it did in words, and then why its
+          saving differs from a year earlier. It carries the saving and the
+          self-sufficiency figure that used to sit as a footnote on the panel
+          above - said once, with something to compare against, instead of
+          twice at two lengths. */}
+      <MonthStory state={state} />
 
       {/* 4. What it has all added up to ---------------------------------
           One panel, because it is one story told at three sizes: the total,
