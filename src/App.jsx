@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { loadOrSeed } from './data/seed.js';
 import { getState, getAppMeta, getCloudMeta } from './data/db.js';
 import { recomputeCumulative } from './data/compute.js';
@@ -29,6 +29,25 @@ const SCREENS = [
   { key: 'Money', icon: BanknoteIcon },
   { key: 'Data', icon: UploadIcon }
 ];
+
+// Swiping sideways moves between those five screens, in the same order the
+// nav bar shows them. The nav is the map; the swipe is the shortcut, and it
+// stays a shortcut on purpose:
+//
+//   - It does NOT wrap. Swiping left on Data does nothing, rather than
+//     landing on Home - an over-swipe that teleports across the whole app
+//     reads as a bug, and the nav is one tap away for a real jump.
+//   - It is a HORIZONTAL gesture or it is nothing. A swipe only counts once
+//     it has travelled SWIPE_MIN_PX sideways AND more than SWIPE_RATIO times
+//     as far sideways as vertically, so scrolling a long screen at a slight
+//     angle never changes screen underneath the thumb.
+//   - It yields to anything that scrolls sideways itself. A gesture starting
+//     inside a `.table-scroll` (the 12-month table, the tariff tables) is
+//     that element's, not the nav's.
+//   - Two fingers are a browser gesture (pinch/zoom), never a screen change.
+const SWIPE_MIN_PX = 60;
+const SWIPE_RATIO = 1.5;
+const SWIPE_MAX_MS = 800;
 
 // Energy, Car and Money each own their range control inline (the three
 // chips + the From/To selectors), rather than a filter in the header. The
@@ -78,6 +97,43 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [screen]);
+
+  // The swipe itself. Held in a ref rather than state: a gesture in progress
+  // must not re-render the screen it is being made on.
+  const swipe = useRef(null);
+
+  const onTouchStart = (e) => {
+    // Two fingers is the browser's gesture (pinch, zoom), never ours. A
+    // gesture starting inside something that scrolls sideways belongs to
+    // that element - the 12-month table is read by swiping it.
+    if (e.touches.length !== 1 || notesOpen || e.target.closest?.('.table-scroll')) {
+      swipe.current = null;
+      return;
+    }
+    const t = e.touches[0];
+    swipe.current = { x: t.clientX, y: t.clientY, at: Date.now() };
+  };
+
+  const onTouchEnd = (e) => {
+    const start = swipe.current;
+    swipe.current = null;
+    if (!start || notesOpen) return;
+    const t = e.changedTouches?.[0];
+    if (!t) return;
+
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    // A slow drag is a scroll that wandered, not a swipe.
+    if (Date.now() - start.at > SWIPE_MAX_MS) return;
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * SWIPE_RATIO) return;
+
+    const i = SCREENS.findIndex((sc) => sc.key === screen);
+    // Swipe left (dx negative) moves forward through the nav order, the way
+    // the content itself would slide. Clamped at both ends - see above.
+    const next = i + (dx < 0 ? 1 : -1);
+    if (i < 0 || next < 0 || next >= SCREENS.length) return;
+    setScreen(SCREENS[next].key);
+  };
 
   if (loadError) {
     return (
@@ -166,7 +222,12 @@ export default function App() {
   );
 
   return (
-    <div className="app has-nav">
+    <div
+      className="app has-nav"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={() => { swipe.current = null; }}
+    >
       <header className="top">
         <h1>{screen === 'Home' ? 'Solar, Battery & EV' : screen}</h1>
         {screen === 'Home' && (

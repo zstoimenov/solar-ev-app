@@ -650,6 +650,23 @@ once, then says everything about one day at a time:
   on — not the adjacent-pair ΔE the palette validator applies to categorical
   sets.
 - **A ramp legend names both ends** (`StripLegend`), matching the calendar's.
+- **The foot is ONE line: when it was last checked** (v2.16). It used to also
+  print how the factor was fitted ("Fitted from 272 of your own days...") and
+  the saved area spelled out with its coordinates - four to five wrapped lines
+  of answers to questions asked once, under a panel opened daily. The fitted-
+  from sentence is the InfoPopover's opening line now (it was already the
+  popover's first subject, so this made it one statement instead of two at two
+  lengths); the location line is gone, and **Change area moved into the panel
+  head beside Refresh**, with the area and coordinates stated inside the view
+  it opens. What stays on screen is the timestamp, because this panel serves a
+  cached forecast when a fetch fails and a stale one is otherwise
+  indistinguishable from a fresh one. Don't put prose back under the strip.
+- **The day's radiation figure sits beside the date on the detail card**
+  (v2.16) - the forecast's own `radiationMj`, in MJ/m2, deliberately
+  unconverted so it can be read straight across against another forecast
+  quoting the same quantity. It is the INPUT to the kWh figure, not a second
+  version of it, which is why it is not on the columns: the strip stays one
+  number per bar.
 - **The per-day prose lives in ONE card that follows the selection**, not on
   every row. It opens on today and carries the figure, the likely range, the
   sky in a word, the temperatures, the spare-for-the-car figure and the
@@ -1039,6 +1056,16 @@ are why, and undoing them re-creates the problem.
   behind, because a month can only be uploaded once it has ended — being one
   month behind is simply the month in progress, and nagging about that would
   train the household to ignore the row.
+- **Swiping sideways moves between the five screens** (since v2.16), in the
+  nav's own order. It is a shortcut on top of the nav, never a replacement:
+  it does **not wrap** (an over-swipe on Data that teleports to Home reads as
+  a bug), it requires a genuinely horizontal gesture (>=60px sideways and
+  >1.5x the vertical travel, within 800ms) so an angled scroll never changes
+  screen under the thumb, it ignores multi-touch (that is the browser's
+  pinch/zoom), and a gesture starting inside a `.table-scroll` belongs to that
+  element - the 12-month table is read by swiping it. The in-progress gesture
+  is held in a ref, not state: a swipe must not re-render the screen it is
+  being made on.
 - **Screen scoping: three periods, one control** (since v2.2). Energy, Car
   and Money each carry the same `RangeChips` row at the top of the screen —
   *This month* / *Range* / *All time*, one **segmented control** since v2.14

@@ -430,6 +430,10 @@ header.top .date-range-filter { flex-shrink: 0; }
 }
 .panel-title { margin: 0 0 .6rem; font-size: .95rem; font-weight: 600; color: var(--text); }
 .panel-head .panel-title { margin: 0; }
+/* A panel head carrying more than one control (the forecast's Change area +
+   Refresh). They wrap as a pair rather than one dropping under the title. */
+.panel-head-actions { display: flex; align-items: center; gap: .4rem; flex: 0 0 auto; }
+.panel-head-actions .small-btn { font-size: .78rem; padding: .35rem .6rem; white-space: nowrap; }
 .panel-foot {
   border-top: 1px solid var(--border); margin: .75rem 0 0; padding-top: .6rem;
   font-size: .78rem; color: var(--muted);
@@ -779,6 +783,10 @@ header.top .date-range-filter { flex-shrink: 0; }
 }
 .fc-detail-day { font-size: .92rem; font-weight: 700; min-width: 0; }
 .fc-detail-date { font-weight: 400; color: var(--muted); font-size: .72rem; margin-left: .4rem; }
+/* The forecast's own radiation total, sitting with the date because it
+   describes the day rather than this roof. Tabular so successive days line
+   up as you tap along the strip. */
+.fc-detail-rad { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fc-detail-value { font-size: .92rem; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .fc-detail-range { font-weight: 400; color: var(--muted); font-size: .7rem; margin-left: .35rem; }
 .fc-detail-stats {
@@ -790,6 +798,17 @@ header.top .date-range-filter { flex-shrink: 0; }
 .fc-detail-icon { color: var(--muted); line-height: 0; }
 .fc-detail-note { font-size: .72rem; color: var(--accent); margin-top: .4rem; }
 
+/* The forecast's foot, reduced to one line (v2.16): when it was last checked,
+   and the way into the explanation. Everything else it used to print - how
+   the factor was fitted, the saved area and its coordinates - moved into the
+   popover and the Change area view respectively. */
+.fc-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .5rem; font-size: .72rem;
+}
+.fc-foot-checked { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-foot .section-info { margin-left: 0; flex: 0 0 auto; }
+
 /* --- The day's sun curve (Home) ----------------------------------------
    Sunrise to sunset with the day's forecast yield spread across it. ONE hue,
    like every other magnitude in the app: height is the message and the fill
@@ -800,11 +819,13 @@ header.top .date-range-filter { flex-shrink: 0; }
 .sun-curve-tick { fill: var(--muted); font-size: 10px; }
 .sun-curve-row { display: flex; align-items: baseline; gap: .4rem; }
 
-.forecast-foot-row {
-  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
-  margin-top: .75rem; padding-top: .6rem; border-top: 1px solid var(--border); flex-wrap: wrap;
-}
 .forecast-setup { margin-top: .5rem; }
+/* Which area is saved, stated inside the view that changes it - the one
+   place it is being acted on, rather than a permanent line under the week. */
+.forecast-current {
+  background: var(--panel-2); border-radius: 8px; padding: .4rem .6rem;
+  margin: 0 0 .5rem;
+}
 .forecast-presets { display: flex; flex-wrap: wrap; gap: .4rem; }
 .forecast-presets button { font-size: .78rem; }
 .err-text { color: var(--red); }
