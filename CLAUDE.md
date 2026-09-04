@@ -661,8 +661,23 @@ once, then says everything about one day at a time:
   it opens. What stays on screen is the timestamp, because this panel serves a
   cached forecast when a fetch fails and a stale one is otherwise
   indistinguishable from a fresh one. Don't put prose back under the strip.
+- **The selected day's card is TWO ROWS, not three** (v2.17.1). It was a head
+  row that pushed the kWh figure to the right and left **76px of nothing** in
+  between, then a stats row, then a whole line of prose reading "The best day
+  this week". Now: the day and date on the left of row one with the figure and
+  its likely range STACKED into that empty width on the right, and one
+  full-width stats row under it (sky, temperatures, radiation, spare). 91px ->
+  63px, or 79px when a range is present. Do not narrow the stats row to sit
+  beside the figure - that was tried first and it forces "spare" onto a line
+  of its own, giving the whole saving back.
+- **Best/quietest is a CHIP beside the date, never a sentence** (v2.17.1). The
+  verdict at the top of the panel already names the best day in larger type,
+  so a line saying it again three inches lower was the panel's own duplicate
+  rendering. As a chip it costs no height and still confirms which day you
+  landed on.
 - **The day's radiation figure sits beside the date on the detail card**
-  (v2.16) - the forecast's own `radiationMj`, in MJ/m2, deliberately
+  (v2.16; in the stats row since v2.17.1) - the forecast's own `radiationMj`,
+  in MJ/m2, deliberately
   unconverted so it can be read straight across against another forecast
   quoting the same quantity. It is the INPUT to the kWh figure, not a second
   version of it, which is why it is not on the columns: the strip stays one

@@ -13,6 +13,18 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.17.1',
+    date: '2026-09-04',
+    changes: [
+      'Tapping a day in the week ahead now shows it in two lines instead of ' +
+        'three, with the figure and its likely range using the space that ' +
+        'used to sit empty beside the date.',
+      'The line that read \u201CThe best day this week\u201D is a small tag ' +
+        'beside the date now. The panel already names the best day at the ' +
+        'top, in larger type.'
+    ]
+  },
+  {
     version: 'v2.17.0',
     date: '2026-09-04',
     changes: [

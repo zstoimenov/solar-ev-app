@@ -308,6 +308,20 @@ function StripLegend({ hasKwh }) {
 // Everything the old day row said, for ONE day at a time: the figure and its
 // likely range, the sky in a word, the temperatures, and what is going spare
 // for the car. It follows the strip's selection and starts on today.
+//
+// TWO COLUMNS (v2.17.1), because it was three stacked rows with a hole in it.
+// The head row put the day on the left and the kWh figure on the right and
+// left 76px of nothing between them, while the card ran to three lines and
+// 91px. It is now a flexible left column (who the day is, then its
+// conditions, then what is spare) beside a fixed right column carrying the
+// figure with its likely range stacked underneath - so the empty width is
+// spent on the range that used to need its own place, and the card is one
+// row shorter.
+//
+// THE BEST/QUIETEST LINE BECAME A CHIP. It was a whole line to say "The best
+// day this week" - which the verdict at the top of the panel has already said
+// in larger type, three inches higher. As a chip beside the date it costs no
+// height at all and still confirms which day you have landed on.
 function DayDetail({ day, hasKwh }) {
   const { Icon, label: skyLabel } = skyFor(day);
   // "16-16 kWh" is what rounding does to a tight band, and it reads as a
@@ -320,37 +334,47 @@ function DayDetail({ day, hasKwh }) {
   return (
     <div className="fc-detail">
       <div className="fc-detail-head">
-        <span className="fc-detail-day">
+        <div className="fc-detail-day">
           {day.spoken}
-          <span className="fc-detail-date">
-            {day.dateLabel}
-            {/* The sunlight the forecast expects, in its own unit, so it can
-                be checked against another source without converting it. */}
-            {rad && <> · <span className="fc-detail-rad" title="Forecast sunlight energy on a square metre, before this roof is applied">{rad}</span></>}
+          <span className="fc-detail-date">{day.dateLabel}</span>
+          {day.mark && <span className="fc-detail-mark">{day.mark}</span>}
+        </div>
+        {/* The figure and the range it could land in, stacked into the width
+            that used to sit empty beside the day's name. */}
+        <div className="fc-detail-figure">
+          <span className="fc-detail-value">
+            {hasKwh
+              ? kwh(day.kwh)
+              : day.sunshineHours == null ? '—' : `${Math.round(day.sunshineHours)} h sun`}
           </span>
-        </span>
-        <span className="fc-detail-value">
-          {hasKwh
-            ? kwh(day.kwh)
-            : day.sunshineHours == null ? '—' : `${Math.round(day.sunshineHours)} h sun`}
           {range && <span className="fc-detail-range">likely {range}</span>}
-        </span>
+        </div>
       </div>
 
+      {/* One row across the FULL width - narrowing it to sit beside the
+          figure is what forced "spare" onto a line of its own. */}
       <div className="fc-detail-stats">
         <span className="fc-detail-stat">
           <span className="fc-detail-icon" aria-hidden="true"><Icon width="15" height="15" /></span>
           {skyLabel}
         </span>
         <span className="fc-detail-stat">{deg(day.tMinC)}–{deg(day.tMaxC)}</span>
+        {/* The sunlight the forecast expects, in its own unit, so it can be
+            checked against another source without converting it. */}
+        {rad && (
+          <span
+            className="fc-detail-stat fc-detail-rad"
+            title="Forecast sunlight energy on a square metre, before this roof is applied"
+          >
+            {rad}
+          </span>
+        )}
         {day.spareKwh != null && (
           <span className="fc-detail-stat">
-            <strong>{kwh(day.spareKwh)}</strong> spare for the car
+            <strong>{kwh(day.spareKwh)}</strong> spare
           </span>
         )}
       </div>
-
-      {day.note && <div className="fc-detail-note">{day.note}</div>}
     </div>
   );
 }
@@ -426,13 +450,15 @@ export default function SolarForecast({ state, onConfigChange }) {
     ? Math.max(...days.map((d) => d.kwh ?? 0), 0)
     : Math.max(...days.map((d) => d.sunshineHours ?? 0), 0);
 
-  const noteFor = (d) => {
+  // One word, not a sentence - it rides beside the date as a chip now rather
+  // than costing the card a line of its own.
+  const markFor = (d) => {
     if (!hasKwh) return null;
-    if (best && d.date === best.date) return 'The best day this week.';
-    if (quietest && d.date === quietest.date) return 'The quietest day this week.';
+    if (best && d.date === best.date) return 'best day';
+    if (quietest && d.date === quietest.date) return 'quietest';
     return null;
   };
-  for (const d of days) d.note = noteFor(d);
+  for (const d of days) d.mark = markFor(d);
 
   // The selection falls back to today whenever the picked day is not in the
   // window any more - which is what happens the first time the app is opened
