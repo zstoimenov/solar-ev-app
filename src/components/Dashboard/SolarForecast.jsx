@@ -31,6 +31,31 @@
 // identically on both featured rows, and Home's sun curve already shows them
 // against the shape of the day, which is where they mean something.
 //
+// THE FOOT WENT NEXT (v2.16). Below the panel sat four to five wrapped lines
+// that nobody acts on: how the factor was fitted ("Fitted from 272 of your own
+// days..."), and then the saved location spelled out in full with its
+// coordinates. Both are answers to questions asked once, not facts to re-read
+// on every open, so both moved to where they are asked:
+//
+//   - The fitted-from sentence is now the InfoPopover's opening line. It was
+//     already the popover's first subject, so this makes it one statement
+//     rather than the same thing said twice at two lengths.
+//   - The location line is gone entirely. "Change area" moved up beside
+//     Refresh, and the area and its coordinates are shown inside that view,
+//     where they are what is being changed.
+//
+// What stayed is the one line that dates the figures: "Checked 5:32 pm". A
+// forecast with no timestamp cannot be told from a stale one, and this panel
+// serves a cached copy when a fetch fails - so the foot is now that, plus the
+// info trigger, on one row.
+//
+// THE RADIATION FIGURE (v2.16) is on the selected day's card, beside the date.
+// It is the forecast's own shortwave radiation total in MJ/m2, unconverted and
+// straight from the response, so it can be checked against any other source
+// that publishes the same quantity. It is deliberately NOT on the columns: the
+// strip is one number per bar, and this is the input to that number rather
+// than a second version of it.
+//
 // The kWh figures are NOT modelled from panel specs. The forecast supplies
 // daily shortwave radiation; data/forecast.js fits kWh-per-MJ from this
 // household's own history and applies it (see that file's header). Three
@@ -92,6 +117,13 @@ function shortDate(dateStr, index) {
 const kwh = (n) => (n == null ? '—' : `${Math.round(n)} kWh`);
 const deg = (n) => (n == null ? '—' : `${Math.round(n)}°`);
 
+// The forecast's own daily shortwave radiation total, in the unit it arrives
+// in. Deliberately not converted to kWh/m2 or anything else: this figure
+// exists so it can be read straight across against another forecast that
+// publishes the same quantity, and a conversion would make that comparison a
+// piece of arithmetic instead of a glance.
+const mj = (n) => (n == null ? null : `${n.toFixed(1)} MJ/m²`);
+
 // What the sky is doing, from the cloud cover and rainfall the forecast
 // already returns and the panel used to throw away. Four states is all the
 // resolution a daily mean supports, and each carries a word as well as a
@@ -117,7 +149,7 @@ function timeLabel(iso) {
 // Location setup. No coordinate is shipped as a default - the household
 // either uses the browser's own location (rounded to ~11 km before it is
 // stored or sent) or picks a coarse area from the list.
-function LocationSetup({ onSaved }) {
+function LocationSetup({ current, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -151,6 +183,12 @@ function LocationSetup({ onSaved }) {
 
   return (
     <div className="forecast-setup">
+      {current && (
+        <p className="small forecast-current">
+          Currently <strong>{current.label ?? 'set'}</strong>
+          {current.latitude != null && ` — ${current.latitude}, ${current.longitude}`}
+        </p>
+      )}
       <p className="small">
         This is the one part of the app that talks to the internet. Turning it on sends
         an approximate location — rounded to about 11 km, never your address — to the
@@ -277,13 +315,19 @@ function DayDetail({ day, hasKwh }) {
   const lo = day.kwhLow == null ? null : Math.round(day.kwhLow);
   const hi = day.kwhHigh == null ? null : Math.round(day.kwhHigh);
   const range = hasKwh && lo != null && hi != null && hi > lo ? `${lo}–${hi}` : null;
+  const rad = mj(day.radiationMj);
 
   return (
     <div className="fc-detail">
       <div className="fc-detail-head">
         <span className="fc-detail-day">
           {day.spoken}
-          <span className="fc-detail-date">{day.dateLabel}</span>
+          <span className="fc-detail-date">
+            {day.dateLabel}
+            {/* The sunlight the forecast expects, in its own unit, so it can
+                be checked against another source without converting it. */}
+            {rad && <> · <span className="fc-detail-rad" title="Forecast sunlight energy on a square metre, before this roof is applied">{rad}</span></>}
+          </span>
         </span>
         <span className="fc-detail-value">
           {hasKwh
@@ -331,7 +375,10 @@ export default function SolarForecast({ state, onConfigChange }) {
         {!hasLocation && (
           <Lede>See what the weather should give you this week, before it happens.</Lede>
         )}
-        <LocationSetup onSaved={() => { setChanging(false); onConfigChange?.(); }} />
+        <LocationSetup
+          current={changing ? data?.location ?? null : null}
+          onSaved={() => { setChanging(false); onConfigChange?.(); }}
+        />
       </div>
     );
   }
@@ -415,11 +462,18 @@ export default function SolarForecast({ state, onConfigChange }) {
 
   return (
     <div className="panel">
+      {/* Both of this panel's controls sit together in the head. "Change
+          area" used to be at the very bottom next to the saved coordinates;
+          the coordinates went with it into the view it opens, which is the
+          only place they are being acted on. */}
       <div className="panel-head">
         <h3 className="panel-title">Next 7 days</h3>
-        <button className="ghost small-btn" onClick={reload} disabled={loading}>
-          {loading ? 'Checking…' : 'Refresh'}
-        </button>
+        <span className="panel-head-actions">
+          <button className="ghost small-btn" onClick={() => setChanging(true)}>Change area</button>
+          <button className="ghost small-btn" onClick={reload} disabled={loading}>
+            {loading ? 'Checking…' : 'Refresh'}
+          </button>
+        </span>
       </div>
 
       {data?.error && (
@@ -485,17 +539,26 @@ export default function SolarForecast({ state, onConfigChange }) {
       )}
 
       {hasKwh && (
-        <div className="panel-foot">
-          {cal.method === 'daily'
-            ? `Fitted from ${cal.samples} of your own days against the sunlight they got`
-            : `Fitted from ${cal.samples} complete months against the sunlight they got`}
-          {measuredPct != null
-            ? `, and has landed within about ${measuredPct}% of what actually happened across ${acc.scoredDays} days since`
-            : spreadPct
-              ? `, and typically lands within about ${spreadPct}% of the figure shown`
-              : ''}.
-          {data?.fetchedAt && ` Checked ${timeLabel(data.fetchedAt)}.`}
+        /* One line, not five. What is left on screen is the only thing here
+           that goes stale - when this was last checked - because a cached
+           forecast is served when a fetch fails and it would otherwise be
+           indistinguishable from a fresh one. How the factor was fitted, and
+           how close it has landed, are now the popover's opening line. */
+        <div className="panel-foot fc-foot">
+          <span className="fc-foot-checked">
+            {data?.fetchedAt ? `Checked ${timeLabel(data.fetchedAt)}` : 'Not checked yet'}
+          </span>
           <InfoPopover label="How these kWh figures are worked out" className="section-info">
+            <p>
+              {cal.method === 'daily'
+                ? `Fitted from ${cal.samples} of your own days against the sunlight they got`
+                : `Fitted from ${cal.samples} complete months against the sunlight they got`}
+              {measuredPct != null
+                ? `, and it has landed within about ${measuredPct}% of what actually happened across ${acc.scoredDays} days since`
+                : spreadPct
+                  ? `, and it typically lands within about ${spreadPct}% of the figure shown`
+                  : ''}.
+            </p>
             <p>
               The forecast gives the sunlight energy expected on each day. Your own
               history says how many kWh this roof has produced per unit of that
@@ -583,6 +646,13 @@ export default function SolarForecast({ state, onConfigChange }) {
               </p>
             )}
             <p>
+              The MJ/m² figure beside a day&apos;s date is that day&apos;s forecast
+              sunlight energy falling on a square metre — the raw input this panel
+              multiplies by your roof&apos;s fitted factor. It is shown unconverted so
+              it can be read straight across against any other forecast quoting the
+              same quantity; nothing about your own system is in it.
+            </p>
+            <p>
               The sky icon is the day&apos;s average cloud cover and expected rainfall, which
               is why a bright day can still sit under a cloud: it is a daily mean, not an
               hour-by-hour outlook. Sunrise and sunset are on the Home screen, drawn against
@@ -595,13 +665,6 @@ export default function SolarForecast({ state, onConfigChange }) {
           </InfoPopover>
         </div>
       )}
-
-      <div className="forecast-foot-row">
-        <span className="small">
-          {data?.location?.label ?? 'Set area'} · {data?.location?.latitude}, {data?.location?.longitude}
-        </span>
-        <button className="ghost small-btn" onClick={() => setChanging(true)}>Change area</button>
-      </div>
     </div>
   );
 }

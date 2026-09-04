@@ -13,6 +13,25 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.16.0',
+    date: '2026-09-04',
+    changes: [
+      'Swipe left or right anywhere on a screen to move between Home, ' +
+        'Energy, Car, Money and Data, in the order the bar at the bottom ' +
+        'shows them. Tables that scroll sideways still scroll sideways.',
+      'Each day in the week ahead now shows the sunlight figure the forecast ' +
+        'itself is working from, beside the date, so it can be checked ' +
+        'against any other forecast quoting the same number.',
+      'The week ahead lost the four lines underneath it. How the estimate is ' +
+        'fitted, and how close it has been landing, are behind the ' +
+        '\u201Ci\u201D now; the time it was last checked stays on screen, ' +
+        'because a cached forecast otherwise looks like a fresh one.',
+      'Changing your area is a button at the top of that panel instead of the ' +
+        'bottom, and your saved area and coordinates are shown inside it ' +
+        'rather than printed under the week every time you open the app.'
+    ]
+  },
+  {
     version: 'v2.15.0',
     date: '2026-09-03',
     changes: [
