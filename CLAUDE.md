@@ -948,6 +948,64 @@ month would have cost on a plan the household is not on. It lives outside
 `groupPlans()`/`bandCoverageMinutes()` with the EV-only `PlanComparison.jsx`
 so the two comparisons can never disagree about a plan's bands.
 
+## Insights: the app explaining its own numbers (since v2.17)
+
+`data/insights.js` (pure, like `notify.js`) + `Dashboard/MonthStory.jsx` on
+Home. Two things: the month just gone in plain sentences, and a decomposition
+of why its saving differs from a reference month.
+
+**The one property that licenses the money breakdown to exist.** The combined
+saving is EXACTLY the sum of five figures already stored on every digest:
+
+```
+combined = gridCostAvoided + exportCredit + counterfactual
+           - evElectricityCost - evHomeChargingCost
+```
+
+So the change between two months is five subtractions. Nothing is
+apportioned, weighted, estimated or modelled - which is the only reason a
+"why did it move" feature belongs in an app that refuses guesses everywhere
+else. `buildDigest.js` remains the only place a financial figure is PRODUCED;
+this module reads stored ones and subtracts them, and stores nothing.
+
+- **The sum is checked on every call, and the check is shown.** If the parts
+  do not reconcile with the total to within a cent or two, the panel prints an
+  explicit "not accounted for" row and points at Recompute Financials. The
+  usual cause is a pre-v1.10 month with no `evHomeChargingCostAud` (an
+  optional field). **Never widen `RECONCILE_TOLERANCE_AUD` until awkward
+  months pass, and never spread the residual across the other rows** - a
+  breakdown that swallows its own residual is a story, not an explanation.
+- **The volume/price split uses the SYMMETRIC (Bennet) form**,
+  `dq*(p0+p1)/2 + dp*(q0+q1)/2`, which sums to `d(q*p)` exactly with no cross
+  term. The naive `dq*p0 + dp*q0` leaves a residual that has to be explained
+  or hidden. Both rates are recovered exactly from stored fields: the import
+  rate is `gridCostAvoided / (consumption - import)` (the supply charge is in
+  both the baseline and the actual, so it cancels), the feed-in rate is
+  `exportCredit / export`.
+- **Only ONE split is shown**, and it prefers a row where both halves moved -
+  that is the case the split exists to reveal (you exported more AND the rate
+  was cut). A half worth under 10% of the row gets no clause of its own:
+  "the rate went from 8.00 to 8.00" is a sentence about nothing.
+- **Home charging deliberately has no split.** That figure blends two rates
+  (import on the grid share, feed-in on the solar share), so there is no
+  single price to recover and inventing one would be the exact guess this
+  module avoids.
+- **MonthStory reads the last COMPLETE month, not the latest digest.** A
+  partial month is four days against thirty and every comparison it makes is
+  dominated by that - the biggest mover comes out as "the length of the
+  month", which is true, useless, and buries everything worth knowing. Same
+  line `daily.js:typicalForMonth()` already takes, and the month in progress
+  is what the panel ABOVE it is for.
+- **Rows that round to zero are dropped**, not folded; below-threshold rows
+  are folded into "Everything else" only when there are two or more of them.
+- **The sentences are ENERGY, the rows are MONEY.** Saying the same thing in
+  both is the duplicate-rendering trap. When this shipped, the
+  month-in-progress panel's footnote ("$414 saved this month - your own power
+  covered 72%") was REMOVED: MonthStory says both properly, with something to
+  compare against, so it is said once instead of twice at two lengths.
+- The narrative returns **segments** (`{text, em}`), not strings or markup, so
+  a pure module can emphasise figures without importing React.
+
 ## Null convention
 
 Absent numeric/text values are always `null`, never `0` or `""` — this is

@@ -13,6 +13,26 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.17.0',
+    date: '2026-09-04',
+    changes: [
+      'Home now says what the month just gone actually did, in plain ' +
+        'sentences: what the roof made against a typical month of the same ' +
+        'name, how much of the house ran on its own power, and where the ' +
+        'car\u2019s energy came from.',
+      'It also says WHY the saving moved. Every screen could tell you the ' +
+        'saving was $23 lower than a year ago; none of them could tell you ' +
+        'that was the feed-in rate being cut rather than anything you did. ' +
+        'The breakdown names the biggest cause, and splits it into how much ' +
+        'energy moved versus what it was worth.',
+      'Compare against the same month a year earlier or the month before, ' +
+        'whichever question you are asking.',
+      'The breakdown checks its own arithmetic. If the parts do not add up ' +
+        'to the change in the total, it shows the gap as its own row instead ' +
+        'of quietly spreading it across the others.'
+    ]
+  },
+  {
     version: 'v2.16.0',
     date: '2026-09-04',
     changes: [

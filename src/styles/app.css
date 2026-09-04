@@ -669,6 +669,43 @@ header.top .date-range-filter { flex-shrink: 0; }
 .delta-change.bad { color: var(--red); }
 .delta-note { margin: .35rem 0 0; font-size: .72rem; color: var(--muted); }
 
+/* --- The month just gone, explained (Home / MonthStory) -----------------
+   The sentences on top are the month's ENERGY; the rows underneath are its
+   MONEY, decomposed into the five stored figures the saving is the sum of.
+   Two subjects, deliberately - see MonthStory.jsx.
+
+   The rows borrow the delta rows' shape on purpose: both are "a figure and
+   how it moved", and a household should not have to learn two idioms for the
+   same idea because they sit on different screens. */
+.story-line { margin: 0 0 .45rem; }
+.story-line:last-of-type { margin-bottom: 0; }
+.story-money { margin-top: .9rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+.story-compare-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .5rem; margin-bottom: .4rem;
+}
+.story-compare-head .label {
+  color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em;
+}
+
+.attrib { margin-top: .6rem; display: flex; flex-direction: column; gap: .35rem; }
+.attrib-row {
+  display: flex; align-items: baseline; gap: .5rem;
+  padding: .4rem .55rem; background: var(--panel-2); border-radius: 8px;
+}
+.attrib-label { flex: 1 1 auto; min-width: 0; font-size: .8rem; }
+.attrib-caption { display: block; color: var(--muted); font-size: .68rem; }
+/* The sign is a character, never colour alone - the tint only confirms it. */
+.attrib-amount {
+  min-width: 4.6rem; text-align: right; font-size: .82rem; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--muted);
+}
+.attrib-amount.good { color: var(--green); }
+.attrib-amount.bad { color: var(--red); }
+.attrib-split { margin: .55rem 0 0; font-size: .76rem; color: var(--muted); line-height: 1.5; }
+.attrib-split strong { color: var(--text); font-weight: 600; }
+.attrib-note { margin: .45rem 0 0; font-size: .72rem; color: var(--muted); }
+
 /* --- 7-day solar forecast -----------------------------------------------
    Arranged around the decision, not the calendar: a one-line verdict, the
    whole week as ONE strip of seven columns on a shared scale, then a card
