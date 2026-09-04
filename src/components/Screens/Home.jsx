@@ -93,7 +93,25 @@ export default function Home({ state, appMeta, onGoTo }) {
   const paidOff = (c.payback ?? []).filter((p) => (p.remainingAud ?? 1) <= 0);
   const nextComponent = (c.payback ?? []).find((p) => (p.remainingAud ?? 0) > 0);
 
-  const dailyMonth = daily.length ? daily[daily.length - 1].date.slice(0, 7) : null;
+  // The month the daily rows end in - which is NOT necessarily a month in
+  // progress. This household ingests monthly, so for most of any given month
+  // the newest daily data is the whole of the month BEFORE, complete.
+  const lastDailyMonth = daily.length ? daily[daily.length - 1].date.slice(0, 7) : null;
+
+  // "<Month> so far" is only true while the month is actually running. It used
+  // to render for whatever month the daily rows ended in, which produced
+  // "August 2026 so far - day 31 of 31" for a finished August, and then
+  // MonthStory below said the same things about the same August underneath it:
+  // one month, two panels, the same sentence twice. A month is in progress
+  // only if it is THIS calendar month.
+  //
+  // Local date, never toISOString(): Perth is UTC+8, so a UTC month name is
+  // wrong for the whole of the first eight hours of every month. Same
+  // discipline as the v2.8 fix in forecast.js.
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const dailyMonth = lastDailyMonth === thisMonth ? lastDailyMonth : null;
+
   const mtd = dailyMonth ? monthToDate(daily, dailyMonth) : null;
   const pace = paceToMonthEnd(mtd);
   const typical = dailyMonth ? typicalForMonth(digests, dailyMonth) : null;
@@ -221,7 +239,7 @@ export default function Home({ state, appMeta, onGoTo }) {
           self-sufficiency figure that used to sit as a footnote on the panel
           above - said once, with something to compare against, instead of
           twice at two lengths. */}
-      <MonthStory state={state} />
+      <MonthStory state={state} excludeMonth={mtd?.month ?? null} />
 
       {/* 4. What it has all added up to ---------------------------------
           One panel, because it is one story told at three sizes: the total,
@@ -289,7 +307,7 @@ export default function Home({ state, appMeta, onGoTo }) {
         )}
       </BigStat>
 
-      {!mtd && (
+      {!daily.length && (
         <p className="small screen-foot">
           Day-by-day figures start from your next monthly upload — earlier months
           were ingested before the app kept them.

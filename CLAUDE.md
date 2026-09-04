@@ -1005,6 +1005,16 @@ this module reads stored ones and subtracts them, and stores nothing.
   (import on the grid share, feed-in on the solar share), so there is no
   single price to recover and inventing one would be the exact guess this
   module avoids.
+- **The month-in-progress panel renders only for THIS calendar month.** It
+  used to render for whatever month the daily rows ended in, which for a
+  household that ingests monthly is a FINISHED month for most of the year -
+  producing "August 2026 so far - day 31 of 31" and then MonthStory telling
+  the same August's story directly underneath, the same sentence twice. A
+  month is in progress only if it is the current one; once it has ended,
+  MonthStory owns it alone. The month is derived from a LOCAL date, never
+  `toISOString()` (Perth is UTC+8 - same discipline as the v2.8 forecast fix).
+  `MonthStory` also takes `excludeMonth` as a belt-and-braces guard, since a
+  digest ingested on the last day of a month can be stored complete.
 - **MonthStory reads the last COMPLETE month, not the latest digest.** A
   partial month is four days against thirty and every comparison it makes is
   dominated by that - the biggest mover comes out as "the length of the

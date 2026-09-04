@@ -73,7 +73,7 @@ function Sentence({ segments }) {
   );
 }
 
-export default function MonthStory({ state }) {
+export default function MonthStory({ state, excludeMonth = null }) {
   const digests = state?.monthlyDigests ?? [];
   // The last COMPLETE month, not simply the last one. A partial month is four
   // days against thirty and every comparison it makes is dominated by that:
@@ -83,10 +83,18 @@ export default function MonthStory({ state }) {
   // reason - and the month in progress is what the panel ABOVE this one is
   // for. Falls back to the latest month when nothing is complete yet, where
   // the partial note below carries the warning.
-  const complete = digests.filter((d) => d.partialMonth !== true);
+  // `excludeMonth` is whatever the month-in-progress panel above is already
+  // showing. Normally nothing, because a month cannot be both complete and
+  // still running - but a digest ingested on the last day of a month can be
+  // stored complete, and two panels telling the same month's story one after
+  // the other is exactly the duplicate rendering this app keeps cutting.
+  const complete = digests.filter(
+    (d) => d.partialMonth !== true && d.month !== excludeMonth
+  );
+  const usable = digests.filter((d) => d.month !== excludeMonth);
   const latest = complete.length
     ? complete[complete.length - 1]
-    : digests.length ? digests[digests.length - 1] : null;
+    : usable.length ? usable[usable.length - 1] : null;
   const month = latest?.month ?? null;
 
   const options = month ? attributionOptions(digests, month) : [];
