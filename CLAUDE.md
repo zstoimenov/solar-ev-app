@@ -1123,9 +1123,14 @@ failure is invisible everywhere except an installed phone: the file looks
 fine, the build says nothing, and the dev server shows the uncropped square.
 So the rule is arithmetic, not judgement — **measure every mark's distance
 from (256, 256) and keep it under 204.8**, round stroke caps included. The
-current furthest are the top ray tip (193) and the outer bar corners (184).
-The design canvas' circle specimen (`design/icon/README.md`) is that crop
-drawn at real size, which is the only cheap way to look at it.
+current furthest are the top ray tip (193) and the outer bar corners (184);
+`icon.svg` carries the same note beside the artwork. To look at the crop,
+render the PNG and view it in a container with `border-radius: 50%` — that
+is the mask, and it is the only cheap way to see what an install does.
+
+Only the shipped drawing lives here. The three directions that were not
+taken were working files, deleted once the choice was made; the record of
+them is the design canvas, which is not part of the repository.
 
 ## Null convention
 
