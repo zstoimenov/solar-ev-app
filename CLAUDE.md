@@ -54,6 +54,9 @@ src/
               forecastAccuracy.js (the forecast scoring itself against what the
               roof actually produced - the log, the bias, the per-lead-day
               error bands; see "Forecast accuracy" below),
+              vehicle.js (PURE: turns a spare-kWh figure into a share of the
+              car's battery and a distance, from the two optional numbers in
+              config.vehicle; see "Spare solar in the car's own units" below),
               notify.js (PURE: decides whether the forecast is worth an alert
               and what it says - shared by the service worker and the app),
               notifyClient.js (the page half: permission, periodic-sync
@@ -77,7 +80,8 @@ src/
               now composed BY these rather than listed flat in App.jsx,
               IngestWizard - the WHOLE Data screen in one panel, Backup
               included (+ Ingest/{TariffScheduleEditor,ChargingLogEditor,
-              TariffPlanEditor,EvSessionsUploader} - a 2-level nav of nested
+              TariffPlanEditor,EvSessionsUploader,VehicleSettingsEditor} - a
+              2-level nav of nested
               sub-tabs, not top-level tabs: see "Ingest tab navigation" below),
               Screens/parts.jsx (Lede/BigStat/SplitBar/CompareBar/ProgressRow/
               RangeChips/Deltas - the ONLY presentational primitives the screens
@@ -1031,6 +1035,56 @@ this module reads stored ones and subtracts them, and stores nothing.
   compare against, so it is said once instead of twice at two lengths.
 - The narrative returns **segments** (`{text, em}`), not strings or markup, so
   a pure module can emphasise figures without importing React.
+
+## Spare solar in the car's own units (since v2.19)
+
+`data/vehicle.js` (pure, like `notify.js` and `insights.js`) +
+`components/Ingest/VehicleSettingsEditor.jsx`, storing `config.vehicle`
+(`{ batteryKwh, consumptionKwhPer100km }`). The forecast reports spare energy
+in kWh; the car reports a percentage and a range in kilometres. This says the
+same figure in all three, so the household is not doing the division in their
+head.
+
+- **It produces no new figure.** It divides an already-computed spare-kWh
+  number by two constants the household typed in. Nothing is fitted, nothing
+  is stored, no financial or energy figure moves. That is the only reason it
+  belongs in an app that refuses guesses - and it is why it needed no
+  `schemaVersion` bump: `config.vehicle` is optional and unvalidated, so every
+  pre-v2.19 backup restores unchanged.
+- **Generic on purpose - no make, no model, no preset list, no default.** A
+  shipped battery size would be a number the app made up, rendered in the same
+  type as one it measured, and it would be wrong the moment the household
+  changes car. Both fields start blank and stay blank until someone types
+  theirs in.
+- **The two fields are independent.** Battery size alone gives a percentage
+  and no distance; consumption alone gives a distance and no percentage;
+  neither gives exactly the pre-v2.19 display. Don't couple them, and don't
+  make one imply the other.
+- **Charging losses are deliberately NOT modelled.** Spare kWh is measured at
+  the meter and some of it becomes heat rather than charge. An assumed
+  efficiency would be the guess this module otherwise avoids, so the figures
+  are stated in every InfoPopover as a **ceiling**. If a real per-session
+  measurement ever exists (it would need charger-side and pack-side energy for
+  the same session), that is when a loss factor may be applied - not before.
+- **The percentage is clamped at 100.** More spare energy than the battery
+  holds still only fills the battery, and "140% of the battery" reads as an
+  arithmetic slip rather than as good news.
+- **One module, four render sites, three registers.** `vehicleParts()` for the
+  forecast card's stats row, `vehicleClause()` for Car's sentence,
+  `vehicleShort()` for Home's one-line verdict and the notification bodies.
+  They differ in length, never in value - the conversion happens once so the
+  four can't disagree.
+- **The conversions ride INSIDE the spare stat, never beside it as stats of
+  their own** (`.fc-detail-sub`). They are one fact in another language, not
+  two more facts, and nesting them also stops flex-wrap splitting "85 km" onto
+  a line away from the figure it belongs to. On a 412px phone the detail card
+  goes 63px -> 84px with both fields set, and stays at 63px with one.
+- **Home's verdict stays one line** by taking only the shortest form in
+  brackets; the full "30% of the battery, or 100 km" clause is Car's. Measured
+  at 412px, the verdict's rendered height is unchanged.
+- `notify.js` gets the figures from `forecast.config`, which the two callers
+  (`sw.js` and `ForecastAlert.jsx`) pass from the state they already read - the
+  service worker needs no new data source, and `notify.js` stays pure.
 
 ## Per-device UI preferences (since v2.18)
 

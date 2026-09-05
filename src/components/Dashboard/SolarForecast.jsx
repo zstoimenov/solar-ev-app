@@ -83,6 +83,7 @@ import useUiPref from '../useUiPref.js';
 import {
   LOCATION_PRESETS, roundCoord, saveForecastLocation, typicalHouseLoadPerDay, spareForDay
 } from '../../data/forecast.js';
+import { vehicleConfig, vehicleParts } from '../../data/vehicle.js';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -326,7 +327,7 @@ function StripLegend({ hasKwh }) {
 // day this week" - which the verdict at the top of the panel has already said
 // in larger type, three inches higher. As a chip beside the date it costs no
 // height at all and still confirms which day you have landed on.
-function DayDetail({ day, hasKwh }) {
+function DayDetail({ day, hasKwh, vehicle }) {
   const { Icon, label: skyLabel } = skyFor(day);
   // "16-16 kWh" is what rounding does to a tight band, and it reads as a
   // bug. Only show a range once the two ends round to different numbers.
@@ -376,6 +377,15 @@ function DayDetail({ day, hasKwh }) {
         {day.spareKwh != null && (
           <span className="fc-detail-stat">
             <strong>{kwh(day.spareKwh)}</strong> spare
+            {/* What that is in the units the car itself shows. It rides
+                INSIDE the existing spare stat rather than becoming stats of
+                its own: it is the same fact in another language, not two more
+                facts, and the row already wraps on a narrow phone. Shown only
+                when the household has entered the figures (Data -> EV charging
+                data -> Your Car). */}
+            {vehicleParts(day.spareKwh, vehicle)?.map((part) => (
+              <span key={part} className="fc-detail-sub">{part}</span>
+            ))}
           </span>
         )}
       </div>
@@ -440,6 +450,10 @@ export default function SolarForecast({ state, onConfigChange }) {
   // What the house itself usually draws in a day, so a day's production can
   // be reported as what is actually going spare for the car. Energy only.
   const houseLoad = typicalHouseLoadPerDay(state?.monthlyDigests);
+  // The car's own figures, if this household has entered them: they turn the
+  // spare-kWh figure into a share of the battery and a distance. null when
+  // neither is set, which is the pre-v2.19 display exactly.
+  const vehicle = vehicleConfig(state?.config);
 
   const days = raw.map((d, i) => {
     // Measured from days this roof actually had, where there are enough of
@@ -569,7 +583,7 @@ export default function SolarForecast({ state, onConfigChange }) {
 
       <StripLegend hasKwh={hasKwh} />
 
-      {selected && <DayDetail day={selected} hasKwh={hasKwh} />}
+      {selected && <DayDetail day={selected} hasKwh={hasKwh} vehicle={vehicle} />}
 
       {!hasKwh && (
         <div className="panel-foot">
@@ -695,6 +709,14 @@ export default function SolarForecast({ state, onConfigChange }) {
                 It counts what left the property, so it stays on the cautious side: energy
                 the car could have taken from the battery is not in it, because whether that
                 is there tomorrow depends on where the battery is sitting.
+              </p>
+            )}
+            {vehicle && (
+              <p className="small">
+                The percentage and the kilometres beside it are that same figure divided by
+                the battery size and the consumption you entered under Data &rarr; EV charging
+                data &rarr; Your Car. Read them as a ceiling: some of the energy is lost as
+                heat on the way into the pack, and the app does not guess how much.
               </p>
             )}
             <p>

@@ -37,13 +37,14 @@ export default function ForecastAlert({ state, onGoTo }) {
         days: data.days,
         calibration: data.calibration,
         digests: state.monthlyDigests,
-        dailySeries: state.dailySeries
+        dailySeries: state.dailySeries,
+        config: state.config
       },
       settings,
       new Date(),
       { quiet: false }
     ).candidate;
-  }, [settings, data, state.monthlyDigests, state.dailySeries]);
+  }, [settings, data, state.monthlyDigests, state.dailySeries, state.config]);
 
   // Capture it once. Marking it sent immediately would otherwise make the
   // banner delete itself on the next render, which is the opposite of the

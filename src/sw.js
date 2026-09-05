@@ -79,7 +79,8 @@ async function runForecastCheck({ force = false } = {}) {
       days: forecast.days,
       calibration: forecast.calibration,
       digests: state.monthlyDigests,
-      dailySeries: state.dailySeries
+      dailySeries: state.dailySeries,
+      config: state.config
     },
     force ? { ...settings, lastSent: {} } : settings
   );

@@ -22,6 +22,7 @@
 // push saying "tomorrow looks sunny" is not worth a permission prompt.
 
 import { spareForDay, typicalHouseLoadPerDay } from './forecast.js';
+import { vehicleConfig, vehicleShort } from './vehicle.js';
 import { dateKey } from './forecastAccuracy.js';
 
 export const NOTIFICATION_TYPES = [
@@ -115,15 +116,22 @@ function withSpare(days, calibration, digests) {
   });
 }
 
-const spareTail = (day) =>
-  day.spareKwh != null && day.spareKwh >= 1 ? ` Roughly ${kwh(day.spareKwh)} of it going spare for the car.` : '';
+// A notification body is read on a lock screen, so the car's units go in as
+// the SHORTEST form (a percentage, or a distance where no battery size is
+// set) and never as a second sentence. Nothing is said at all when the
+// household has not entered the figures.
+const spareTail = (day, vehicle) => {
+  if (day.spareKwh == null || day.spareKwh < 1) return '';
+  const short = vehicleShort(day.spareKwh, vehicle);
+  return ` Roughly ${kwh(day.spareKwh)}${short ? ` (${short})` : ''} of it going spare for the car.`;
+};
 
 // --- The three candidates -------------------------------------------------
 // Each returns null when it is out of its window, or a candidate carrying the
 // PERIOD KEY it may only be sent once for. The key is what makes a repeated
 // sync, or a sync on the following day, idempotent.
 
-function weekendCandidate(days, now) {
+function weekendCandidate(days, now, vehicle) {
   // Thursday 06:00 through Friday, so it lands before the weekend is planned.
   const weekday = now.getDay();
   const hour = now.getHours();
@@ -145,11 +153,11 @@ function weekendCandidate(days, now) {
     title: `This weekend: ${betterName} is the better day`,
     body:
       `${betterName} about ${kwh(better.kwh)}, ${otherName} ${kwh(other.kwh)}.` +
-      spareTail(better)
+      spareTail(better, vehicle)
   };
 }
 
-function weekCandidate(days, now) {
+function weekCandidate(days, now, vehicle) {
   // Sunday afternoon through Monday: the week is being planned either way.
   const weekday = now.getDay();
   const hour = now.getHours();
@@ -172,11 +180,11 @@ function weekCandidate(days, now) {
     type: 'week',
     periodKey: monday,
     title: `${when} is this week's best solar day`,
-    body: `About ${kwh(best.kwh)} against ${kwh(restAvg)} on the other days.` + spareTail(best)
+    body: `About ${kwh(best.kwh)} against ${kwh(restAvg)} on the other days.` + spareTail(best, vehicle)
   };
 }
 
-function tomorrowCandidate(days, now, dailySeries) {
+function tomorrowCandidate(days, now, dailySeries, vehicle) {
   // Afternoon only: a verdict on tomorrow is worth having while there is still
   // an evening to act on it, and is noise at breakfast.
   if (now.getHours() < 12) return null;
@@ -193,7 +201,7 @@ function tomorrowCandidate(days, now, dailySeries) {
 
   if (typical != null && tomorrow.kwh >= typical * STANDOUT_HIGH) {
     title = 'Tomorrow is a standout';
-    body = `About ${kwh(tomorrow.kwh)}, well above the ${kwh(typical)} this time of year usually gives.` + spareTail(tomorrow);
+    body = `About ${kwh(tomorrow.kwh)}, well above the ${kwh(typical)} this time of year usually gives.` + spareTail(tomorrow, vehicle);
   } else if (typical != null && tomorrow.kwh <= typical * STANDOUT_LOW) {
     title = 'Tomorrow looks poor';
     body = `Only about ${kwh(tomorrow.kwh)}, against the ${kwh(typical)} normal for this time of year. Not a day to leave the car waiting on the sun.`;
@@ -204,7 +212,7 @@ function tomorrowCandidate(days, now, dailySeries) {
     tomorrow.kwh >= Math.max(...others.map((d) => d.kwh))
   ) {
     title = 'Tomorrow is the best day this week';
-    body = `About ${kwh(tomorrow.kwh)} against ${kwh(otherAvg)} on the other days.` + spareTail(tomorrow);
+    body = `About ${kwh(tomorrow.kwh)} against ${kwh(otherAvg)} on the other days.` + spareTail(tomorrow, vehicle);
   }
 
   if (!title) return null;
@@ -236,10 +244,15 @@ export function decideNotification(forecast, settings, now = new Date(), { quiet
   const days = withSpare(raw, forecast.calibration, forecast.digests);
   const dailySeries = forecast.dailySeries ?? [];
 
+  // The car's own units, when this household has entered them (config
+  // travels with the state the caller already reads, so the service worker
+  // needs nothing new). null leaves every body exactly as it was.
+  const vehicle = vehicleConfig(forecast.config);
+
   const candidates = [
-    weekendCandidate(days, now),
-    weekCandidate(days, now),
-    tomorrowCandidate(days, now, dailySeries)
+    weekendCandidate(days, now, vehicle),
+    weekCandidate(days, now, vehicle),
+    tomorrowCandidate(days, now, dailySeries, vehicle)
   ];
 
   for (const c of candidates) {

@@ -13,6 +13,21 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.19.0',
+    date: '2026-09-05',
+    changes: [
+      'Spare solar can now be read in the units your car shows. Enter your ' +
+        'battery size and average consumption under Data \u2192 EV charging data ' +
+        '\u2192 Your Car, and every place the app says how much energy is going ' +
+        'spare also says what share of the battery that is and how far it goes.',
+      'Both figures are optional and independent \u2014 fill in one and you get ' +
+        'that one, leave both blank and nothing changes.',
+      'They are a ceiling, not a promise: a little of the energy becomes heat ' +
+        'rather than charge on the way into the pack, and the app will not ' +
+        'guess how much.'
+    ]
+  },
+  {
     version: 'v2.18.0',
     date: '2026-09-05',
     changes: [

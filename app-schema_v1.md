@@ -91,6 +91,20 @@ Six blocks:
     export that left inside the peak window. Without one, the credit falls back
     to the single `tariffs.debsPeakCPerKwh` rate, exactly as before. Which of
     the two was used is recorded on the digest as `exportCreditBasis`.
+- **`vehicle`** *(optional; absent = spare solar is shown in kWh only)* -
+  `{ batteryKwh, consumptionKwhPer100km }`, edited in-app via **Data → EV
+  charging data → Your Car** (`components/Ingest/VehicleSettingsEditor.jsx`,
+  which merges just this key onto the stored state). Deliberately **generic**:
+  no make, no model, no preset list and no default for either figure - the
+  household reads both off their own car, so the app never ships a number it
+  did not measure. Each field is independently optional (`null` per the null
+  convention, and the key is deleted outright when both are blank).
+  `data/vehicle.js` divides an already-computed spare-kWh figure by them at
+  render time to give a share of the battery and a distance; **nothing is
+  stored, and no energy or financial figure moves**. Charging losses are
+  deliberately not modelled - the figures are stated in the UI as a ceiling.
+  Not validated by `schema.js` beyond being ignored when absent, so every
+  pre-v2.19 backup still restores unchanged.
 - **`cloud`** *(optional; absent = cloud backup off, no network requests at all)* -
   `{ enabled: true }`, and nothing else. Written by
   `data/cloud.js:saveCloudEnabled()` from the **Data → Cloud Backup** page.
