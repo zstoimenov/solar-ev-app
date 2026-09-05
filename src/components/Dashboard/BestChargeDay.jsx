@@ -20,6 +20,7 @@ import React from 'react';
 import InfoPopover from '../InfoPopover.jsx';
 import { Lede } from '../Screens/parts.jsx';
 import useForecast from './useForecast.js';
+import useUiPref from '../useUiPref.js';
 import { bestChargeDay, typicalHouseLoadPerDay } from '../../data/forecast.js';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -35,8 +36,14 @@ const kwh = (n) => `${Math.round(n)} kWh`;
 
 export default function BestChargeDay({ state }) {
   const { data, hasLocation } = useForecast(state);
+  // Energy already carries the offer and the way back into it. Once it has
+  // been declined there, this panel would be the second ad for the same
+  // feature on a screen the household came to for something else, so it says
+  // nothing at all until the forecast is on.
+  const [declined, , prefReady] = useUiPref('forecastDeclined', false);
 
   if (!hasLocation) {
+    if (!prefReady || declined) return null;
     return (
       <div className="panel">
         <h3 className="panel-title">Best day to charge</h3>

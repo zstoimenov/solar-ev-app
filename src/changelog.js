@@ -13,6 +13,25 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.18.0',
+    date: '2026-09-05',
+    changes: [
+      'Adding a month now starts with the files. Picking one reads the month ' +
+        'out of its name, each slot shows what you actually chose, and if the ' +
+        'Fronius and Wattpilot files turn out to be from different months it ' +
+        'says so before anything is built.',
+      'The storage warning is readable again. It was capped at a height that ' +
+        'cut off its first and last line on a phone, with the buttons landing ' +
+        'over the text.',
+      'The weather forecast can be turned down. “Not now” leaves one ' +
+        'line on Energy to turn it back on and stops Car asking as well.',
+      'A part-finished month now says so on the Money screen, instead of ' +
+        'showing four days’ electricity as though it were the whole bill.',
+      'Fixed a sentence on Home that read “7% below than an typical ' +
+        'August”.'
+    ]
+  },
+  {
     version: 'v2.17.2',
     date: '2026-09-04',
     changes: [

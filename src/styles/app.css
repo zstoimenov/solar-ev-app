@@ -120,16 +120,27 @@ header.top h1 {
 
 .banner { border-radius: 10px; padding: .7rem .9rem; margin-bottom: 1rem; font-size: .9rem; }
 .banner.compact {
-  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem;
   padding: .45rem .7rem; font-size: .82rem;
+}
+/* The max-height + overflow below used to sit on EVERY .compact banner, and it
+   is a cap, not a nicety: the storage warning runs to four or five lines on a
+   412px phone, so 100px CLIPPED its first and last line and left the Re-check
+   button sitting over the text. Only the auto-dismissing status strip animates
+   its own collapse, and only that one is short enough for the cap to be safe,
+   so the cap now travels with the animation instead of applying to all of them. */
+.banner.compact.collapsible {
   max-height: 100px; overflow: hidden;
   transition: max-height .35s ease, opacity .3s ease, padding .35s ease, margin .35s ease, border-width .35s ease;
 }
 /* Collapses smoothly instead of vanishing outright, so content below eases
    up rather than jumping the instant the banner auto-dismisses. */
-.banner.compact.closing {
+.banner.compact.collapsible.closing {
   max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-bottom: 0; border-width: 0;
 }
+/* A banner whose text wraps puts its buttons on their own row underneath.
+   Inline, they wrapped into the middle of a sentence and read as part of it. */
+.banner-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .45rem; }
 .banner.ok { background: #14322a; border: 1px solid #1f6b4f; color: #a7f3d0; }
 .banner.warn { background: #3a2a10; border: 1px solid #a16207; color: #fde68a; }
 .banner.err { background: #3a1414; border: 1px solid #b91c1c; color: #fecaca; }
@@ -255,6 +266,41 @@ label.field .hint { color: var(--muted); font-size: .72rem; font-style: italic; 
 label.field.row { display: flex; align-items: center; gap: .5rem; }
 label.field.row span { display: inline; margin-bottom: 0; }
 label.field.row input[type="checkbox"] { flex: 0 0 auto; width: 1.1rem; height: 1.1rem; }
+
+/* --- Upload slots (Data -> Add a Month) ---
+   The native file control is a white system button that ignores the theme and
+   truncates a chosen filename from the left, so three slots read identically
+   whether they held a file or not. The input is still the real control - it is
+   just moved out of sight behind this row, which reports what was picked: the
+   name, the size, and the month read out of the filename. */
+.file-slot {
+  display: flex; align-items: center; gap: .65rem;
+  width: 100%; margin: .45rem 0; padding: .6rem .7rem;
+  background: var(--panel-2); border: 1px dashed var(--border); border-radius: 10px;
+  cursor: pointer; font-size: .85rem;
+}
+.file-slot:hover { border-color: var(--muted); }
+/* Focus follows the hidden input, so the row still shows keyboard focus. */
+.file-slot:focus-within { outline: 2px solid var(--blue); outline-offset: 2px; }
+.file-slot.filled { border-style: solid; border-color: var(--green); }
+.file-slot input[type="file"] {
+  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+}
+.file-slot-badge {
+  flex: 0 0 auto; width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel); color: var(--muted); font-size: .8rem; font-weight: 600;
+}
+.file-slot.filled .file-slot-badge { background: var(--green); color: #0f172a; }
+.file-slot-text { flex: 1 1 auto; min-width: 0; }
+.file-slot-label { display: block; color: var(--text); }
+/* The filename is the one thing here that cannot wrap sensibly, so it clips
+   with an ellipsis rather than pushing the row wider than the phone. */
+.file-slot-meta {
+  display: block; color: var(--muted); font-size: .74rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.file-slot-action { flex: 0 0 auto; color: var(--blue); font-size: .78rem; }
 
 .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table.digest { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .8rem; }
@@ -434,6 +480,14 @@ header.top .date-range-filter { flex-shrink: 0; }
    Refresh). They wrap as a pair rather than one dropping under the title. */
 .panel-head-actions { display: flex; align-items: center; gap: .4rem; flex: 0 0 auto; }
 .panel-head-actions .small-btn { font-size: .78rem; padding: .35rem .6rem; white-space: nowrap; }
+
+/* The declined-forecast line: one row, not a panel with a heading, because it
+   is the way back into a feature rather than a feature. */
+.panel.forecast-off {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .5rem; padding: .6rem .9rem;
+}
+.panel.forecast-off .small { color: var(--muted); }
 .panel-foot {
   border-top: 1px solid var(--border); margin: .75rem 0 0; padding-top: .6rem;
   font-size: .78rem; color: var(--muted);

@@ -384,9 +384,10 @@ Rules that must not be broken:
   IndexedDB rather than localStorage - supabase-js is given a custom storage
   adapter - so `db.js`'s "no localStorage for app data" rule survives having a
   third-party client in the tree.
-- **`weatherCache`, `forecastLog` and `notifyState` are NOT uploaded.** They are
-  device-local by design; restoring them onto a new phone would report a phantom
-  history and start it notifying on someone else's schedule.
+- **`weatherCache`, `forecastLog`, `notifyState` and `uiPrefs` are NOT uploaded.**
+  They are device-local by design; restoring them onto a new phone would report a
+  phantom history, start it notifying on someone else's schedule, or answer a
+  question that phone was never asked (see "Per-device UI preferences" below).
 - **No background push and no service-worker involvement.** A background push
   would need the passphrase, which is never stored. `src/sw.js` is untouched, and
   nothing auto-syncs on `putState` - nine call sites each rewrite the whole
@@ -1031,6 +1032,29 @@ this module reads stored ones and subtracts them, and stores nothing.
 - The narrative returns **segments** (`{text, em}`), not strings or markup, so
   a pure module can emphasise figures without importing React.
 
+## Per-device UI preferences (since v2.18)
+
+`db.js`'s `uiPrefs` key, read through `components/useUiPref.js`. One more
+record OUTSIDE `state`, for the same reason as `weatherCache` / `forecastLog` /
+`notifyState`: `state` travels inside every backup file, so a preference kept
+there would follow a restore onto a new phone and answer a question that phone
+was never asked. It is deleted by `resetState()` and never validated.
+
+- **It holds choices, never data.** Nothing here may affect a figure, and
+  nothing that a household would be sorry to lose belongs in it. Today it holds
+  one key: `forecastDeclined`.
+- **The hook returns `ready`.** The read is asynchronous, so a component that
+  renders one thing when a pref is set and another when it is not must wait
+  rather than render the wrong one and swap it under the reader.
+- `putUiPrefs()` MERGES. Each caller owns one key and must not clear another's.
+
+**What `forecastDeclined` is for.** With no location set, Energy showed a
+full-height opt-in card and Car showed a second panel pointing at it - two
+advertisements for one feature, on every open, for a household that had already
+decided. "Not now" collapses Energy's to a single line carrying the way back and
+removes Car's entirely. It is a decline, not a dismissal: the line is permanent
+and the choice reverses in one tap, so nothing is hidden.
+
 ## Null convention
 
 Absent numeric/text values are always `null`, never `0` or `""` — this is
@@ -1139,6 +1163,30 @@ are why, and undoing them re-creates the problem.
   behind, because a month can only be uploaded once it has ended — being one
   month behind is simply the month in progress, and nagging about that would
   train the household to ignore the row.
+- **The upload slots report what was picked** (since v2.18). The native
+  `<input type="file">` renders as a white system button that ignores the theme
+  and truncates a chosen filename from the LEFT, so three slots read identically
+  whether they held a file or not. The input is still the real control, moved
+  out of sight behind a row that names the file, its size, and the month read
+  out of its name. **The month leads that line**, because the filename is what
+  gets ellipsised and these exports are named
+  `Energy_balance_total_Monthly_report_2026_06.xlsx` - the month is the last
+  thing on the name and the first thing an ellipsis eats.
+- **Two energy files from two different months are caught before the build**
+  (since v2.18). `monthFromFilename()` keeps what each file names, not just the
+  first one's, and a disagreement is stated above the Build preview button.
+  It WARNS rather than blocks: the filename can be the wrong one, the preview
+  still shows the month before anything is written, and the household can be
+  right. What it must not do is stay silent - a digest built from June's Fronius
+  and May's Wattpilot has every figure wrong and no preview row looks odd.
+- **A `.banner.compact` must not cap its own height.** The `max-height` +
+  `overflow: hidden` that makes the status strip collapse smoothly rode on every
+  compact banner until v2.18, and the storage warning runs to five lines on a
+  412px phone: it lost its first and last line, and its buttons sat over the
+  text. The cap now travels with the animation (`.collapsible`), on the one
+  banner short enough for it to be safe. A banner whose text wraps puts its
+  buttons in `.banner-actions` on their own row - inline, they wrap into the
+  middle of a sentence and read as part of it.
 - **Swiping sideways moves between the five screens** (since v2.16), in the
   nav's own order. It is a shortcut on top of the nav, never a replacement:
   it does **not wrap** (an over-swipe on Data that teleports to Home reads as

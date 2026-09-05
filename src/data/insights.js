@@ -327,8 +327,11 @@ export function monthNarrative(digests, dailySeries, month) {
             ]
           : [
               seg('The roof made '), seg(kwhText(d.solarProductionKwh), true),
+              // "a typical August", never "an typical August": the article
+              // belongs to "typical", not to the month name. And "below" takes
+              // no "than" - it reads "7% below a typical August".
               seg(' — '), seg(`${Math.abs(pct)}% ${pct > 0 ? 'above' : 'below'}`, true),
-              seg(` than ${article(name)} typical ${name}.`)
+              seg(` a typical ${name}.`)
             ]
       });
     } else {

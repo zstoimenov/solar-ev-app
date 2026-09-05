@@ -25,8 +25,13 @@ function money(n, dp = 0) {
 // Component names come from the household's own config (brand/model), but
 // the row is about the payback of the *thing*, not the brand.
 const BRAND_STRIP = /\s*[(]?\b(wattpilot|byd\s*hvm)\b[)]?\s*/gi;
-const simplifyName = (name) =>
-  name ? name.replace(BRAND_STRIP, ' ').replace(/\s{2,}/g, ' ').trim() : name;
+const simplifyName = (name) => {
+  if (!name) return name;
+  const stripped = name.replace(BRAND_STRIP, ' ').replace(/\s{2,}/g, ' ').trim();
+  // Re-capitalise: stripping the brand off "Wattpilot charger" leaves a row
+  // labelled "charger" in lower case, beside "Solar panels" and "Battery".
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+};
 
 export default function Money({ scopes, months, rangeFilter, allDigests }) {
   // All time is the default: this is the screen about what the whole
@@ -132,10 +137,17 @@ export default function Money({ scopes, months, rangeFilter, allDigests }) {
 
       {latest && latest.actualGridCostAud != null && latest.baselineGridCostAud != null && (
         <div className="panel">
-          <h3 className="panel-title">Your {monthLabel(latest.month)} bill</h3>
+          {/* A partial month says so in both the heading and the sentence. The
+              figures are a few days against a whole month by definition, and
+              read as a full month's bill they look like a collapse. */}
+          <h3 className="panel-title">
+            Your {monthLabel(latest.month)} bill{latest.partialMonth ? ' so far' : ''}
+          </h3>
           <Lede>
             The system took <strong>{money(latest.baselineGridCostAud - latest.actualGridCostAud)}</strong> off
-            that month&apos;s electricity.
+            {latest.partialMonth
+              ? ` the first ${latest.daysInPeriod} day${latest.daysInPeriod === 1 ? '' : 's'} of that month.`
+              : " that month's electricity."}
           </Lede>
           <CompareBar
             actual={latest.actualGridCostAud}
