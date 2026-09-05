@@ -1,0 +1,80 @@
+{
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Before and after"
+    },
+    {
+      "id": "page-2",
+      "name": "Not taken"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Current.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 420,
+      "h": 600,
+      "title": "Before - v2.19",
+      "page": "page-1"
+    },
+    {
+      "file": "Main.dc.html",
+      "x": 500,
+      "y": 0,
+      "w": 420,
+      "h": 600,
+      "title": "After - Sun and return",
+      "page": "page-1"
+    },
+    {
+      "file": "OptionB.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 420,
+      "h": 600,
+      "title": "Option B - The sun, done properly",
+      "page": "page-2"
+    },
+    {
+      "file": "OptionC.dc.html",
+      "x": 500,
+      "y": 0,
+      "w": 420,
+      "h": 600,
+      "title": "Option C - Sun with a charge",
+      "page": "page-2"
+    },
+    {
+      "file": "OptionD.dc.html",
+      "x": 1000,
+      "y": 0,
+      "w": 420,
+      "h": 600,
+      "title": "Option D - Roof and sun",
+      "page": "page-2"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "note-mask",
+      "x": 0,
+      "y": -170,
+      "w": 920,
+      "text": "The manifest declares the icon \"any maskable\", so Android is entitled to crop it to a circle covering the inner 80%. Nothing in the shipped icon respects that circle - masked, it is a plain yellow disc.\n\nThe replacement is drawn inside it. The circle specimen on each board is that crop, not a mock-up."
+    },
+    {
+      "id": "note-rest",
+      "x": 0,
+      "y": -170,
+      "w": 1420,
+      "page": "page-2",
+      "text": "The three directions that were not taken, kept as the record of what was considered.\n\nB is the same sun with a safe zone; C trades the ROI story for a bolt that reads harder at 32px; D is the most specific and the most literal."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
+}

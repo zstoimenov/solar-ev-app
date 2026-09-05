@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;display=swap">
+  <style>
+  body { margin: 0; }
+  a { color: #facc15; } a:hover { color: #fde047; }
+  .board {
+    width: 420px; height: 600px; box-sizing: border-box;
+    background: #0b1120; color: #e2e8f0;
+    padding: 26px 24px;
+    display: flex; flex-direction: column; gap: 20px;
+    font-family: "Space Grotesk", system-ui, sans-serif;
+  }
+  .kicker { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: #64748b; }
+  .name { margin: 7px 0 0; font-size: 23px; font-weight: 600; line-height: 1.1; letter-spacing: -.01em; }
+  .why { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: #94a3b8; text-wrap: pretty; }
+  .specimens { display: flex; gap: 20px; align-items: flex-start; }
+  .cap { margin-top: 9px; font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: #64748b; }
+  .sq { border-radius: 24%; overflow: hidden; }
+  .ci { border-radius: 50%; overflow: hidden; }
+  .sizes { display: flex; gap: 22px; align-items: flex-end; }
+  .note {
+    margin-top: auto;
+    border-top: 1px solid #1e293b; padding-top: 14px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .note .lab { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #64748b; }
+  .note .txt { font-size: 12.5px; line-height: 1.5; color: #cbd5e1; text-wrap: pretty; }
+</style>
+</helmet>
+<div class="board">
+  <div>
+    <div class="kicker">Chosen &mdash; shipping in v2.19.1</div>
+    <h2 class="name">Sun and return</h2>
+    <p class="why">The sun is the source, the rising bars are what it gives back. The one direction that says <em>tracker</em> rather than just <em>solar</em>.</p>
+  </div>
+
+  <div class="specimens">
+    <div>
+      <div class="sq"><svg viewBox="0 0 512 512" width="180" height="180" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="aSun" x1="0.3" y1="0" x2="0.7" y2="1">
+        <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/>
+      </linearGradient>
+      <linearGradient id="aBar" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0" stop-color="#0d9488"/><stop offset="1" stop-color="#34d399"/>
+      </linearGradient>
+      <radialGradient id="aGlow" cx="0.5" cy="0.32" r="0.55">
+        <stop offset="0" stop-color="#facc15" stop-opacity="0.16"/>
+        <stop offset="1" stop-color="#facc15" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <rect width="512" height="512" fill="url(#aGlow)"/>
+    <line x1="256.0" y1="93.0" x2="256.0" y2="71.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="306.9" y1="114.1" x2="322.5" y2="98.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="328.0" y1="165.0" x2="350.0" y2="165.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="306.9" y1="215.9" x2="322.5" y2="231.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="256.0" y1="237.0" x2="256.0" y2="259.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="205.1" y1="215.9" x2="189.5" y2="231.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="184.0" y1="165.0" x2="162.0" y2="165.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="205.1" y1="114.1" x2="189.5" y2="98.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="256" cy="165" r="56" fill="url(#aSun)"/>
+    <rect x="158" y="374" width="44" height="38" rx="10" fill="url(#aBar)"/>
+    <rect x="234" y="340" width="44" height="72" rx="10" fill="url(#aBar)"/>
+    <rect x="310" y="300" width="44" height="112" rx="10" fill="url(#aBar)"/></svg></div>
+      <div class="cap">On the home screen</div>
+    </div>
+    <div>
+      <div class="ci"><svg viewBox="0 0 512 512" width="96" height="96" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="aSun" x1="0.3" y1="0" x2="0.7" y2="1">
+        <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/>
+      </linearGradient>
+      <linearGradient id="aBar" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0" stop-color="#0d9488"/><stop offset="1" stop-color="#34d399"/>
+      </linearGradient>
+      <radialGradient id="aGlow" cx="0.5" cy="0.32" r="0.55">
+        <stop offset="0" stop-color="#facc15" stop-opacity="0.16"/>
+        <stop offset="1" stop-color="#facc15" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <rect width="512" height="512" fill="url(#aGlow)"/>
+    <line x1="256.0" y1="93.0" x2="256.0" y2="71.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="306.9" y1="114.1" x2="322.5" y2="98.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="328.0" y1="165.0" x2="350.0" y2="165.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="306.9" y1="215.9" x2="322.5" y2="231.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="256.0" y1="237.0" x2="256.0" y2="259.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="205.1" y1="215.9" x2="189.5" y2="231.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="184.0" y1="165.0" x2="162.0" y2="165.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="205.1" y1="114.1" x2="189.5" y2="98.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="256" cy="165" r="56" fill="url(#aSun)"/>
+    <rect x="158" y="374" width="44" height="38" rx="10" fill="url(#aBar)"/>
+    <rect x="234" y="340" width="44" height="72" rx="10" fill="url(#aBar)"/>
+    <rect x="310" y="300" width="44" height="112" rx="10" fill="url(#aBar)"/></svg></div>
+      <div class="cap">Circle mask</div>
+    </div>
+  </div>
+
+  <div class="sizes">
+    <div><div class="sq"><svg viewBox="0 0 512 512" width="64" height="64" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="aSun" x1="0.3" y1="0" x2="0.7" y2="1">
+        <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/>
+      </linearGradient>
+      <linearGradient id="aBar" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0" stop-color="#0d9488"/><stop offset="1" stop-color="#34d399"/>
+      </linearGradient>
+      <radialGradient id="aGlow" cx="0.5" cy="0.32" r="0.55">
+        <stop offset="0" stop-color="#facc15" stop-opacity="0.16"/>
+        <stop offset="1" stop-color="#facc15" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <rect width="512" height="512" fill="url(#aGlow)"/>
+    <line x1="256.0" y1="93.0" x2="256.0" y2="71.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="306.9" y1="114.1" x2="322.5" y2="98.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="328.0" y1="165.0" x2="350.0" y2="165.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="306.9" y1="215.9" x2="322.5" y2="231.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="256.0" y1="237.0" x2="256.0" y2="259.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="205.1" y1="215.9" x2="189.5" y2="231.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="184.0" y1="165.0" x2="162.0" y2="165.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="205.1" y1="114.1" x2="189.5" y2="98.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="256" cy="165" r="56" fill="url(#aSun)"/>
+    <rect x="158" y="374" width="44" height="38" rx="10" fill="url(#aBar)"/>
+    <rect x="234" y="340" width="44" height="72" rx="10" fill="url(#aBar)"/>
+    <rect x="310" y="300" width="44" height="112" rx="10" fill="url(#aBar)"/></svg></div><div class="cap">64</div></div>
+    <div><div class="sq"><svg viewBox="0 0 512 512" width="48" height="48" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="aSun" x1="0.3" y1="0" x2="0.7" y2="1">
+        <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/>
+      </linearGradient>
+      <linearGradient id="aBar" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0" stop-color="#0d9488"/><stop offset="1" stop-color="#34d399"/>
+      </linearGradient>
+      <radialGradient id="aGlow" cx="0.5" cy="0.32" r="0.55">
+        <stop offset="0" stop-color="#facc15" stop-opacity="0.16"/>
+        <stop offset="1" stop-color="#facc15" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <rect width="512" height="512" fill="url(#aGlow)"/>
+    <line x1="256.0" y1="93.0" x2="256.0" y2="71.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="306.9" y1="114.1" x2="322.5" y2="98.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="328.0" y1="165.0" x2="350.0" y2="165.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="306.9" y1="215.9" x2="322.5" y2="231.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="256.0" y1="237.0" x2="256.0" y2="259.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="205.1" y1="215.9" x2="189.5" y2="231.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="184.0" y1="165.0" x2="162.0" y2="165.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="205.1" y1="114.1" x2="189.5" y2="98.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="256" cy="165" r="56" fill="url(#aSun)"/>
+    <rect x="158" y="374" width="44" height="38" rx="10" fill="url(#aBar)"/>
+    <rect x="234" y="340" width="44" height="72" rx="10" fill="url(#aBar)"/>
+    <rect x="310" y="300" width="44" height="112" rx="10" fill="url(#aBar)"/></svg></div><div class="cap">48</div></div>
+    <div><div class="sq"><svg viewBox="0 0 512 512" width="32" height="32" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="aSun" x1="0.3" y1="0" x2="0.7" y2="1">
+        <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/>
+      </linearGradient>
+      <linearGradient id="aBar" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0" stop-color="#0d9488"/><stop offset="1" stop-color="#34d399"/>
+      </linearGradient>
+      <radialGradient id="aGlow" cx="0.5" cy="0.32" r="0.55">
+        <stop offset="0" stop-color="#facc15" stop-opacity="0.16"/>
+        <stop offset="1" stop-color="#facc15" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <rect width="512" height="512" fill="url(#aGlow)"/>
+    <line x1="256.0" y1="93.0" x2="256.0" y2="71.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="306.9" y1="114.1" x2="322.5" y2="98.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="328.0" y1="165.0" x2="350.0" y2="165.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="306.9" y1="215.9" x2="322.5" y2="231.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="256.0" y1="237.0" x2="256.0" y2="259.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="205.1" y1="215.9" x2="189.5" y2="231.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="184.0" y1="165.0" x2="162.0" y2="165.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="205.1" y1="114.1" x2="189.5" y2="98.5" stroke="#facc15" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="256" cy="165" r="56" fill="url(#aSun)"/>
+    <rect x="158" y="374" width="44" height="38" rx="10" fill="url(#aBar)"/>
+    <rect x="234" y="340" width="44" height="72" rx="10" fill="url(#aBar)"/>
+    <rect x="310" y="300" width="44" height="112" rx="10" fill="url(#aBar)"/></svg></div><div class="cap">32</div></div>
+  </div>
+
+  <div class="note">
+    <div class="lab">What ships</div>
+    <div class="txt"><b>design/icon/icon.svg</b> is the master; <b>render-png.mjs</b> draws it natively at 512 and 192 into <b>public/icons/</b>. The green is the app&rsquo;s own money colour. Furthest marks from centre: the top ray tip at 193 and the outer bar corners at 184, both inside the mask&rsquo;s 204.8 &mdash; re-check that before moving anything.</div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

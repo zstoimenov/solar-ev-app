@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;display=swap">
+  <style>
+  body { margin: 0; }
+  a { color: #facc15; } a:hover { color: #fde047; }
+  .board {
+    width: 420px; height: 600px; box-sizing: border-box;
+    background: #0b1120; color: #e2e8f0;
+    padding: 26px 24px;
+    display: flex; flex-direction: column; gap: 20px;
+    font-family: "Space Grotesk", system-ui, sans-serif;
+  }
+  .kicker { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: #64748b; }
+  .name { margin: 7px 0 0; font-size: 23px; font-weight: 600; line-height: 1.1; letter-spacing: -.01em; }
+  .why { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: #94a3b8; text-wrap: pretty; }
+  .specimens { display: flex; gap: 20px; align-items: flex-start; }
+  .cap { margin-top: 9px; font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: #64748b; }
+  .sq { border-radius: 24%; overflow: hidden; }
+  .ci { border-radius: 50%; overflow: hidden; }
+  .sizes { display: flex; gap: 22px; align-items: flex-end; }
+  .note {
+    margin-top: auto;
+    border-top: 1px solid #1e293b; padding-top: 14px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .note .lab { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #64748b; }
+  .note .txt { font-size: 12.5px; line-height: 1.5; color: #cbd5e1; text-wrap: pretty; }
+</style>
+</helmet>
+<div class="board">
+  <div>
+    <div class="kicker">Option C</div>
+    <h2 class="name">Sun with a charge</h2>
+    <p class="why">A solid solar disc with a bolt cut out of it. Sunlight that ends up in a car.</p>
+  </div>
+
+  <div class="specimens">
+    <div>
+      <div class="sq"><svg viewBox="0 0 512 512" width="180" height="180" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="cSun" x1="0.25" y1="0" x2="0.75" y2="1">
+        <stop offset="0" stop-color="#fde047"/><stop offset="1" stop-color="#eab308"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <line x1="256.0" y1="100.0" x2="256.0" y2="68.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="366.3" y1="145.7" x2="388.9" y2="123.1" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="412.0" y1="256.0" x2="444.0" y2="256.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="366.3" y1="366.3" x2="388.9" y2="388.9" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="256.0" y1="412.0" x2="256.0" y2="444.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="145.7" y1="366.3" x2="123.1" y2="388.9" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="100.0" y1="256.0" x2="68.0" y2="256.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="145.7" y1="145.7" x2="123.1" y2="123.1" stroke="#facc15" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="256" cy="256" r="140" fill="url(#cSun)"/>
+    <path d="M 288 128 L 186 272 L 248 272 L 224 384 L 326 240 L 264 240 Z" fill="#0f172a"/></svg></div>
+      <div class="cap">On the home screen</div>
+    </div>
+    <div>
+      <div class="ci"><svg viewBox="0 0 512 512" width="96" height="96" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="cSun" x1="0.25" y1="0" x2="0.75" y2="1">
+        <stop offset="0" stop-color="#fde047"/><stop offset="1" stop-color="#eab308"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <line x1="256.0" y1="100.0" x2="256.0" y2="68.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="366.3" y1="145.7" x2="388.9" y2="123.1" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="412.0" y1="256.0" x2="444.0" y2="256.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="366.3" y1="366.3" x2="388.9" y2="388.9" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="256.0" y1="412.0" x2="256.0" y2="444.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="145.7" y1="366.3" x2="123.1" y2="388.9" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="100.0" y1="256.0" x2="68.0" y2="256.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="145.7" y1="145.7" x2="123.1" y2="123.1" stroke="#facc15" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="256" cy="256" r="140" fill="url(#cSun)"/>
+    <path d="M 288 128 L 186 272 L 248 272 L 224 384 L 326 240 L 264 240 Z" fill="#0f172a"/></svg></div>
+      <div class="cap">Circle mask</div>
+    </div>
+  </div>
+
+  <div class="sizes">
+    <div><div class="sq"><svg viewBox="0 0 512 512" width="64" height="64" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="cSun" x1="0.25" y1="0" x2="0.75" y2="1">
+        <stop offset="0" stop-color="#fde047"/><stop offset="1" stop-color="#eab308"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <line x1="256.0" y1="100.0" x2="256.0" y2="68.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="366.3" y1="145.7" x2="388.9" y2="123.1" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="412.0" y1="256.0" x2="444.0" y2="256.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="366.3" y1="366.3" x2="388.9" y2="388.9" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="256.0" y1="412.0" x2="256.0" y2="444.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="145.7" y1="366.3" x2="123.1" y2="388.9" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="100.0" y1="256.0" x2="68.0" y2="256.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="145.7" y1="145.7" x2="123.1" y2="123.1" stroke="#facc15" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="256" cy="256" r="140" fill="url(#cSun)"/>
+    <path d="M 288 128 L 186 272 L 248 272 L 224 384 L 326 240 L 264 240 Z" fill="#0f172a"/></svg></div><div class="cap">64</div></div>
+    <div><div class="sq"><svg viewBox="0 0 512 512" width="48" height="48" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="cSun" x1="0.25" y1="0" x2="0.75" y2="1">
+        <stop offset="0" stop-color="#fde047"/><stop offset="1" stop-color="#eab308"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <line x1="256.0" y1="100.0" x2="256.0" y2="68.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="366.3" y1="145.7" x2="388.9" y2="123.1" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="412.0" y1="256.0" x2="444.0" y2="256.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="366.3" y1="366.3" x2="388.9" y2="388.9" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="256.0" y1="412.0" x2="256.0" y2="444.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="145.7" y1="366.3" x2="123.1" y2="388.9" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="100.0" y1="256.0" x2="68.0" y2="256.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="145.7" y1="145.7" x2="123.1" y2="123.1" stroke="#facc15" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="256" cy="256" r="140" fill="url(#cSun)"/>
+    <path d="M 288 128 L 186 272 L 248 272 L 224 384 L 326 240 L 264 240 Z" fill="#0f172a"/></svg></div><div class="cap">48</div></div>
+    <div><div class="sq"><svg viewBox="0 0 512 512" width="32" height="32" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="cSun" x1="0.25" y1="0" x2="0.75" y2="1">
+        <stop offset="0" stop-color="#fde047"/><stop offset="1" stop-color="#eab308"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <line x1="256.0" y1="100.0" x2="256.0" y2="68.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="366.3" y1="145.7" x2="388.9" y2="123.1" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="412.0" y1="256.0" x2="444.0" y2="256.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="366.3" y1="366.3" x2="388.9" y2="388.9" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="256.0" y1="412.0" x2="256.0" y2="444.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="145.7" y1="366.3" x2="123.1" y2="388.9" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="100.0" y1="256.0" x2="68.0" y2="256.0" stroke="#facc15" stroke-width="16" stroke-linecap="round"/><line x1="145.7" y1="145.7" x2="123.1" y2="123.1" stroke="#facc15" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="256" cy="256" r="140" fill="url(#cSun)"/>
+    <path d="M 288 128 L 186 272 L 248 272 L 224 384 L 326 240 L 264 240 Z" fill="#0f172a"/></svg></div><div class="cap">32</div></div>
+  </div>
+
+  <div class="note">
+    <div class="lab">Trade-off</div>
+    <div class="txt">The boldest shape of the four and the strongest at small sizes &mdash; two silhouettes, no detail to lose. The bolt is a common mark, so it is the least distinctive on a crowded home screen.</div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
