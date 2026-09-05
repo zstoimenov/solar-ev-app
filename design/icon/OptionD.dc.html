@@ -1,0 +1,154 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;display=swap">
+  <style>
+  body { margin: 0; }
+  a { color: #facc15; } a:hover { color: #fde047; }
+  .board {
+    width: 420px; height: 600px; box-sizing: border-box;
+    background: #0b1120; color: #e2e8f0;
+    padding: 26px 24px;
+    display: flex; flex-direction: column; gap: 20px;
+    font-family: "Space Grotesk", system-ui, sans-serif;
+  }
+  .kicker { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: #64748b; }
+  .name { margin: 7px 0 0; font-size: 23px; font-weight: 600; line-height: 1.1; letter-spacing: -.01em; }
+  .why { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: #94a3b8; text-wrap: pretty; }
+  .specimens { display: flex; gap: 20px; align-items: flex-start; }
+  .cap { margin-top: 9px; font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: #64748b; }
+  .sq { border-radius: 24%; overflow: hidden; }
+  .ci { border-radius: 50%; overflow: hidden; }
+  .sizes { display: flex; gap: 22px; align-items: flex-end; }
+  .note {
+    margin-top: auto;
+    border-top: 1px solid #1e293b; padding-top: 14px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .note .lab { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #64748b; }
+  .note .txt { font-size: 12.5px; line-height: 1.5; color: #cbd5e1; text-wrap: pretty; }
+</style>
+</helmet>
+<div class="board">
+  <div>
+    <div class="kicker">Option D</div>
+    <h2 class="name">Roof and sun</h2>
+    <p class="why">A panel with a sun over it. This one is about a household, not an energy company.</p>
+  </div>
+
+  <div class="specimens">
+    <div>
+      <div class="sq"><svg viewBox="0 0 512 512" width="180" height="180" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="dSun" x1="0.3" y1="0" x2="0.7" y2="1">
+        <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/>
+      </linearGradient>
+      <linearGradient id="dPanel" x1="0" y1="0" x2="0.4" y2="1">
+        <stop offset="0" stop-color="#93c5fd"/><stop offset="1" stop-color="#3b82f6"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <line x1="178.0" y1="176.0" x2="156.0" y2="176.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="200.8" y1="120.8" x2="185.3" y2="105.3" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="256.0" y1="98.0" x2="256.0" y2="76.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="311.2" y1="120.8" x2="326.7" y2="105.3" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="334.0" y1="176.0" x2="356.0" y2="176.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="256" cy="176" r="66" fill="url(#dSun)"/>
+    <path d="M 200 288 L 392 288 L 352 404 L 160 404 Z" fill="url(#dPanel)"/>
+    <g stroke="#0f172a" stroke-width="13" stroke-linecap="butt">
+      <line x1="264" y1="288" x2="248" y2="404"/>
+      <line x1="328" y1="288" x2="296" y2="404"/>
+      <line x1="186" y1="346" x2="372" y2="346"/>
+    </g></svg></div>
+      <div class="cap">On the home screen</div>
+    </div>
+    <div>
+      <div class="ci"><svg viewBox="0 0 512 512" width="96" height="96" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="dSun" x1="0.3" y1="0" x2="0.7" y2="1">
+        <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/>
+      </linearGradient>
+      <linearGradient id="dPanel" x1="0" y1="0" x2="0.4" y2="1">
+        <stop offset="0" stop-color="#93c5fd"/><stop offset="1" stop-color="#3b82f6"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <line x1="178.0" y1="176.0" x2="156.0" y2="176.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="200.8" y1="120.8" x2="185.3" y2="105.3" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="256.0" y1="98.0" x2="256.0" y2="76.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="311.2" y1="120.8" x2="326.7" y2="105.3" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="334.0" y1="176.0" x2="356.0" y2="176.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="256" cy="176" r="66" fill="url(#dSun)"/>
+    <path d="M 200 288 L 392 288 L 352 404 L 160 404 Z" fill="url(#dPanel)"/>
+    <g stroke="#0f172a" stroke-width="13" stroke-linecap="butt">
+      <line x1="264" y1="288" x2="248" y2="404"/>
+      <line x1="328" y1="288" x2="296" y2="404"/>
+      <line x1="186" y1="346" x2="372" y2="346"/>
+    </g></svg></div>
+      <div class="cap">Circle mask</div>
+    </div>
+  </div>
+
+  <div class="sizes">
+    <div><div class="sq"><svg viewBox="0 0 512 512" width="64" height="64" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="dSun" x1="0.3" y1="0" x2="0.7" y2="1">
+        <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/>
+      </linearGradient>
+      <linearGradient id="dPanel" x1="0" y1="0" x2="0.4" y2="1">
+        <stop offset="0" stop-color="#93c5fd"/><stop offset="1" stop-color="#3b82f6"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <line x1="178.0" y1="176.0" x2="156.0" y2="176.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="200.8" y1="120.8" x2="185.3" y2="105.3" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="256.0" y1="98.0" x2="256.0" y2="76.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="311.2" y1="120.8" x2="326.7" y2="105.3" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="334.0" y1="176.0" x2="356.0" y2="176.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="256" cy="176" r="66" fill="url(#dSun)"/>
+    <path d="M 200 288 L 392 288 L 352 404 L 160 404 Z" fill="url(#dPanel)"/>
+    <g stroke="#0f172a" stroke-width="13" stroke-linecap="butt">
+      <line x1="264" y1="288" x2="248" y2="404"/>
+      <line x1="328" y1="288" x2="296" y2="404"/>
+      <line x1="186" y1="346" x2="372" y2="346"/>
+    </g></svg></div><div class="cap">64</div></div>
+    <div><div class="sq"><svg viewBox="0 0 512 512" width="48" height="48" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="dSun" x1="0.3" y1="0" x2="0.7" y2="1">
+        <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/>
+      </linearGradient>
+      <linearGradient id="dPanel" x1="0" y1="0" x2="0.4" y2="1">
+        <stop offset="0" stop-color="#93c5fd"/><stop offset="1" stop-color="#3b82f6"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <line x1="178.0" y1="176.0" x2="156.0" y2="176.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="200.8" y1="120.8" x2="185.3" y2="105.3" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="256.0" y1="98.0" x2="256.0" y2="76.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="311.2" y1="120.8" x2="326.7" y2="105.3" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="334.0" y1="176.0" x2="356.0" y2="176.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="256" cy="176" r="66" fill="url(#dSun)"/>
+    <path d="M 200 288 L 392 288 L 352 404 L 160 404 Z" fill="url(#dPanel)"/>
+    <g stroke="#0f172a" stroke-width="13" stroke-linecap="butt">
+      <line x1="264" y1="288" x2="248" y2="404"/>
+      <line x1="328" y1="288" x2="296" y2="404"/>
+      <line x1="186" y1="346" x2="372" y2="346"/>
+    </g></svg></div><div class="cap">48</div></div>
+    <div><div class="sq"><svg viewBox="0 0 512 512" width="32" height="32" style="display:block" aria-hidden="true">
+    <defs>
+      <linearGradient id="dSun" x1="0.3" y1="0" x2="0.7" y2="1">
+        <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/>
+      </linearGradient>
+      <linearGradient id="dPanel" x1="0" y1="0" x2="0.4" y2="1">
+        <stop offset="0" stop-color="#93c5fd"/><stop offset="1" stop-color="#3b82f6"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0f172a"/>
+    <line x1="178.0" y1="176.0" x2="156.0" y2="176.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="200.8" y1="120.8" x2="185.3" y2="105.3" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="256.0" y1="98.0" x2="256.0" y2="76.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="311.2" y1="120.8" x2="326.7" y2="105.3" stroke="#facc15" stroke-width="14" stroke-linecap="round"/><line x1="334.0" y1="176.0" x2="356.0" y2="176.0" stroke="#facc15" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="256" cy="176" r="66" fill="url(#dSun)"/>
+    <path d="M 200 288 L 392 288 L 352 404 L 160 404 Z" fill="url(#dPanel)"/>
+    <g stroke="#0f172a" stroke-width="13" stroke-linecap="butt">
+      <line x1="264" y1="288" x2="248" y2="404"/>
+      <line x1="328" y1="288" x2="296" y2="404"/>
+      <line x1="186" y1="346" x2="372" y2="346"/>
+    </g></svg></div><div class="cap">32</div></div>
+  </div>
+
+  <div class="note">
+    <div class="lab">Trade-off</div>
+    <div class="txt">The most specific of the four, and the most literal. The panel gaps carry the meaning, and they are the first thing to close up at 32&nbsp;px.</div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
