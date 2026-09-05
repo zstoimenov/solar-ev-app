@@ -84,7 +84,8 @@
 // consequences the UI has to be honest about, and does:
 //
 //   1. Until there is enough history to fit that factor, there are no kWh
-//      figures at all - the panel ranks the week on sunshine hours instead
+//      figures at all - the panel ranks the week on the SUNLIGHT instead
+//      (full-sun hours, which is what it was already ordering the days by)
 //      and says what is missing.
 //   2. Each figure is the middle of a range. The range is stated on the
 //      selected day's card ("likely 14-17"), NOT drawn onto the column - see
@@ -299,12 +300,17 @@ function WeekStrip({ days, scaleMax, hasKwh, bestDate, selectedDate, onSelect })
   return (
     <div className="fc-strip" role="group" aria-label="The next seven days">
       {days.map((d) => {
-        const value = hasKwh ? d.kwh : d.sunshineHours;
+        // With no fitted kWh figure the strip falls back to FULL-SUN HOURS,
+        // which is the quantity it ranks and scales on. It used to show
+        // sunshine duration while ranking on radiation - two different
+        // quantities, so on a briefly-brilliant day against a long hazy one
+        // the label and the ordering could disagree.
+        const value = hasKwh ? d.kwh : d.sunHours;
         const level = solarLevel(value, scaleMax);
         const isBest = d.date === bestDate;
         const isSelected = d.date === selectedDate;
         const { Icon, label: skyLabel } = skyFor(d);
-        const shown = value == null ? '—' : hasKwh ? Math.round(value) : `${Math.round(value)}h`;
+        const shown = value == null ? '—' : hasKwh ? Math.round(value) : value.toFixed(1);
 
         const classes = ['fc-col'];
         if (isSelected) classes.push('selected');
@@ -321,7 +327,9 @@ function WeekStrip({ days, scaleMax, hasKwh, bestDate, selectedDate, onSelect })
               `${d.spoken}, ${d.dateLabel}. ${skyLabel}. ` +
               (value == null
                 ? 'No figure.'
-                : hasKwh ? `${Math.round(value)} kilowatt hours.` : `${Math.round(value)} hours of sun.`) +
+                : hasKwh
+                  ? `${Math.round(value)} kilowatt hours.`
+                  : `${value.toFixed(1)} full-sun hours.`) +
               (isBest ? ' Best day this week.' : '')
             }
             onClick={() => onSelect(d.date)}
@@ -353,7 +361,7 @@ function StripLegend({ hasKwh }) {
       <span className="small">Quiet</span>
       <span className="fc-legend-ramp" aria-hidden="true" />
       <span className="small">Best</span>
-      <span className="fc-legend-unit">{hasKwh ? 'kWh expected' : 'hours of sunshine'}</span>
+      <span className="fc-legend-unit">{hasKwh ? 'kWh expected' : 'full-sun hours'}</span>
     </div>
   );
 }
@@ -393,15 +401,21 @@ function DayDetail({ day, hasKwh, vehicle }) {
           <span className="fc-detail-date">{day.dateLabel}</span>
           {day.mark && <span className="fc-detail-mark">{day.mark}</span>}
         </div>
-        {/* The figure and the range it could land in, stacked into the width
-            that used to sit empty beside the day's name. */}
+        {/* The figure and its qualifier, stacked into the width that used to
+            sit empty beside the day's name.
+
+            With no fitted kWh the HEADLINE is the full-sun hours, so the
+            comparison moves up here into the slot the likely-range occupies
+            on a fitted day - and the sun stat drops out of the row below.
+            Otherwise the card would print "4.0 full-sun hours" twice, which
+            is the duplicate rendering this panel keeps being cut for. */}
         <div className="fc-detail-figure">
           <span className="fc-detail-value">
-            {hasKwh
-              ? kwh(day.kwh)
-              : day.sunshineHours == null ? '—' : `${Math.round(day.sunshineHours)} h of sunshine`}
+            {hasKwh ? kwh(day.kwh) : sun ?? '—'}
           </span>
-          {range && <span className="fc-detail-range">likely {range}</span>}
+          {hasKwh
+            ? range && <span className="fc-detail-range">likely {range}</span>
+            : vsTypical && <span className="fc-detail-range">{vsTypical}</span>}
         </div>
       </div>
 
@@ -415,7 +429,7 @@ function DayDetail({ day, hasKwh, vehicle }) {
         <span className="fc-detail-stat">{deg(day.tMinC)}–{deg(day.tMaxC)}</span>
         {/* The sunlight the forecast expects, in its own unit, so it can be
             checked against another source without converting it. */}
-        {sun && (
+        {hasKwh && sun && (
           <span
             className="fc-detail-stat fc-detail-rad"
             title={
@@ -533,8 +547,11 @@ export default function SolarForecast({ state, onConfigChange }) {
   const spareIsMeasured = days.some((d) => d.spareBasis?.startsWith('measured'));
   const spareSampleDays = days.find((d) => d.spareBasis?.startsWith('measured'))?.spareDays ?? null;
 
-  const ranked = days.filter((d) => (hasKwh ? d.kwh != null : d.radiationMj != null))
-    .sort((a, b) => (hasKwh ? b.kwh - a.kwh : b.radiationMj - a.radiationMj));
+  // sunHours is radiationMj / 3.6, so the ordering is identical either way -
+  // it is named here as the same quantity the strip and the verdict now show,
+  // so the whole no-fit path speaks in one unit.
+  const ranked = days.filter((d) => (hasKwh ? d.kwh != null : d.sunHours != null))
+    .sort((a, b) => (hasKwh ? b.kwh - a.kwh : b.sunHours - a.sunHours));
   const best = ranked[0] ?? null;
   const others = ranked.slice(1);
   const otherAvg = hasKwh && others.length
@@ -547,7 +564,7 @@ export default function SolarForecast({ state, onConfigChange }) {
   // column and lands on the ramp's brightest step.
   const scaleMax = hasKwh
     ? Math.max(...days.map((d) => d.kwh ?? 0), 0)
-    : Math.max(...days.map((d) => d.sunshineHours ?? 0), 0);
+    : Math.max(...days.map((d) => d.sunHours ?? 0), 0);
 
   // One word, not a sentence - it rides beside the date as a chip now rather
   // than costing the card a line of its own.
@@ -625,8 +642,8 @@ export default function SolarForecast({ state, onConfigChange }) {
             <span className="fc-verdict-day">{best.spoken}</span>
             {hasKwh
               ? <span className="fc-verdict-value">{kwh(best.kwh)}</span>
-              : best.sunshineHours != null
-                && <span className="fc-verdict-value">{Math.round(best.sunshineHours)} h of sunshine</span>}
+              : best.sunHours != null
+                && <span className="fc-verdict-value">{sunHrs(best.sunHours)}</span>}
           </div>
         </div>
       )}
@@ -651,7 +668,8 @@ export default function SolarForecast({ state, onConfigChange }) {
           {cal?.monthlyPairs != null && cal.monthlyPairs > 0
             ? ` (${cal.monthlyPairs} complete month${cal.monthlyPairs === 1 ? '' : 's'} matched so far, 6 needed)`
             : ''}
-          . The week is ranked on sunshine hours instead.
+          . The week is ranked on the sunlight itself instead — how strong each
+          day is expected to be, before this roof is applied to it.
           <InfoPopover label="Why there is no kWh figure yet" className="section-info">
             The estimate is not modelled from panel specifications — it is fitted from
             what this roof actually produced on past days with known sunlight, which is

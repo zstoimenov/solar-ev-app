@@ -28,6 +28,10 @@ export const CHANGELOG = [
         'own calibration, so it costs no extra check and no new setting. It ' +
         'appears once there is about a year of history for your area, and a ' +
         'day within 5% of normal is simply called typical.',
+      'Before there is enough history to estimate kWh, the whole week now ' +
+        'reads in full-sun hours too \u2014 the same measure the days are ' +
+        'ranked by. It used to be labelled with hours of sunshine while ' +
+        'being ordered by something else, which could disagree.',
       'The raw MJ/m\u00b2 figure has not gone \u2014 it is in the panel\u2019s ' +
         '\u201ci\u201d, for the once you want to check the forecast against ' +
         'another one.'

@@ -243,6 +243,11 @@ function zipDaily(daily) {
     tMinC: at('temperature_2m_min', i),
     // MJ/m2 over the day - the physical driver of production.
     radiationMj: at('shortwave_radiation_sum', i),
+    // Sunshine DURATION, which is not the same quantity as the "full-sun
+    // hours" the panel shows (that is irradiation, radiationMj / 3.6). It is
+    // no longer rendered anywhere as of v2.20 - the no-fit fallback used to
+    // print it while ranking the week on radiation - and is kept only because
+    // it arrives in a request already being made. Do not label it "h sun".
     sunshineHours: at('sunshine_duration', i) == null ? null : at('sunshine_duration', i) / 3600,
     cloudPct: at('cloud_cover_mean', i),
     rainMm: at('precipitation_sum', i),

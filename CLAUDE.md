@@ -719,14 +719,19 @@ once, then says everything about one day at a time:
   is the better number. `config.vehicle` is not a precedent - that divides an
   already-measured figure by a constant the household typed, and produces no
   new claim about the roof.
-- **"Full-sun hours" and "hours of sunshine" are different quantities and must
-  never both read as "h sun"** (v2.20). The first is irradiation (the figure
-  above); the second is `sunshine_duration`, shown only in the no-fit fallback
-  and its verdict. Note the pre-existing mismatch left in place there: that
-  fallback RANKS the week on `radiationMj` but LABELS each day with sunshine
-  duration, so on a briefly-brilliant day against a long hazy one the two can
-  disagree. Showing `sunHours` there instead would make label and ranking the
-  same quantity.
+- **The no-fit fallback shows the same quantity it ranks on** (v2.20). Until
+  there is enough history to fit a kWh factor, the strip, the verdict, the
+  legend and the detail card all read in FULL-SUN HOURS. They used to label
+  every day with `sunshine_duration` while ordering the week by `radiationMj`
+  - two different quantities, so a briefly-brilliant day against a long hazy
+  one could put the label and the ordering in conflict. Irradiation and
+  sunshine duration are not the same thing and must never both read as
+  "h sun"; `sunshineHours` is now rendered nowhere, and `zipDaily` carries a
+  note saying so.
+- **On the no-fit card the comparison moves UP into the headline's qualifier
+  slot** - where "likely 14-17" sits on a fitted day - and the sun stat drops
+  out of the stats row. Otherwise the card prints "4.0 full-sun hours" twice,
+  which is the duplicate rendering this panel keeps being cut for.
 - **The per-day prose lives in ONE card that follows the selection**, not on
   every row. It opens on today and carries the figure, the likely range, the
   sky in a word, the temperatures, the spare-for-the-car figure and the
