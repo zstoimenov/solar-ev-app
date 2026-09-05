@@ -20,6 +20,7 @@ import React from 'react';
 import { SunIcon } from './icons.jsx';
 import useForecast from './useForecast.js';
 import { bestChargeDay, typicalHouseLoadPerDay } from '../../data/forecast.js';
+import { vehicleConfig, vehicleShort } from '../../data/vehicle.js';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -60,6 +61,10 @@ export default function WeekVerdict({ state }) {
 
   const { best } = ranked;
   const idx = days.findIndex((d) => d.date === best.date);
+  // The SHORTEST form only - a percentage where there is one, a distance
+  // where there is not. This panel is one line by rule (see CLAUDE.md), so
+  // the full "x% of the battery, or y km" clause belongs on Car, not here.
+  const inCarUnits = vehicleShort(best.spareKwh, vehicleConfig(state?.config));
 
   return (
     <div className="verdict">
@@ -67,7 +72,10 @@ export default function WeekVerdict({ state }) {
       <span className="verdict-text">
         Best solar day this week is <strong>{whenLabel(best.date, idx)}</strong>, about{' '}
         <strong>{kwh(best.kwh)}</strong>
-        {best.spareKwh != null && <>, with around <strong>{kwh(best.spareKwh)}</strong> spare for the car</>}.
+        {best.spareKwh != null && (
+          <>, with around <strong>{kwh(best.spareKwh)}</strong>
+            {inCarUnits && <> ({inCarUnits})</>} spare for the car</>
+        )}.
       </span>
     </div>
   );

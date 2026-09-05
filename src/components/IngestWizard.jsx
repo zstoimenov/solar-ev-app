@@ -39,6 +39,7 @@ import ChargingLogEditor from './Ingest/ChargingLogEditor.jsx';
 import TariffPlanEditor from './Ingest/TariffPlanEditor.jsx';
 import EvSessionsUploader from './Ingest/EvSessionsUploader.jsx';
 import PaybackSettingsEditor from './Ingest/PaybackSettingsEditor.jsx';
+import VehicleSettingsEditor from './Ingest/VehicleSettingsEditor.jsx';
 import NotificationSettings from './Ingest/NotificationSettings.jsx';
 import ExportRestore from './ExportRestore.jsx';
 // Lazily loaded: it is the only importer of the Supabase client, which is
@@ -78,6 +79,10 @@ const PAGES = [
   {
     key: 'evSessions', group: 'EV charging data', label: 'EV Sessions',
     blurb: "Charging-session timestamps, for the plan comparison's time-of-day split."
+  },
+  {
+    key: 'vehicle', group: 'EV charging data', label: 'Your Car',
+    blurb: 'Battery size and average consumption, so spare solar reads as % and km.'
   },
   {
     key: 'payback', group: 'Setup', label: 'Payback',
@@ -423,6 +428,7 @@ export default function IngestWizard({
       {page === 'chargingLog' && <ChargingLogEditor state={state} onChange={onChange} />}
       {page === 'tariffPlans' && <TariffPlanEditor state={state} onChange={onChange} />}
       {page === 'evSessions' && <EvSessionsUploader state={state} onChange={onChange} />}
+      {page === 'vehicle' && <VehicleSettingsEditor state={state} onChange={onChange} />}
       {page === 'payback' && <PaybackSettingsEditor state={state} onChange={onChange} />}
       {page === 'alerts' && <NotificationSettings state={state} />}
       {page === 'backup' && <ExportRestore state={state} appMeta={appMeta} onChange={onChange} />}

@@ -22,6 +22,7 @@ import { Lede } from '../Screens/parts.jsx';
 import useForecast from './useForecast.js';
 import useUiPref from '../useUiPref.js';
 import { bestChargeDay, typicalHouseLoadPerDay } from '../../data/forecast.js';
+import { vehicleConfig, vehicleClause } from '../../data/vehicle.js';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -60,6 +61,9 @@ export default function BestChargeDay({ state }) {
 
   const houseLoad = typicalHouseLoadPerDay(state?.monthlyDigests);
   const ranked = bestChargeDay(days, houseLoad, data?.calibration);
+  // Spare kWh in the units the car shows, when this household has entered
+  // them. null otherwise, and the sentence reads exactly as it always has.
+  const vehicle = vehicleConfig(state?.config);
 
   // No fitted yield: the forecast's own radiation still ranks the days.
   if (!ranked) {
@@ -84,6 +88,9 @@ export default function BestChargeDay({ state }) {
   const { best, averageOther } = ranked;
   const idx = days.findIndex((d) => d.date === best.date);
   const measured = Boolean(best.spareBasis?.startsWith('measured'));
+  // One clause, not a second sentence: this is the panel whose whole point is
+  // to answer one question and stop.
+  const inCarUnits = vehicleClause(best.spareKwh, vehicle);
 
   return (
     <div className="panel">
@@ -98,12 +105,14 @@ export default function BestChargeDay({ state }) {
           {measured ? (
             <>
               On past days like it, about <strong>{kwh(best.spareKwh)}</strong> actually went
-              spare, so that is what the car has to work with.
+              spare, so that is what the car has to work with
+              {inCarUnits ? <> — <strong>{inCarUnits}</strong>.</> : '.'}
             </>
           ) : (
             <>
               Roughly <strong>{kwh(best.spareKwh)}</strong> of that is beyond what the house
-              itself usually draws in a day, so it is what is going spare for the car.
+              itself usually draws in a day, so it is what is going spare for the car
+              {inCarUnits ? <> — <strong>{inCarUnits}</strong>.</> : '.'}
             </>
           )}
           <InfoPopover label="What 'spare' means here" className="section-info">
@@ -138,6 +147,14 @@ export default function BestChargeDay({ state }) {
                   record, this switches to what actually went spare on them.
                 </p>
               </>
+            )}
+            {inCarUnits && (
+              <p>
+                The share of the battery and the distance are that same figure divided by
+                the numbers you entered under Data &rarr; EV charging data &rarr; Your Car.
+                Treat both as a ceiling: a little of the energy becomes heat rather than
+                charge on the way into the pack, and the app does not guess how much.
+              </p>
             )}
           </InfoPopover>
         </div>

@@ -334,6 +334,10 @@ table.digest tfoot tr:first-child td { border-top: 2px solid var(--border); }
 .ev-legend-item { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; }
 .ev-legend-swatch { width: .7rem; height: .7rem; border-radius: 3px; flex-shrink: 0; }
 .small { font-size: .8rem; color: var(--muted); }
+/* A .small line that is a correction rather than a note - a rejected field
+   value, say. Amber rather than red: nothing has broken, the app is simply
+   not going to store what was typed. */
+.small.warn-text { color: #fde68a; }
 .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 .provisional { display: inline-block; font-size: .7rem; background: #a16207; color: #fff; border-radius: 6px; padding: .05rem .4rem; margin-left: .4rem; }
 
@@ -909,6 +913,13 @@ header.top .date-range-filter { flex-shrink: 0; }
 .fc-detail-stat { display: inline-flex; align-items: center; gap: .28rem; }
 .fc-detail-icon { color: var(--muted); line-height: 0; }
 .fc-detail-stat strong { color: var(--text); font-weight: 600; }
+/* The spare figure said again in the car's own units (v2.19). It sits INSIDE
+   the spare stat rather than beside it as stats of its own - it is one fact
+   in three languages, so it reads as one item that happens to carry two
+   conversions. The middot is generated rather than typed so an absent second
+   conversion never leaves a dangling separator. */
+.fc-detail-sub { color: var(--muted); }
+.fc-detail-sub::before { content: '·'; margin: 0 .28rem 0 .18rem; opacity: .7; }
 
 /* The forecast's foot, reduced to one line (v2.16): when it was last checked,
    and the way into the explanation. Everything else it used to print - how
