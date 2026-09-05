@@ -13,6 +13,31 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.20.0',
+    date: '2026-09-05',
+    changes: [
+      'The forecast used to print each day\u2019s sunlight as \u201c25.0 MJ/m\u00b2\u201d, ' +
+        'which is a real measurement and tells most people nothing. It now ' +
+        'says the same thing as full-sun hours \u2014 how long the sun would ' +
+        'have to be at full strength to deliver that much light.',
+      'Better still, it says whether that is a lot. Each day is now compared ' +
+        'against what this time of year has actually given at your location, ' +
+        'so a day reads as \u201c6.9 full-sun hours, 15% above typical\u201d ' +
+        'instead of a number with nothing to measure it against.',
+      'The comparison uses the sunlight history the app already keeps for its ' +
+        'own calibration, so it costs no extra check and no new setting. It ' +
+        'appears once there is about a year of history for your area, and a ' +
+        'day within 5% of normal is simply called typical.',
+      'Before there is enough history to estimate kWh, the whole week now ' +
+        'reads in full-sun hours too \u2014 the same measure the days are ' +
+        'ranked by. It used to be labelled with hours of sunshine while ' +
+        'being ordered by something else, which could disagree.',
+      'The raw MJ/m\u00b2 figure has not gone \u2014 it is in the panel\u2019s ' +
+        '\u201ci\u201d, for the once you want to check the forecast against ' +
+        'another one.'
+    ]
+  },
+  {
     version: 'v2.19.1',
     date: '2026-09-05',
     changes: [

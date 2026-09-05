@@ -49,12 +49,34 @@
 // serves a cached copy when a fetch fails - so the foot is now that, plus the
 // info trigger, on one row.
 //
-// THE RADIATION FIGURE (v2.16) is on the selected day's card, beside the date.
-// It is the forecast's own shortwave radiation total in MJ/m2, unconverted and
-// straight from the response, so it can be checked against any other source
-// that publishes the same quantity. It is deliberately NOT on the columns: the
-// strip is one number per bar, and this is the input to that number rather
-// than a second version of it.
+// THE RADIATION FIGURE (v2.16, reworked v2.20) is on the selected day's card.
+// It is deliberately NOT on the columns: the strip is one number per bar, and
+// this is the INPUT to that number rather than a second version of it.
+//
+// It shipped as the raw MJ/m2, unconverted, so it could be read straight
+// across against any other forecast quoting the same quantity. That is a
+// question asked about once, and it left a unit borrowed from meteorology
+// sitting two inches from the kWh figure it feeds, on a card opened daily.
+// It now says the same thing twice over in terms a household can act on:
+//
+//   - FULL-SUN HOURS (MJ/m2 / 3.6): the hours the sun would have to sit at
+//     full strength to deliver that much energy. A fixed conversion, nothing
+//     assumed, and the unit the solar industry itself uses.
+//   - HOW IT COMPARES with what this time of year normally gives here, from
+//     the radiation history already cached for calibration. A bare number is
+//     not information; this is the app's own rule applied to the one stat
+//     that was still breaking it.
+//
+// The raw MJ/m2 is in the InfoPopover, and on the stat's title, so the
+// cross-check is still there for the once it is wanted.
+//
+// What was NOT done, and why (it is the obvious next idea): multiplying the
+// radiation by the array's area or kW rating to say how much sunlight lands
+// on THIS roof. It is a monotone transform - the same fact in a bigger number
+// - and the ratio it invites, sunlight landing against kWh produced, reads as
+// an efficiency score while actually blending panel efficiency, heat
+// derating, inverter clipping, DC/AC losses and shading. The fitted factor
+// already contains all of that and never separates it.
 //
 // The kWh figures are NOT modelled from panel specs. The forecast supplies
 // daily shortwave radiation; data/forecast.js fits kWh-per-MJ from this
@@ -62,7 +84,8 @@
 // consequences the UI has to be honest about, and does:
 //
 //   1. Until there is enough history to fit that factor, there are no kWh
-//      figures at all - the panel ranks the week on sunshine hours instead
+//      figures at all - the panel ranks the week on the SUNLIGHT instead
+//      (full-sun hours, which is what it was already ordering the days by)
 //      and says what is missing.
 //   2. Each figure is the middle of a range. The range is stated on the
 //      selected day's card ("likely 14-17"), NOT drawn onto the column - see
@@ -81,7 +104,8 @@ import { ClearIcon, PartlyCloudyIcon, CloudyIcon, RainIcon } from './icons.jsx';
 import useForecast from './useForecast.js';
 import useUiPref from '../useUiPref.js';
 import {
-  LOCATION_PRESETS, roundCoord, saveForecastLocation, typicalHouseLoadPerDay, spareForDay
+  LOCATION_PRESETS, roundCoord, saveForecastLocation, typicalHouseLoadPerDay, spareForDay,
+  TYPICAL_DEAD_BAND_PCT
 } from '../../data/forecast.js';
 import { vehicleConfig, vehicleParts } from '../../data/vehicle.js';
 
@@ -119,12 +143,37 @@ function shortDate(dateStr, index) {
 const kwh = (n) => (n == null ? '—' : `${Math.round(n)} kWh`);
 const deg = (n) => (n == null ? '—' : `${Math.round(n)}°`);
 
-// The forecast's own daily shortwave radiation total, in the unit it arrives
-// in. Deliberately not converted to kWh/m2 or anything else: this figure
-// exists so it can be read straight across against another forecast that
-// publishes the same quantity, and a conversion would make that comparison a
-// piece of arithmetic instead of a glance.
-const mj = (n) => (n == null ? null : `${n.toFixed(1)} MJ/m²`);
+// The forecast's own daily radiation, said in a unit a household can picture.
+//
+// It used to print the raw MJ/m2 (v2.16), on the grounds that an unconverted
+// figure can be read straight across against any other forecast quoting the
+// same quantity. True, and that is a question asked about once - while the
+// figure sat on a card opened daily, in a unit borrowed from meteorology,
+// two inches from the kWh number it is the input to. So the card now carries
+// the version a person thinks in and the raw MJ/m2 moved to the InfoPopover,
+// where the cross-check is still one tap away.
+//
+// Full-sun hours is MJ/m2 / 3.6 - a fixed conversion with no assumption in
+// it. A day's kWh/m2 is exactly the hours the sun would have to sit at full
+// strength (1 kW/m2) to deliver that much energy, which is the unit the solar
+// industry itself uses.
+const sunHrs = (n) => (n == null ? null : `${n.toFixed(1)} full-sun hours`);
+
+// The same figure against what this point in the year normally gives HERE,
+// from the household's own cached radiation history (see forecast.js:
+// typicalRadiation). A bare number is not information - 6.9 hours says
+// nothing until you know early September usually gives 6.
+//
+// Inside the dead band the day is simply typical: a signed "2% above" is
+// noise printed as a signal. Below the sample gate there is no comparison at
+// all and the figure stands alone, rather than being compared against a
+// normal drawn from half a year of data.
+function typicalNote(day) {
+  if (day.sunVsTypicalPct == null) return null;
+  const pct = Math.round(day.sunVsTypicalPct);
+  if (Math.abs(pct) < TYPICAL_DEAD_BAND_PCT) return 'about typical';
+  return `${Math.abs(pct)}% ${pct > 0 ? 'above' : 'below'} typical`;
+}
 
 // What the sky is doing, from the cloud cover and rainfall the forecast
 // already returns and the panel used to throw away. Four states is all the
@@ -251,12 +300,17 @@ function WeekStrip({ days, scaleMax, hasKwh, bestDate, selectedDate, onSelect })
   return (
     <div className="fc-strip" role="group" aria-label="The next seven days">
       {days.map((d) => {
-        const value = hasKwh ? d.kwh : d.sunshineHours;
+        // With no fitted kWh figure the strip falls back to FULL-SUN HOURS,
+        // which is the quantity it ranks and scales on. It used to show
+        // sunshine duration while ranking on radiation - two different
+        // quantities, so on a briefly-brilliant day against a long hazy one
+        // the label and the ordering could disagree.
+        const value = hasKwh ? d.kwh : d.sunHours;
         const level = solarLevel(value, scaleMax);
         const isBest = d.date === bestDate;
         const isSelected = d.date === selectedDate;
         const { Icon, label: skyLabel } = skyFor(d);
-        const shown = value == null ? '—' : hasKwh ? Math.round(value) : `${Math.round(value)}h`;
+        const shown = value == null ? '—' : hasKwh ? Math.round(value) : value.toFixed(1);
 
         const classes = ['fc-col'];
         if (isSelected) classes.push('selected');
@@ -273,7 +327,9 @@ function WeekStrip({ days, scaleMax, hasKwh, bestDate, selectedDate, onSelect })
               `${d.spoken}, ${d.dateLabel}. ${skyLabel}. ` +
               (value == null
                 ? 'No figure.'
-                : hasKwh ? `${Math.round(value)} kilowatt hours.` : `${Math.round(value)} hours of sun.`) +
+                : hasKwh
+                  ? `${Math.round(value)} kilowatt hours.`
+                  : `${value.toFixed(1)} full-sun hours.`) +
               (isBest ? ' Best day this week.' : '')
             }
             onClick={() => onSelect(d.date)}
@@ -305,7 +361,7 @@ function StripLegend({ hasKwh }) {
       <span className="small">Quiet</span>
       <span className="fc-legend-ramp" aria-hidden="true" />
       <span className="small">Best</span>
-      <span className="fc-legend-unit">{hasKwh ? 'kWh expected' : 'hours of sun'}</span>
+      <span className="fc-legend-unit">{hasKwh ? 'kWh expected' : 'full-sun hours'}</span>
     </div>
   );
 }
@@ -334,7 +390,8 @@ function DayDetail({ day, hasKwh, vehicle }) {
   const lo = day.kwhLow == null ? null : Math.round(day.kwhLow);
   const hi = day.kwhHigh == null ? null : Math.round(day.kwhHigh);
   const range = hasKwh && lo != null && hi != null && hi > lo ? `${lo}–${hi}` : null;
-  const rad = mj(day.radiationMj);
+  const sun = sunHrs(day.sunHours);
+  const vsTypical = typicalNote(day);
 
   return (
     <div className="fc-detail">
@@ -344,15 +401,21 @@ function DayDetail({ day, hasKwh, vehicle }) {
           <span className="fc-detail-date">{day.dateLabel}</span>
           {day.mark && <span className="fc-detail-mark">{day.mark}</span>}
         </div>
-        {/* The figure and the range it could land in, stacked into the width
-            that used to sit empty beside the day's name. */}
+        {/* The figure and its qualifier, stacked into the width that used to
+            sit empty beside the day's name.
+
+            With no fitted kWh the HEADLINE is the full-sun hours, so the
+            comparison moves up here into the slot the likely-range occupies
+            on a fitted day - and the sun stat drops out of the row below.
+            Otherwise the card would print "4.0 full-sun hours" twice, which
+            is the duplicate rendering this panel keeps being cut for. */}
         <div className="fc-detail-figure">
           <span className="fc-detail-value">
-            {hasKwh
-              ? kwh(day.kwh)
-              : day.sunshineHours == null ? '—' : `${Math.round(day.sunshineHours)} h sun`}
+            {hasKwh ? kwh(day.kwh) : sun ?? '—'}
           </span>
-          {range && <span className="fc-detail-range">likely {range}</span>}
+          {hasKwh
+            ? range && <span className="fc-detail-range">likely {range}</span>
+            : vsTypical && <span className="fc-detail-range">{vsTypical}</span>}
         </div>
       </div>
 
@@ -366,12 +429,22 @@ function DayDetail({ day, hasKwh, vehicle }) {
         <span className="fc-detail-stat">{deg(day.tMinC)}–{deg(day.tMaxC)}</span>
         {/* The sunlight the forecast expects, in its own unit, so it can be
             checked against another source without converting it. */}
-        {rad && (
+        {hasKwh && sun && (
           <span
             className="fc-detail-stat fc-detail-rad"
-            title="Forecast sunlight energy on a square metre, before this roof is applied"
+            title={
+              day.radiationMj == null
+                ? undefined
+                : `${day.radiationMj.toFixed(1)} MJ/m² of sunlight on a square metre`
+            }
           >
-            {rad}
+            <span className="fc-detail-figure-nowrap">{sun}</span>
+            {/* The comparison rides INSIDE the figure, like the vehicle
+                conversions do below: it is context for that number, not a
+                stat of its own, and nesting it also stops a flex-wrap
+                putting "15% above typical" on a line away from the figure
+                it qualifies. */}
+            {vsTypical && <span className="fc-detail-sub">{vsTypical}</span>}
           </span>
         )}
         {day.spareKwh != null && (
@@ -474,8 +547,11 @@ export default function SolarForecast({ state, onConfigChange }) {
   const spareIsMeasured = days.some((d) => d.spareBasis?.startsWith('measured'));
   const spareSampleDays = days.find((d) => d.spareBasis?.startsWith('measured'))?.spareDays ?? null;
 
-  const ranked = days.filter((d) => (hasKwh ? d.kwh != null : d.radiationMj != null))
-    .sort((a, b) => (hasKwh ? b.kwh - a.kwh : b.radiationMj - a.radiationMj));
+  // sunHours is radiationMj / 3.6, so the ordering is identical either way -
+  // it is named here as the same quantity the strip and the verdict now show,
+  // so the whole no-fit path speaks in one unit.
+  const ranked = days.filter((d) => (hasKwh ? d.kwh != null : d.sunHours != null))
+    .sort((a, b) => (hasKwh ? b.kwh - a.kwh : b.sunHours - a.sunHours));
   const best = ranked[0] ?? null;
   const others = ranked.slice(1);
   const otherAvg = hasKwh && others.length
@@ -488,7 +564,7 @@ export default function SolarForecast({ state, onConfigChange }) {
   // column and lands on the ramp's brightest step.
   const scaleMax = hasKwh
     ? Math.max(...days.map((d) => d.kwh ?? 0), 0)
-    : Math.max(...days.map((d) => d.sunshineHours ?? 0), 0);
+    : Math.max(...days.map((d) => d.sunHours ?? 0), 0);
 
   // One word, not a sentence - it rides beside the date as a chip now rather
   // than costing the card a line of its own.
@@ -566,8 +642,8 @@ export default function SolarForecast({ state, onConfigChange }) {
             <span className="fc-verdict-day">{best.spoken}</span>
             {hasKwh
               ? <span className="fc-verdict-value">{kwh(best.kwh)}</span>
-              : best.sunshineHours != null
-                && <span className="fc-verdict-value">{Math.round(best.sunshineHours)} h sun</span>}
+              : best.sunHours != null
+                && <span className="fc-verdict-value">{sunHrs(best.sunHours)}</span>}
           </div>
         </div>
       )}
@@ -592,7 +668,8 @@ export default function SolarForecast({ state, onConfigChange }) {
           {cal?.monthlyPairs != null && cal.monthlyPairs > 0
             ? ` (${cal.monthlyPairs} complete month${cal.monthlyPairs === 1 ? '' : 's'} matched so far, 6 needed)`
             : ''}
-          . The week is ranked on sunshine hours instead.
+          . The week is ranked on the sunlight itself instead — how strong each
+          day is expected to be, before this roof is applied to it.
           <InfoPopover label="Why there is no kWh figure yet" className="section-info">
             The estimate is not modelled from panel specifications — it is fitted from
             what this roof actually produced on past days with known sunlight, which is
@@ -720,12 +797,36 @@ export default function SolarForecast({ state, onConfigChange }) {
               </p>
             )}
             <p>
-              The MJ/m² figure beside a day&apos;s date is that day&apos;s forecast
-              sunlight energy falling on a square metre — the raw input this panel
-              multiplies by your roof&apos;s fitted factor. It is shown unconverted so
-              it can be read straight across against any other forecast quoting the
-              same quantity; nothing about your own system is in it.
+              &ldquo;Full-sun hours&rdquo; is how long the sun would have to sit at
+              full strength to deliver the sunlight that day is forecast to bring.
+              It is the raw input this panel multiplies by your roof&apos;s fitted
+              factor, so nothing about your own system is in it — a cloudy day and
+              a shaded roof are different problems, and this is the first one.
             </p>
+            {selected?.typicalSunHours != null ? (
+              <p>
+                &ldquo;{typicalNote(selected)}&rdquo; compares it with the middle of
+                what this time of year has actually given at your location, from the{' '}
+                {selected.typicalSamples} days on record within about six weeks of
+                this date. It needs roughly a year of history before it appears at
+                all, and anything within {TYPICAL_DEAD_BAND_PCT}% either way is
+                called typical rather than given a number.
+              </p>
+            ) : (
+              <p>
+                Once there is about a year of history for your area, each day will
+                also say how it compares with what this time of year normally gives
+                — which is what turns the figure from a number into a verdict.
+              </p>
+            )}
+            {selected?.radiationMj != null && (
+              <p className="small">
+                If you want to check it against another forecast: full-sun hours is
+                megajoules per square metre divided by 3.6, and{' '}
+                {selected.spoken.toLowerCase()} is{' '}
+                {selected.radiationMj.toFixed(1)} MJ/m².
+              </p>
+            )}
             <p>
               The sky icon is the day&apos;s average cloud cover and expected rainfall, which
               is why a bright day can still sit under a cloud: it is a daily mean, not an
