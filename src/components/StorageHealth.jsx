@@ -78,18 +78,22 @@ export default function StorageHealth({ state, appMeta, cloudMeta, onBackup, onC
     <>
       {atRisk && (
         <div className="banner warn compact">
+          {/* The buttons sit on their own row rather than inline in the
+              sentence: this banner wraps to four or five lines on a phone, and
+              inline they landed in the middle of it and read as part of the
+              prose. */}
           <span>
             <strong>This browser can delete your data.</strong> Storage is in best-effort
             mode, so Android can clear it when the device runs low on space.{' '}
             {installEvent
               ? 'Installing the app to your home screen usually fixes this.'
               : 'Installing the app to your home screen (browser menu → “Install app”) usually fixes this.'}
-            {' '}
-            {installEvent && (
-              <button className="ghost" onClick={handleInstall}>Install app</button>
-            )}
-            {' '}
-            <button className="ghost" onClick={handleRetry}>Re-check</button>
+            <span className="banner-actions">
+              {installEvent && (
+                <button className="ghost" onClick={handleInstall}>Install app</button>
+              )}
+              <button className="ghost" onClick={handleRetry}>Re-check</button>
+            </span>
           </span>
           <button className="banner-close" onClick={() => setDismissed(true)} aria-label="Dismiss">✕</button>
         </div>

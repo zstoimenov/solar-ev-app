@@ -79,6 +79,7 @@ import InfoPopover from '../InfoPopover.jsx';
 import { Lede, solarLevel } from '../Screens/parts.jsx';
 import { ClearIcon, PartlyCloudyIcon, CloudyIcon, RainIcon } from './icons.jsx';
 import useForecast from './useForecast.js';
+import useUiPref from '../useUiPref.js';
 import {
   LOCATION_PRESETS, roundCoord, saveForecastLocation, typicalHouseLoadPerDay, spareForDay
 } from '../../data/forecast.js';
@@ -149,7 +150,7 @@ function timeLabel(iso) {
 // Location setup. No coordinate is shipped as a default - the household
 // either uses the browser's own location (rounded to ~11 km before it is
 // stored or sent) or picks a coarse area from the list.
-function LocationSetup({ current, onSaved }) {
+function LocationSetup({ current, onSaved, onDecline }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -199,6 +200,9 @@ function LocationSetup({ current, onSaved }) {
         <button className="primary" disabled={busy} onClick={useDeviceLocation}>
           Use my location
         </button>
+        {onDecline && (
+          <button className="ghost" disabled={busy} onClick={onDecline}>Not now</button>
+        )}
       </div>
       <p className="small" style={{ marginBottom: '.35rem' }}>Or pick an area:</p>
       <div className="forecast-presets">
@@ -382,12 +386,33 @@ function DayDetail({ day, hasKwh }) {
 export default function SolarForecast({ state, onConfigChange }) {
   const { data, loading, reload, hasLocation } = useForecast(state);
   const [changing, setChanging] = useState(false);
+  // A household that has decided against the forecast should not be pitched
+  // it again on every open. Declining collapses the offer to one line here and
+  // removes it from Car entirely; the line is the way back, so nothing is lost
+  // and the choice stays reversible. Per device, because the answer is about
+  // this phone's data allowance and not about the household's records.
+  const [declined, setDeclined, prefReady] = useUiPref('forecastDeclined', false);
   // Which column the detail card is showing. null means "today", resolved
   // below - storing the date itself would go stale the moment the forecast
   // rolls over at midnight.
   const [picked, setPicked] = useState(null);
 
   if (!hasLocation || changing) {
+    // Wait for the stored answer rather than showing the full offer and
+    // collapsing it a frame later.
+    if (!hasLocation && !changing && !prefReady) return null;
+
+    if (!hasLocation && !changing && declined) {
+      return (
+        <div className="panel forecast-off">
+          <span className="small">Weather forecast is off.</span>
+          <button className="ghost small-btn" onClick={() => setDeclined(false)}>
+            Turn it on
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="panel">
         <div className="panel-head">
@@ -402,6 +427,7 @@ export default function SolarForecast({ state, onConfigChange }) {
         <LocationSetup
           current={changing ? data?.location ?? null : null}
           onSaved={() => { setChanging(false); onConfigChange?.(); }}
+          onDecline={!changing ? () => setDeclined(true) : null}
         />
       </div>
     );

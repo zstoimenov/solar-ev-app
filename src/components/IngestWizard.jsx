@@ -102,8 +102,50 @@ const PAGES = [
 const GROUPS = ['Monthly', 'Tariffs & rates', 'EV charging data', 'Setup'];
 
 // Fronius/Wattpilot report filenames end in "..._2026_06.xlsx" - pull the
-// month straight from the filename so the user doesn't have to type it.
+// month straight from the filename so the user doesn't have to type it. The
+// month each file names is also KEPT (see `detected` below) rather than only
+// used to prefill: uploading June's Fronius file beside May's Wattpilot file
+// builds a month out of two different months, and every figure downstream
+// would be wrong in a way no preview row makes obvious.
 const MONTH_FROM_FILENAME = /(\d{4})[_-](\d{2})(?!\d)/;
+
+function monthFromFilename(name) {
+  const m = String(name ?? '').match(MONTH_FROM_FILENAME);
+  if (!m) return null;
+  const mm = Number(m[2]);
+  return mm >= 1 && mm <= 12 ? `${m[1]}-${m[2]}` : null;
+}
+
+const fileSize = (bytes) =>
+  bytes < 1024 * 1024
+    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+// One upload slot. The native control renders as a white "Choose File / No
+// file chosen" button that ignores the dark theme entirely, and once a file
+// IS chosen it truncates the name from the left - so on a phone the three
+// slots all looked identical whether they were filled or not. The input is
+// still the real thing, just visually replaced by the row that reports what
+// was picked: name, size, and the month read out of the filename.
+function FileSlot({ index, label, hint, accept, file, detected, onChange }) {
+  return (
+    <label className={`file-slot${file ? ' filled' : ''}`}>
+      <input type="file" accept={accept} onChange={onChange} />
+      <span className="file-slot-badge" aria-hidden="true">{file ? '✓' : index}</span>
+      <span className="file-slot-text">
+        <span className="file-slot-label">{label}</span>
+        {/* The month leads, because it is the thing worth reading and the
+            filename is the thing that gets truncated: these exports are named
+            "Energy_balance_total_Monthly_report_2026_06.xlsx", so the month is
+            the last thing on the line and the first thing an ellipsis eats. */}
+        <span className="file-slot-meta">
+          {file ? [detected, fileSize(file.size), file.name].filter(Boolean).join(' · ') : hint}
+        </span>
+      </span>
+      <span className="file-slot-action">{file ? 'Change' : 'Choose'}</span>
+    </label>
+  );
+}
 
 // Red/yellow/green severity per preview field, so a genuine problem
 // (cross-val breach) stands out from a merely-pending value (Synergy not
@@ -141,6 +183,10 @@ export default function IngestWizard({
   state, appMeta, cloudMeta, page, onPageChange, onChange, onIngested
 }) {
   const [files, setFiles] = useState(empty);
+  // What month each uploaded file NAMES, kept alongside the files themselves so
+  // the two energy exports can be checked against each other and against the
+  // month actually being built.
+  const [detected, setDetected] = useState(empty);
   const [manual, setManual] = useState({
     month: '', evWorkChargingKwh: 0, notes: ''
   });
@@ -151,12 +197,37 @@ export default function IngestWizard({
   const setFile = (k) => (e) => {
     const file = e.target.files?.[0] ?? null;
     setFiles((f) => ({ ...f, [k]: file }));
-    if (file && (k === 'fronius' || k === 'wattpilot')) {
-      const m = file.name.match(MONTH_FROM_FILENAME);
-      if (m) setManual((cur) => (cur.month ? cur : { ...cur, month: `${m[1]}-${m[2]}` }));
-    }
+    // The Synergy export is named for the download, not the month, so only the
+    // two energy files can say anything here.
+    const month = k === 'synergy' ? null : monthFromFilename(file?.name);
+    setDetected((d) => ({ ...d, [k]: month }));
+    if (month) setManual((cur) => (cur.month ? cur : { ...cur, month }));
   };
   const setM = (k) => (e) => setManual((m) => ({ ...m, [k]: e.target.value }));
+
+  // What the filenames say versus what is about to be built. Two files from
+  // two different months produce a digest whose every figure is wrong, and
+  // nothing in the preview looks odd when it happens - the totals are simply
+  // the wrong month's. This is the only place it can still be caught.
+  const monthNotice = (() => {
+    const { fronius, wattpilot } = detected;
+    if (fronius && wattpilot && fronius !== wattpilot) {
+      return {
+        level: 'warn',
+        text: `These two files are from different months — Fronius says ${fronius}, ` +
+          `Wattpilot says ${wattpilot}. Check you picked both from the same month.`
+      };
+    }
+    const named = fronius ?? wattpilot;
+    if (!named) return null;
+    if (/^\d{4}-\d{2}$/.test(manual.month) && manual.month !== named) {
+      return {
+        level: 'warn',
+        text: `The month below says ${manual.month}, but the file names say ${named}.`
+      };
+    }
+    return { level: 'info', text: `Read ${named} from the file names.` };
+  })();
 
   async function buildPreview() {
     setError(null); setPreview(null);
@@ -225,6 +296,7 @@ export default function IngestWizard({
     onChange?.();
     setPreview(null);
     setFiles(empty);
+    setDetected(empty);
     setManual((m) => ({ ...m, month: '', notes: '' }));
     onIngested?.();
   }
@@ -275,25 +347,47 @@ export default function IngestWizard({
         until you confirm the preview.
       </p>
 
+      {/* Files first, month second: the filenames answer the month question,
+          so asking it before anything has been picked asks for something the
+          household would have to go and look up. */}
       <div className="field-section">
-        <label className="field"><span>Month (YYYY-MM)</span>
-          <input type="text" placeholder="2026-06" value={manual.month} onChange={setM('month')} />
-        </label>
+        <h3>Files</h3>
+        <FileSlot
+          index={1} label="Fronius total XLSX" hint="Energy_balance_total_…xlsx"
+          accept=".xlsx" file={files.fronius} detected={detected.fronius}
+          onChange={setFile('fronius')}
+        />
+        <FileSlot
+          index={2} label="Wattpilot XLSX" hint="Energy_balance_Wattpilot_…xlsx"
+          accept=".xlsx" file={files.wattpilot} detected={detected.wattpilot}
+          onChange={setFile('wattpilot')}
+        />
+        <FileSlot
+          index={3} label="Synergy CSV — optional if not billed yet"
+          hint="MA_IntervalDataHistory.csv"
+          accept=".csv" file={files.synergy} detected={null}
+          onChange={setFile('synergy')}
+        />
       </div>
 
       <div className="field-section">
-        <h3>Files</h3>
-        <div className="grid cols-2">
-          <label className="field"><span>1 · Fronius total XLSX (Energy_balance_total_…)</span>
-            <input type="file" accept=".xlsx" onChange={setFile('fronius')} />
-          </label>
-          <label className="field"><span>2 · Wattpilot XLSX (Energy_balance_Wattpilot_…)</span>
-            <input type="file" accept=".xlsx" onChange={setFile('wattpilot')} />
-          </label>
-          <label className="field"><span>3 · Synergy CSV (MA_IntervalDataHistory.csv) — optional if pending</span>
-            <input type="file" accept=".csv" onChange={setFile('synergy')} />
-          </label>
-        </div>
+        <label className="field"><span>Month (YYYY-MM)</span>
+          <input
+            type="text" inputMode="numeric" placeholder="2026-06"
+            value={manual.month} onChange={setM('month')}
+          />
+          <span className="hint">
+            {monthNotice?.level === 'info'
+              ? monthNotice.text
+              : 'Read from the file names when you pick them — change it only if they disagree.'}
+          </span>
+        </label>
+        {/* A warning, not a block: the household can still be right and the
+            filename wrong, and the preview shows the month before anything is
+            written. What it must not do is stay silent. */}
+        {monthNotice?.level === 'warn' && (
+          <div className="banner warn compact"><span>{monthNotice.text}</span></div>
+        )}
       </div>
 
       <div className="field-section">

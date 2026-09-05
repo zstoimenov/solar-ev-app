@@ -40,6 +40,11 @@ const AUTH_KEY = 'authSession';
 // appMeta holds for the file export, kept separate because the two are
 // different backups that fail in different ways and are fixed differently.
 const CLOUD_KEY = 'cloudMeta';
+// Small per-device UI choices - currently only "I have seen the weather
+// forecast offer and do not want it". Outside `state` like everything above:
+// it is this browser's preference, not household data, so it must never enter
+// validate() or travel inside a backup file to another phone.
+const UI_KEY = 'uiPrefs';
 
 let _dbp = null;
 function db() {
@@ -158,6 +163,21 @@ export async function recordCloudPush({ count, id }) {
   return meta;
 }
 
+// --- Per-device UI preferences (never part of the backup) ------------------
+// Reads back as {} rather than null, so a caller can always spread it and a
+// missing key simply means "not chosen yet".
+export async function getUiPrefs() {
+  return (await (await db()).get(STORE, UI_KEY)) ?? {};
+}
+
+// Merges rather than replaces: the callers each own one key and must not
+// clear each other's.
+export async function putUiPrefs(patch) {
+  const next = { ...(await getUiPrefs()), ...patch };
+  await (await db()).put(STORE, next, UI_KEY);
+  return next;
+}
+
 // Validate + forward-migrate a parsed backup object, then replace the store.
 // Throws SchemaError on any problem WITHOUT touching the existing store
 // (no partial load).
@@ -201,6 +221,7 @@ export async function resetState() {
   // it can no longer account for.
   await (await db()).delete(STORE, AUTH_KEY);
   await (await db()).delete(STORE, CLOUD_KEY);
+  await (await db()).delete(STORE, UI_KEY);
   return empty;
 }
 

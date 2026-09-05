@@ -51,7 +51,7 @@ export default function HealthBanner({ state, lastExportedCount, onRestore }) {
   }
 
   return (
-    <div className={`banner compact ${shorterThanExport ? 'warn' : 'ok'} ${closing ? 'closing' : ''}`}>
+    <div className={`banner compact collapsible ${shorterThanExport ? 'warn' : 'ok'} ${closing ? 'closing' : ''}`}>
       <span>
         <span className="nowrap"><strong>{count}</strong> month{count === 1 ? '' : 's'}</span>
         {' · '}
