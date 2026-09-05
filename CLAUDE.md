@@ -1109,6 +1109,24 @@ decided. "Not now" collapses Energy's to a single line carrying the way back and
 removes Car's entirely. It is a decline, not a dismissal: the line is permanent
 and the choice reverses in one tap, so nothing is hidden.
 
+## The app icon is maskable (since v2.19.1)
+
+`design/icon/icon.svg` is the master; `design/icon/render-png.mjs` draws it
+into `public/icons/icon-{512,192}.png`, natively at each size rather than
+downscaling one raster. Never hand-edit the PNGs — re-render them.
+
+`vite.config.js` declares both sizes `purpose: 'any maskable'`, which entitles
+Android to crop the icon to a **circle covering the inner 80%** — radius 204.8
+on the 512 canvas. The icon this replaced ran sixteen rays to the edge of the
+square, so an installed copy lost every ray tip and showed a yellow disc. That
+failure is invisible everywhere except an installed phone: the file looks
+fine, the build says nothing, and the dev server shows the uncropped square.
+So the rule is arithmetic, not judgement — **measure every mark's distance
+from (256, 256) and keep it under 204.8**, round stroke caps included. The
+current furthest are the top ray tip (193) and the outer bar corners (184).
+The design canvas' circle specimen (`design/icon/README.md`) is that crop
+drawn at real size, which is the only cheap way to look at it.
+
 ## Null convention
 
 Absent numeric/text values are always `null`, never `0` or `""` — this is

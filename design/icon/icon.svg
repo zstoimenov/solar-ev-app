@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Solar ROI app icon - "sun and return".
+       MASKABLE: every mark sits inside the circle of radius 204.8 centred on
+       (256,256) that Android may crop an "any maskable" icon to. Furthest
+       marks are the top ray tip (193) and the outer bar corners (184). If you
+       move anything, re-check against 204.8 before shipping. -->
+  <defs>
+    <linearGradient id="sun" x1="0.3" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#0d9488"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.32" r="0.55">
+      <stop offset="0" stop-color="#facc15" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#facc15" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="#0f172a"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+
+  <g stroke="#facc15" stroke-width="16" stroke-linecap="round">
+    <line x1="256.0" y1="93.0"  x2="256.0" y2="71.0"/>
+    <line x1="306.9" y1="114.1" x2="322.5" y2="98.5"/>
+    <line x1="328.0" y1="165.0" x2="350.0" y2="165.0"/>
+    <line x1="306.9" y1="215.9" x2="322.5" y2="231.5"/>
+    <line x1="256.0" y1="237.0" x2="256.0" y2="259.0"/>
+    <line x1="205.1" y1="215.9" x2="189.5" y2="231.5"/>
+    <line x1="184.0" y1="165.0" x2="162.0" y2="165.0"/>
+    <line x1="205.1" y1="114.1" x2="189.5" y2="98.5"/>
+  </g>
+  <circle cx="256" cy="165" r="56" fill="url(#sun)"/>
+
+  <rect x="158" y="374" width="44" height="38"  rx="10" fill="url(#bar)"/>
+  <rect x="234" y="340" width="44" height="72"  rx="10" fill="url(#bar)"/>
+  <rect x="310" y="300" width="44" height="112" rx="10" fill="url(#bar)"/>
+</svg>

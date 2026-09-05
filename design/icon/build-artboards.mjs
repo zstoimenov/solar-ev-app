@@ -191,12 +191,12 @@ const FILES = {
     noteTxt: 'The manifest asks for a <b>maskable</b> icon, which means Android may crop it to the circle beside it &mdash; and every ray tip goes with it. What is left is a plain yellow blob. It also says nothing beyond &ldquo;sun&rdquo;: no battery, no car, no money.'
   }),
   'Main.dc.html': board({
-    kicker: 'Option A',
+    kicker: 'Chosen &mdash; shipping in v2.19.1',
     name: 'Sun and return',
-    why: 'The sun is the source, the rising bars are what it gives back. The only option that says <em>tracker</em> rather than just <em>solar</em>.',
+    why: 'The sun is the source, the rising bars are what it gives back. The one direction that says <em>tracker</em> rather than just <em>solar</em>.',
     key: 'a',
-    noteLab: 'Trade-off',
-    noteTxt: 'Two elements and two colours, so it works hardest at 180&nbsp;px and least at 32. The green is the app&rsquo;s own money colour, which ties the icon to what the app is actually for.'
+    noteLab: 'What ships',
+    noteTxt: '<b>design/icon/icon.svg</b> is the master; <b>render-png.mjs</b> draws it natively at 512 and 192 into <b>public/icons/</b>. The green is the app&rsquo;s own money colour. Furthest marks from centre: the top ray tip at 193 and the outer bar corners at 184, both inside the mask&rsquo;s 204.8 &mdash; re-check that before moving anything.'
   }),
   'OptionB.dc.html': board({
     kicker: 'Option B',
@@ -229,18 +229,22 @@ for (const [name, html] of Object.entries(FILES)) {
 }
 
 const canvas = {
+  pages: [
+    { id: 'page-1', name: 'Before and after' },
+    { id: 'page-2', name: 'Not taken' }
+  ],
   artboards: [
-    { file: 'Current.dc.html', x: 0, y: 0, w: 420, h: 600, title: 'Today (v2.19)' },
-    { file: 'Main.dc.html', x: 500, y: 0, w: 420, h: 600, title: 'Option A - Sun and return' },
-    { file: 'OptionB.dc.html', x: 1000, y: 0, w: 420, h: 600, title: 'Option B - The sun, done properly' },
-    { file: 'OptionC.dc.html', x: 500, y: 720, w: 420, h: 600, title: 'Option C - Sun with a charge' },
-    { file: 'OptionD.dc.html', x: 1000, y: 720, w: 420, h: 600, title: 'Option D - Roof and sun' }
+    { file: 'Current.dc.html', x: 0, y: 0, w: 420, h: 600, title: 'Before - v2.19', page: 'page-1' },
+    { file: 'Main.dc.html', x: 500, y: 0, w: 420, h: 600, title: 'After - Sun and return', page: 'page-1' },
+    { file: 'OptionB.dc.html', x: 0, y: 0, w: 420, h: 600, title: 'Option B - The sun, done properly', page: 'page-2' },
+    { file: 'OptionC.dc.html', x: 500, y: 0, w: 420, h: 600, title: 'Option C - Sun with a charge', page: 'page-2' },
+    { file: 'OptionD.dc.html', x: 1000, y: 0, w: 420, h: 600, title: 'Option D - Roof and sun', page: 'page-2' }
   ],
   annotations: [
-    { id: 'note-mask', x: 0, y: -150, w: 420, text: 'The manifest declares the icon "any maskable", so Android is entitled to crop it to a circle covering the inner 80%. Nothing in the current icon respects that circle.\n\nEvery option below is drawn inside it - the circle specimen on each board is the crop, not a mock-up.' },
-    { id: 'note-options', x: 500, y: -150, w: 920, text: 'Four directions, drawn at the size they will actually be seen. Palette is the app’s own: #0f172a background, #facc15 accent, #34d399 for money, #60a5fa for the panel.\n\nPick one and I will render the 192 and 512 PNGs and swap them in.' }
+    { id: 'note-mask', x: 0, y: -170, w: 920, text: 'The manifest declares the icon "any maskable", so Android is entitled to crop it to a circle covering the inner 80%. Nothing in the shipped icon respects that circle - masked, it is a plain yellow disc.\n\nThe replacement is drawn inside it. The circle specimen on each board is that crop, not a mock-up.' },
+    { id: 'note-rest', x: 0, y: -170, w: 1420, page: 'page-2', text: 'The three directions that were not taken, kept as the record of what was considered.\n\nB is the same sun with a safe zone; C trades the ROI story for a bolt that reads harder at 32px; D is the most specific and the most literal.' }
   ],
-  launch: { view: 'canvas' }
+  launch: { view: 'canvas', page: 'page-1' }
 };
 writeFileSync(`${OUT}canvas.json`, JSON.stringify(canvas, null, 2));
 console.log('wrote', Object.keys(FILES).join(', '), 'canvas.json');

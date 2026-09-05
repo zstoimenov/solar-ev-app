@@ -13,6 +13,22 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.19.1',
+    date: '2026-09-05',
+    changes: [
+      'New app icon. The old sun ran its rays to the very edge of the ' +
+        'square, and Android is entitled to crop an installed icon to a ' +
+        'circle \u2014 so on the home screen the rays were cut off and what ' +
+        'was left was a yellow blob.',
+      'The new one is a sun over three rising bars, drawn well inside that ' +
+        'circle so nothing is lost whichever shape your phone crops it to. ' +
+        'The bars are the app\u2019s money colour: this tracks a return, not ' +
+        'just the weather.',
+      'Your phone may hold on to the old icon for a while. Removing the app ' +
+        'from the home screen and installing it again picks up the new one.'
+    ]
+  },
+  {
     version: 'v2.19.0',
     date: '2026-09-05',
     changes: [
