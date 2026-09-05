@@ -898,9 +898,14 @@ header.top .date-range-filter { flex-shrink: 0; }
   color: var(--accent); font-size: .62rem; font-weight: 600;
   letter-spacing: .02em; vertical-align: .08em; white-space: nowrap;
 }
-/* The forecast's own radiation total. Tabular so successive days line up as
-   you tap along the strip. */
-.fc-detail-rad { font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The forecast's own radiation total, in full-sun hours, with how it compares
+   with this time of year nested inside it. Tabular so successive days line up
+   as you tap along the strip. The nowrap sits on the FIGURE rather than the
+   whole stat: with the comparison inside, one unbreakable run would be wide
+   enough to push past 412px instead of wrapping. */
+.fc-detail-rad { font-variant-numeric: tabular-nums; }
+.fc-detail-figure-nowrap { white-space: nowrap; }
+.fc-detail-rad .fc-detail-sub { white-space: nowrap; }
 .fc-detail-value {
   font-size: 1.05rem; font-weight: 700; white-space: nowrap;
   font-variant-numeric: tabular-nums; line-height: 1.25;

@@ -128,6 +128,23 @@ const SPARE_TOLERANCE = 0.2;
 const SPARE_SEASON_WINDOW_DAYS = 60;
 const MIN_SPARE_NEIGHBOURS = 15;
 
+// Saying the radiation figure in a unit a person thinks in. 1 MJ/m2 is
+// 1/3.6 kWh/m2, and a day's kWh/m2 is exactly the number of hours the sun
+// would have to sit at full strength (1 kW/m2) to deliver it. A fixed
+// conversion with no assumption in it, and it is the unit the solar industry
+// itself uses.
+const MJ_PER_KWH = 3.6;
+
+// Inside this much of typical, the day is called typical rather than given a
+// signed percentage: "2% above typical" is noise printed as a signal.
+export const TYPICAL_DEAD_BAND_PCT = 5;
+
+// ...and before any of it, the history has to cover a year. A window of days
+// either side of today, drawn only from this year, is not what this time of
+// year normally gives - it is the last six weeks. Slightly under 365 so a
+// household one archive-lag short of a full year is not made to wait a month.
+const MIN_TYPICAL_SPAN_DAYS = 330;
+
 export const FORECAST_DAYS = 7;
 
 // Public geography, not anybody's address: coarse anchors for the Perth
@@ -654,6 +671,76 @@ export function calibrate(state, radiationByDate, todayIso = iso(new Date())) {
   };
 }
 
+// --- What the sky is doing --------------------------------------------------
+// The forecast's own radiation total, said in a way a household can act on.
+// Two steps, neither of which invents a number:
+//
+//   1. FULL-SUN HOURS. MJ/m2 divided by 3.6 is kWh/m2, which for a whole day
+//      is the hours the sun would have to sit at full strength to deliver
+//      that much energy. A fixed conversion, and the unit the industry uses.
+//   2. A COMPARISON against what this time of year normally gives. A bare
+//      number is not information - 6.9 hours says nothing until you know
+//      early September usually gives 6 - and the radiation history already
+//      cached for calibration answers it at no cost: no extra request, no new
+//      data source, and it is this location's own record rather than a
+//      published average for somewhere near it.
+//
+// Deliberately NOT here: an array area or a kW rating. Multiplying the
+// radiation by a household constant is a monotone transform - the same fact
+// restated in a bigger number - and the ratio it invites (sunlight landing on
+// the panels vs kWh produced) reads as an efficiency score while actually
+// blending panel efficiency, heat derating, inverter clipping, DC/AC losses
+// and shading, which the fitted factor contains and never separates. The fit
+// is the better number; a specs-based one would only argue with it on screen.
+export const sunHoursFromMj = (mj) => (mj == null ? null : mj / MJ_PER_KWH);
+
+// The MEDIAN radiation of every cached day within SEASON_WINDOW_DAYS of the
+// same point in the year, from whichever years are on record. Median rather
+// than mean so a run of overcast days cannot drag "typical" down - the same
+// choice measuredSpare() makes, for the same reason.
+//
+// TWO gates, and the second one is the one that matters. A count alone is not
+// enough: a +/-45 day window is 91 days wide, so thirty samples inside it are
+// satisfied by six weeks of THIS year - and comparing today against the days
+// either side of today is not a seasonal normal, it is a rolling average
+// wearing one. So the history has to actually span a year (MIN_TYPICAL_SPAN_
+// DAYS) before the same-time-of-year claim is allowed to be made at all.
+//
+// That is the gate seasonalCheck() already applies for the same reason: a
+// seasonal band from six months of data is the guess-dressed-up-as-a-number
+// this app refuses everywhere else. Below it there is no comparison and the
+// figure simply stands alone.
+//
+// Nothing is filtered out of the window. This is a statement about the SKY,
+// so an inverter outage is irrelevant - the radiation fell whether the roof
+// caught it or not. (calibrate() excludes those days because it is measuring
+// the ROOF; the two filters are not the same filter.)
+export function typicalRadiation(byDate, dateIso) {
+  if (!byDate || !dateIso) return null;
+  const centre = dayOfYear(dateIso);
+  if (!Number.isFinite(centre)) return null;
+
+  const near = [];
+  let first = null;
+  let last = null;
+  for (const [date, mj] of Object.entries(byDate)) {
+    if (mj == null) continue;
+    if (first == null || date < first) first = date;
+    if (last == null || date > last) last = date;
+    const doy = dayOfYear(date);
+    if (!Number.isFinite(doy)) continue;
+    if (seasonDistance(doy, centre) > SEASON_WINDOW_DAYS) continue;
+    near.push(mj);
+  }
+  if (near.length < MIN_SEASON_SAMPLES) return null;
+
+  const span = first && last ? daysBetween(first, last) : null;
+  if (span == null || span < MIN_TYPICAL_SPAN_DAYS) return null;
+
+  near.sort((a, b) => a - b);
+  return { medianMj: percentile(near, 0.5), samples: near.length };
+}
+
 // --- Projection -----------------------------------------------------------
 // Three things happen to the raw fitted number, in this order, and each is
 // applied only when it has been earned:
@@ -666,7 +753,18 @@ export function calibrate(state, radiationByDate, todayIso = iso(new Date())) {
 //      it has one, so Sunday visibly looks softer than tomorrow, falling back
 //      to the pooled spread, and only then to the fit's own residual scatter,
 //      which does not contain the forecast's error at all.
-export function projectDays(forecastRows, calibration, accuracy = null, today = iso(new Date())) {
+//
+// It also carries the SKY figures through (full-sun hours, and how that
+// compares with this time of year). Those are independent of the fit, so they
+// still appear on a household with no kWh figure yet - which is exactly when
+// the panel most needs something to rank the week on.
+export function projectDays(
+  forecastRows,
+  calibration,
+  accuracy = null,
+  today = iso(new Date()),
+  radiationByDate = null
+) {
   const usable = calibration?.kwhPerMj != null;
   const bias = accuracy?.biasFactor ?? 1;
   const cap = (v) => (v != null && calibration?.capKwh != null ? Math.min(v, calibration.capKwh) : v);
@@ -698,6 +796,17 @@ export function projectDays(forecastRows, calibration, accuracy = null, today = 
     low = cap(low);
     high = cap(high);
 
+    // The day's own radiation, said twice over in terms a household can use:
+    // once in full-sun hours, once against what this point in the year
+    // normally delivers here. Both come from the sky alone - no fit, no roof.
+    const sunHours = sunHoursFromMj(row.radiationMj);
+    const typical = typicalRadiation(radiationByDate, row.date);
+    const typicalSunHours = typical ? sunHoursFromMj(typical.medianMj) : null;
+    const sunVsTypicalPct =
+      sunHours != null && typicalSunHours > 0
+        ? ((sunHours - typicalSunHours) / typicalSunHours) * 100
+        : null;
+
     return {
       ...row,
       kwh,
@@ -705,7 +814,11 @@ export function projectDays(forecastRows, calibration, accuracy = null, today = 
       leadDays: lead,
       bandSource: measured ? measured.source : calibration?.lowRatio != null ? 'fit' : null,
       kwhLow: low,
-      kwhHigh: high
+      kwhHigh: high,
+      sunHours,
+      typicalSunHours,
+      typicalSamples: typical?.samples ?? null,
+      sunVsTypicalPct
     };
   });
 }
@@ -906,7 +1019,7 @@ async function assemble(state, { location, fetchedAt, history, forecastRows, err
     ? scoreForecastLog(log, state?.dailySeries, (mj, date) => rawKwhFor(calibration, mj, date))
     : null;
 
-  const days = projectDays(forecastRows ?? [], calibration, accuracy);
+  const days = projectDays(forecastRows ?? [], calibration, accuracy, iso(new Date()), history?.byDate);
 
   // Record what the forecast said, keyed on when it was FETCHED - so the same
   // cached forecast read twice, or read again tomorrow, never writes a second

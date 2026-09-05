@@ -680,13 +680,53 @@ once, then says everything about one day at a time:
   so a line saying it again three inches lower was the panel's own duplicate
   rendering. As a chip it costs no height and still confirms which day you
   landed on.
-- **The day's radiation figure sits beside the date on the detail card**
-  (v2.16; in the stats row since v2.17.1) - the forecast's own `radiationMj`,
-  in MJ/m2, deliberately
-  unconverted so it can be read straight across against another forecast
-  quoting the same quantity. It is the INPUT to the kWh figure, not a second
-  version of it, which is why it is not on the columns: the strip stays one
-  number per bar.
+- **The day's radiation is FULL-SUN HOURS against a seasonal normal** (v2.20;
+  the figure has been in the stats row since v2.17.1). It shipped as the raw
+  `radiationMj` in MJ/m2, unconverted, so it could be read straight across
+  against another forecast quoting the same quantity - a question asked about
+  once, in a unit borrowed from meteorology, sitting two inches from the kWh
+  figure it is the input to on a card opened daily. It now says the same thing
+  in terms a household acts on: `sunHoursFromMj()` (MJ/m2 / 3.6, a fixed
+  conversion - a day's kWh/m2 IS the hours the sun would have to sit at full
+  strength) and `typicalRadiation()` (how that compares with this time of year
+  HERE). The raw MJ/m2 is in the InfoPopover and on the stat's `title`, so the
+  cross-check survives. It is still not on the columns: the strip stays one
+  number per bar, and this is the INPUT to that number rather than a second
+  version of it.
+- **`typicalRadiation()` has TWO gates and the span one is the load-bearing
+  one.** A +/-45 day window is 91 days wide, so `MIN_SEASON_SAMPLES` (30) on
+  its own is satisfied by six weeks of THIS year - and comparing today against
+  the days either side of today is a rolling average wearing a seasonal
+  normal's clothes. `MIN_TYPICAL_SPAN_DAYS` (330) requires the cached history
+  to actually cover a year first. Same gate, same reason, as
+  `daily.js:seasonalCheck()`; don't relax it to make the comparison appear
+  sooner. It costs no request - it reads the radiation history already cached
+  for calibration - and it is a MEDIAN, so a run of overcast days cannot drag
+  "typical" down. Nothing is filtered out of the window: this is a statement
+  about the SKY, so an inverter outage is irrelevant, which is why it is NOT
+  the same filter `calibrate()` applies to measure the ROOF.
+- **Anything inside `TYPICAL_DEAD_BAND_PCT` (5%) is called typical**, not
+  given a signed number. "2% above typical" is noise printed as a signal, the
+  same restraint `notify.js` and `insights.js` apply.
+- **Array specs were considered for this and REJECTED** (v2.20). Multiplying
+  the radiation by a panel area or a kW rating is a monotone transform - the
+  same fact restated in a bigger number - and the ratio it invites (sunlight
+  landing on the panels vs kWh produced) reads as an efficiency score while
+  actually blending panel efficiency, heat derating, inverter clipping, DC/AC
+  losses and shading, which the fitted factor contains and never separates. It
+  is also the specs-based model this whole module exists to avoid: the moment
+  a theoretical yield is on screen it argues with the fitted one, and the fit
+  is the better number. `config.vehicle` is not a precedent - that divides an
+  already-measured figure by a constant the household typed, and produces no
+  new claim about the roof.
+- **"Full-sun hours" and "hours of sunshine" are different quantities and must
+  never both read as "h sun"** (v2.20). The first is irradiation (the figure
+  above); the second is `sunshine_duration`, shown only in the no-fit fallback
+  and its verdict. Note the pre-existing mismatch left in place there: that
+  fallback RANKS the week on `radiationMj` but LABELS each day with sunshine
+  duration, so on a briefly-brilliant day against a long hazy one the two can
+  disagree. Showing `sunHours` there instead would make label and ranking the
+  same quantity.
 - **The per-day prose lives in ONE card that follows the selection**, not on
   every row. It opens on today and carries the figure, the likely range, the
   sky in a word, the temperatures, the spare-for-the-car figure and the
