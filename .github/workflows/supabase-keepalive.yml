@@ -8,10 +8,26 @@
 # that - which is exactly why the file export in the Backup page remains the
 # primary backup and this is only the second copy.
 #
-# The request moves no data: it asks for at most one id, and row-level
-# security means the anon key it uses can read nothing anyway. The key is the
-# same publishable one already in the public bundle (src/data/cloudKeys.js),
-# so there is no secret here to leak.
+# It calls public.keepalive() (supabase/migrations/0002_keepalive.sql), a
+# function that takes nothing, reads nothing and returns now(). Read that
+# file before changing what is pinged here: this job used to select an id
+# from public.backups, which can never answer 200, because `anon` holds no
+# privilege on that table. Every run from 2026-09-02 to 2026-09-06 failed
+# with 401 for that reason. The answer is NOT to grant `anon` access to the
+# backups table - it is to knock on a door that exists for knocking.
+#
+# The key goes in the `apikey` header ONLY, and there must be no
+# `Authorization: Bearer` header. A modern `sb_publishable_*` key is not a
+# JWT, so the platform tries to parse it as one and answers 401 whatever
+# else is right. Supabase documents that under "Known limitations" in
+# Migrating to publishable and secret API keys. `Authorization` carries a
+# signed-in user's JWT, which this job has not got and does not need.
+# Don't "fix" a failure here by adding it back.
+#
+# There is no secret here to leak: the key is the same publishable one
+# already in the public bundle (src/data/cloudKeys.js), and it now names a
+# project on which an anonymous caller may do exactly one thing - ask what
+# the time is.
 
 name: Supabase keep-alive
 
@@ -30,17 +46,23 @@ jobs:
           SUPABASE_KEY: sb_publishable_2e2eIVRO9BrZA7JF4o2L-w_PF_7lV1f
         run: |
           set -euo pipefail
-          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+          # The body is kept, not discarded: a bare status code cost two
+          # rounds of guessing when this job first failed, and the body says
+          # which of several 401s it is.
+          body=$(curl -sS -w '\n%{http_code}' \
             -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
-            "${SUPABASE_URL}/rest/v1/backups?select=id&limit=1")
+            "${SUPABASE_URL}/rest/v1/rpc/keepalive")
+          code=${body##*$'\n'}
+          body=${body%$'\n'*}
           echo "HTTP ${code}"
-          # 200 is a live project answering with zero rows (RLS hides them all
-          # from an anon caller, which is the point). 540 is Supabase's own
-          # "project paused" code and means this job started running too late
-          # to help - fail so it is visible rather than silently useless.
+          # 200 with a timestamp is a live project that ran a real query. 540
+          # is Supabase's own "project paused" code and means this job started
+          # running too late to help - fail so it is visible rather than
+          # silently useless.
           case "${code}" in
-            200|206) echo "Project is awake." ;;
+            200) echo "Project is awake at ${body}." ;;
             540) echo "::error::Project is PAUSED - resume it in the Supabase dashboard."; exit 1 ;;
-            *) echo "::error::Unexpected status ${code}."; exit 1 ;;
+            401) echo "::error::401 - the key was rejected: ${body}"; echo "::error::Check nothing has re-added an Authorization header, and that the publishable key in src/data/cloudKeys.js still matches the project."; exit 1 ;;
+            404) echo "::error::404 - public.keepalive() is missing or PostgREST has not reloaded its schema. Re-apply supabase/migrations/0002_keepalive.sql."; exit 1 ;;
+            *) echo "::error::Unexpected status ${code}: ${body}"; exit 1 ;;
           esac

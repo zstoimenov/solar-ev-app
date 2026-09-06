@@ -367,6 +367,17 @@ Rules that must not be broken:
   durability story and its stale-backup nag is untouched. `cloudStaleness()` in
   `data/storage.js` is a **sibling** of `backupStaleness()`, deliberately not a
   merge of it - two backups, two failure modes, two different fixes.
+- **The keep-alive pings `public.keepalive()`, never a table** (since
+  2026-09). `supabase/migrations/0002_keepalive.sql` adds a function that
+  takes nothing, reads nothing and returns `now()`, executable by `anon`. The
+  workflow originally selected an id from `public.backups` and failed with 401
+  on every run for four days: `anon` holds no privilege on that table, so the
+  request was refused at table privileges, one layer BEFORE the RLS the safety
+  rests on. Do not fix a keep-alive failure by granting `anon` anything on
+  `backups` - privileges AND RLS is the arrangement, and a liveness ping is
+  not a good enough reason to spend one of them. Nor by reading the 401 as
+  proof of life: it is proof (a paused project is refused earlier, with 540),
+  but a revoked key would then look identical to a healthy one.
 - **The passphrase is never stored.** Every push and every pull asks for it.
   That is the cost of ciphertext-only and it is the accepted trade, the same one
   the encrypted file export already makes.
