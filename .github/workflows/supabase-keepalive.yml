@@ -12,6 +12,14 @@
 # security means the anon key it uses can read nothing anyway. The key is the
 # same publishable one already in the public bundle (src/data/cloudKeys.js),
 # so there is no secret here to leak.
+#
+# The key goes in the `apikey` header ONLY, and there must be no
+# `Authorization: Bearer` header. A modern `sb_publishable_*` key is not a
+# JWT, so the platform tries to parse it as one and answers 401 - which is
+# what this job did on every run until 2026-09-06. Supabase documents it
+# under "Known limitations" in Migrating to publishable and secret API keys.
+# `Authorization` is for a signed-in user's JWT, which this job has not got
+# and does not need. Don't "fix" a failure here by adding it back.
 
 name: Supabase keep-alive
 
@@ -32,7 +40,6 @@ jobs:
           set -euo pipefail
           code=$(curl -sS -o /dev/null -w '%{http_code}' \
             -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}" \
             "${SUPABASE_URL}/rest/v1/backups?select=id&limit=1")
           echo "HTTP ${code}"
           # 200 is a live project answering with zero rows (RLS hides them all
@@ -42,5 +49,6 @@ jobs:
           case "${code}" in
             200|206) echo "Project is awake." ;;
             540) echo "::error::Project is PAUSED - resume it in the Supabase dashboard."; exit 1 ;;
+            401) echo "::error::401 - the key was rejected. Check nothing has re-added an Authorization header, and that the publishable key in src/data/cloudKeys.js still matches the project."; exit 1 ;;
             *) echo "::error::Unexpected status ${code}."; exit 1 ;;
           esac
