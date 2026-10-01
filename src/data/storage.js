@@ -162,6 +162,35 @@ const monthIndexOf = (yyyymm) => {
 const monthNameOf = (index) =>
   `${STALE_MONTH_NAMES[((index % 12) + 12) % 12]} ${Math.floor(index / 12)}`;
 
+// Months stored before their Synergy file arrived. Fronius and Wattpilot are
+// ready on the 1st, Synergy a few days later, so a month built on the 1st is
+// normally waiting on it for a while - a chore, not an alarm.
+//
+// A fourth sibling, not a merge into ingestStaleness(): that one means "a
+// whole month is missing", this means "one file of a stored month is". Only
+// the last SYNERGY_PENDING_WINDOW months count - an old month that never got
+// its file (or predates the download) would otherwise nag forever, and the
+// upload page still lists every pending month for whoever wants to fill one.
+const SYNERGY_PENDING_WINDOW = 3;
+
+export function synergyPending({ digests, today = new Date() }) {
+  const nowIdx = today.getFullYear() * 12 + today.getMonth();
+  const months = (digests ?? [])
+    .filter((d) => d.crossValImport === 'Pending' && /^\d{4}-\d{2}/.test(d.month ?? ''))
+    .filter((d) => nowIdx - monthIndexOf(d.month) <= SYNERGY_PENDING_WINDOW)
+    .map((d) => d.month)
+    .sort();
+  if (!months.length) return null;
+  const names = months.map((m) => monthNameOf(monthIndexOf(m)));
+  return {
+    level: 'info',
+    months,
+    text: months.length === 1
+      ? `${names[0]} is still waiting on its Synergy file.`
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} are still waiting on their Synergy files.`
+  };
+}
+
 export function ingestStaleness({ lastMonth, today = new Date() }) {
   if (!lastMonth || !/^\d{4}-\d{2}/.test(lastMonth)) return null;
   const lastIdx = monthIndexOf(lastMonth);

@@ -31,9 +31,12 @@ import { parseFronius } from '../ingest/parseFronius.js';
 import { parseWattpilot } from '../ingest/parseWattpilot.js';
 import { parseSynergy } from '../ingest/parseSynergy.js';
 import { buildDigest, buildDailySeries } from '../ingest/buildDigest.js';
+import { attachSynergyToDigest, SYNERGY_CHANGED_FIELDS } from '../ingest/attachSynergy.js';
 import { mergeDailySeries } from '../data/daily.js';
 import { recomputeCumulative, recomputeMeta } from '../data/compute.js';
 import { putState } from '../data/db.js';
+import { monthLabel } from './Screens/parts.jsx';
+import { synergyPending } from '../data/storage.js';
 import TariffScheduleEditor from './Ingest/TariffScheduleEditor.jsx';
 import ChargingLogEditor from './Ingest/ChargingLogEditor.jsx';
 import TariffPlanEditor from './Ingest/TariffPlanEditor.jsx';
@@ -185,8 +188,24 @@ function previewValue(key, value) {
 // stale-backup banner's "Back up now") can jump straight to a page here, and
 // null means the index.
 export default function IngestWizard({
-  state, appMeta, cloudMeta, page, onPageChange, onChange, onIngested
+  state, appMeta, cloudMeta, page, synergyMonth = null, onPageChange, onChange, onIngested
 }) {
+  // Stored months, newest first, and the ones still waiting on Synergy.
+  const storedMonths = state.monthlyDigests.map((d) => d.month).sort().reverse();
+  const pendingMonths = state.monthlyDigests
+    .filter((d) => d.crossValImport === 'Pending').map((d) => d.month).sort().reverse();
+
+  // The upload page has two modes. 'full' builds a month from the files;
+  // 'synergy' adds just the Synergy CSV to a month already stored, because
+  // Synergy publishes a few days after Fronius/Wattpilot. See attachSynergy.js.
+  // Same recent-months window as Home's chore, so an old month that never got
+  // its file does not nag here either (it is still in the month list).
+  const synergyDue = synergyPending({ digests: state.monthlyDigests });
+  const [mode, setMode] = useState(synergyMonth ? 'synergy' : 'full');
+  const [synMonth, setSynMonth] = useState(synergyMonth ?? pendingMonths[0] ?? storedMonths[0] ?? '');
+  const [synFile, setSynFile] = useState(null);
+  const [synPreview, setSynPreview] = useState(null);
+
   const [files, setFiles] = useState(empty);
   // What month each uploaded file NAMES, kept alongside the files themselves so
   // the two energy exports can be checked against each other and against the
@@ -296,6 +315,38 @@ export default function IngestWizard({
     }
   }
 
+  async function buildSynergyPreview() {
+    setError(null); setSynPreview(null);
+    try {
+      const before = state.monthlyDigests.find((d) => d.month === synMonth);
+      if (!before) throw new Error('Pick a stored month.');
+      if (!synFile) throw new Error('Choose the Synergy CSV.');
+      const synergy = parseSynergy(await synFile.text(), synMonth);
+      const after = attachSynergyToDigest(before, synergy, state.config);
+      const nextDigests = state.monthlyDigests.map((d) => (d.month === synMonth ? after : d));
+      setSynPreview({
+        before,
+        after,
+        next: {
+          ...state,
+          meta: recomputeMeta(state.meta, nextDigests, APP_VERSION),
+          monthlyDigests: nextDigests,
+          cumulativeTotals: recomputeCumulative(nextDigests, state.cumulativeTotals, state.config)
+        }
+      });
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function commitSynergy() {
+    await putState(synPreview.next);
+    onChange?.();
+    setSynPreview(null);
+    setSynFile(null);
+    onIngested?.();
+  }
+
   async function commit() {
     await putState(preview.next);
     onChange?.();
@@ -347,8 +398,111 @@ export default function IngestWizard({
       {page === 'upload' && (
       <>
       <h3>Add a Month</h3>
+      <div className="range-chips" role="group" aria-label="What to upload">
+        {[['full', 'New month'], ['synergy', 'Synergy only']].map(([key, label]) => (
+          <button
+            key={key}
+            className={mode === key ? 'active' : ''}
+            aria-pressed={mode === key}
+            onClick={() => { setMode(key); setError(null); }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      </>
+      )}
+
+      {page === 'upload' && mode === 'synergy' && (
+      <>
       <p className="small">
-        Upload the three monthly files + enter away-charging. Nothing is written
+        Add the Synergy CSV to a month you have already uploaded. Everything else
+        in that month stays as it is. Nothing is written until you confirm.
+      </p>
+      {storedMonths.length === 0 ? (
+        <p className="small">No months are stored yet. Use New month first.</p>
+      ) : (
+      <div className="field-section">
+        <label className="field"><span>Month</span>
+          <select
+            value={synMonth}
+            onChange={(e) => { setSynMonth(e.target.value); setSynPreview(null); }}
+          >
+            {storedMonths.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}{pendingMonths.includes(m) ? ' (waiting on Synergy)' : ''}
+              </option>
+            ))}
+          </select>
+          {!pendingMonths.includes(synMonth) && synMonth && (
+            <span className="hint">This month already has Synergy data. A new file replaces it.</span>
+          )}
+        </label>
+        <FileSlot
+          index={1} label="Synergy CSV" hint="MA_IntervalDataHistory.csv"
+          accept=".csv" file={synFile} detected={null}
+          onChange={(e) => { setSynFile(e.target.files?.[0] ?? null); setSynPreview(null); }}
+        />
+        {error && <div className="banner err">{error}</div>}
+        <button className="primary" onClick={buildSynergyPreview}>Build preview</button>
+      </div>
+      )}
+      </>
+      )}
+
+      {page === 'upload' && mode === 'synergy' && synPreview && (() => {
+        const changed = SYNERGY_CHANGED_FIELDS.filter(
+          (k) => JSON.stringify(synPreview.before[k] ?? null) !== JSON.stringify(synPreview.after[k] ?? null)
+        );
+        const status = synPreview.after.crossValImport === 'Fail' ? 'err' : 'ok';
+        return (
+        <div className="field-section">
+          <div className={`banner ${status}`}>
+            {status === 'err'
+              ? 'Synergy and Fronius disagree on grid import - check the red field before committing.'
+              : <>Will update <strong>{monthLabel(synPreview.after.month)}</strong>. Only the fields below change.</>}
+          </div>
+          <div className="table-scroll">
+            <table className="digest"><tbody>
+              <tr><td><strong>Field</strong></td><td><strong>Before</strong></td><td><strong>After</strong></td></tr>
+              {changed.map((k) => (
+                <tr key={k}>
+                  <td>{k}</td>
+                  <td>{previewValue(k, synPreview.before[k] ?? null)}</td>
+                  <td className={`digest-${rowStatus(k, synPreview.after[k] ?? null)}`}>
+                    {previewValue(k, synPreview.after[k] ?? null)}
+                  </td>
+                </tr>
+              ))}
+              {changed.length === 0 && <tr><td colSpan={3}>Nothing changes - this file matches what is stored.</td></tr>}
+            </tbody></table>
+          </div>
+          <div className="row" style={{ marginTop: '.5rem' }}>
+            <button className="primary" onClick={commitSynergy} disabled={changed.length === 0}>
+              Confirm &amp; write to store
+            </button>
+            <button className="ghost" onClick={() => setSynPreview(null)}>Discard preview</button>
+          </div>
+        </div>
+        );
+      })()}
+
+      {page === 'upload' && mode === 'full' && (
+      <>
+      {synergyDue && (
+        <div className="chore">
+          <span className="chore-text">{synergyDue.text}</span>
+          <button
+            className="ghost small-btn"
+            onClick={() => { setMode('synergy'); setSynMonth(synergyDue.months[0]); }}
+          >
+            Add it
+          </button>
+        </div>
+      )}
+      <p className="small">
+        Upload the three monthly files + enter away-charging. Synergy can wait:
+        leave it empty and add it later with Synergy only. Nothing is written
         until you confirm the preview.
       </p>
 
@@ -438,7 +592,7 @@ export default function IngestWizard({
         </Suspense>
       )}
 
-      {page === 'upload' && preview && (() => {
+      {page === 'upload' && mode === 'full' && preview && (() => {
         const rows = Object.entries(preview.digest).map(([k, v]) => [k, v, rowStatus(k, v)]);
         const overall = rows.reduce((worst, [, , s]) => (SEVERITY_RANK[s] > SEVERITY_RANK[worst] ? s : worst), 'ok');
         const overallText = {

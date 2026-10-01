@@ -13,6 +13,22 @@
 
 export const CHANGELOG = [
   {
+    version: 'v2.21.0',
+    date: '2026-10-01',
+    changes: [
+      'You no longer have to wait for Synergy before adding a month. Upload ' +
+        'Fronius and Wattpilot on the 1st, then add the Synergy file on its ' +
+        'own a few days later with the new Synergy only option on Add a Month.',
+      'Adding Synergy later changes only what that file decides: the import ' +
+        'check against Fronius, the half-hourly usage shape, and the ' +
+        'peak/off-peak split of what your exports earned. Your free charging ' +
+        'and notes stay as you entered them, and the preview shows every ' +
+        'figure that will change before anything is saved.',
+      'Home now reminds you when a recent month is still waiting on its ' +
+        'Synergy file, with one tap to add it.'
+    ]
+  },
+  {
     version: 'v2.20.0',
     date: '2026-09-05',
     changes: [

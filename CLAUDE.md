@@ -983,6 +983,39 @@ peak/off-peak split for `exportCreditAud` (see "Export credit" below). Both
 move stored money figures, which is why they were kept out of the commit that
 added the parser.
 
+## Synergy can arrive after the month (since v2.21)
+
+Fronius and Wattpilot publish on the 1st; Synergy's download lags a few days.
+A month has always been buildable with the Synergy slot empty (cross-check
+`Pending`, single-rate export credit), but adding the file later used to
+mean a full three-file re-ingest, which does NOT carry the manual fields
+(free charging, notes) over. Add a Month now has a **Synergy only** mode
+(`ingest/attachSynergy.js:attachSynergyToDigest()`) that patches a stored
+digest in place.
+
+- **It touches only what the Synergy file decides**: `gridImportSynergyKwh`,
+  `crossValImport`, `intervalProfile`, the Synergy sentences in `flags`, and
+  the export credit with what sums from it (`layer1SavingAud`,
+  `combinedSavingAud`). Grid cost, Layer 2, the daily rows and the manual
+  fields are left exactly as stored.
+- **It must equal a fresh three-file ingest** for the same month and config.
+  It goes through the same `exportCreditForMonth()` and `crossValFlag()` as
+  `buildDigest.js`; verified field-for-field. If you change how
+  `buildDigest.js` writes any of those fields, change this module with it.
+- **It deliberately does not call `recomputeDigestFinancials()`.** That
+  re-prices the whole month against today's import schedule and charging
+  log, which is the separate, explicit Recompute Financials action
+  (forward-only rule above).
+- A file with no rows for the chosen month is refused, not stored as
+  pending again.
+- `data/storage.js:synergyPending()` is a fourth sibling staleness helper
+  (not a merge into `ingestStaleness()`: a missing FILE, not a missing
+  month). It only counts the last 3 calendar months, so a month that never
+  got its file does not nag forever; the upload page's month list still
+  marks every pending month. Home shows it as a `.chore` row whose button
+  opens the upload page in Synergy-only mode via `App.jsx`'s one-shot
+  `dataIntent`.
+
 ## Export credit (since v2.5)
 
 `ingest/exportCredit.js` is the ONE implementation of what a month's exported
