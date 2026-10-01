@@ -70,6 +70,10 @@ export default function App() {
   const [cloudMeta, setCloudMeta] = useState({ lastPushedAt: null, lastPushedCount: null, lastPushedId: null });
   const [loadError, setLoadError] = useState(null);
   const [screen, setScreen] = useState('Home');
+  // Where the Data screen should open when another screen sends the household
+  // there for a specific job (Home's "waiting on its Synergy file" chore).
+  // Consumed on mount by DataScreen; a plain nav tap clears it.
+  const [dataIntent, setDataIntent] = useState(null);
   const [notesOpen, setNotesOpen] = useState(false);
   const [fromMonth, setFromMonth] = useState(null);
   const [toMonth, setToMonth] = useState(null);
@@ -244,7 +248,15 @@ export default function App() {
       />
 
       {screen === 'Home' && (
-        <Home state={allTimeState} appMeta={appMeta} onGoTo={setScreen} />
+        <Home
+          state={allTimeState}
+          appMeta={appMeta}
+          onGoTo={setScreen}
+          onAddSynergy={(month) => {
+            setDataIntent({ page: 'upload', synergyMonth: month });
+            setScreen('Data');
+          }}
+        />
       )}
       {screen === 'Energy' && (
         <Energy
@@ -276,6 +288,8 @@ export default function App() {
           state={state}
           appMeta={appMeta}
           cloudMeta={cloudMeta}
+          intent={dataIntent}
+          onIntentUsed={() => setDataIntent(null)}
           onChange={refresh}
           onIngested={() => setScreen('Home')}
         />

@@ -14,12 +14,21 @@
 // opens on the index rather than on the monthly upload, because "which of
 // these did I come here to do" is the question this screen is actually asked.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import IngestWizard from '../IngestWizard.jsx';
 import StorageHealth from '../StorageHealth.jsx';
 
-export default function DataScreen({ state, appMeta, cloudMeta, onChange, onIngested }) {
-  const [page, setPage] = useState(null);
+// `intent` is set when another screen sent the household here for one job
+// (Home's Synergy chore): it picks the opening page and is then handed back
+// via onIntentUsed, so the next ordinary visit opens on the index again.
+export default function DataScreen({
+  state, appMeta, cloudMeta, intent, onIntentUsed, onChange, onIngested
+}) {
+  const [page, setPage] = useState(intent?.page ?? null);
+  const [synergyMonth] = useState(intent?.synergyMonth ?? null);
+  useEffect(() => {
+    if (intent) onIntentUsed?.();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="screen">
@@ -41,6 +50,7 @@ export default function DataScreen({ state, appMeta, cloudMeta, onChange, onInge
         appMeta={appMeta}
         cloudMeta={cloudMeta}
         page={page}
+        synergyMonth={synergyMonth}
         onPageChange={(next) => {
           setPage(next);
           // Coming back to the index, or into a page, should start at the top:

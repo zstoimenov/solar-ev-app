@@ -8,7 +8,7 @@
 // and a household opening the app on a Tuesday was shown last month's news.
 //
 // Four blocks, in this order:
-//   1. Anything wrong or owed  - alarms first, then the two chores. The
+//   1. Anything wrong or owed  - alarms first, then the chores. The
 //      chores are quietly styled but sit HIGH, because "your data stops two
 //      months ago" changes how every figure below it should be read.
 //   2. What is happening now   - the week's verdict, then today's sun curve.
@@ -40,7 +40,7 @@ import InfoPopover from '../InfoPopover.jsx';
 import { AlertIcon, CheckCircleIcon, ClockIcon } from '../Dashboard/icons.jsx';
 import { BigStat, Lede, CompareBar } from './parts.jsx';
 import { monthToDate, paceToMonthEnd, typicalForMonth, seasonalCheck } from '../../data/daily.js';
-import { backupStaleness, ingestStaleness } from '../../data/storage.js';
+import { backupStaleness, ingestStaleness, synergyPending } from '../../data/storage.js';
 import ForecastAlert from '../ForecastAlert.jsx';
 import WeekVerdict from '../Dashboard/WeekVerdict.jsx';
 import SunCurve from '../Dashboard/SunCurve.jsx';
@@ -78,7 +78,7 @@ function PaybackRing({ pct }) {
   );
 }
 
-export default function Home({ state, appMeta, onGoTo }) {
+export default function Home({ state, appMeta, onGoTo, onAddSynergy }) {
   const c = state.cumulativeTotals;
   const digests = state.monthlyDigests;
   const daily = state.dailySeries ?? [];
@@ -123,6 +123,9 @@ export default function Home({ state, appMeta, onGoTo }) {
   // you have not imported", stale means "get a copy of what is here off this
   // phone". See data/storage.js.
   const overdue = ingestStaleness({ lastMonth: c.coverage?.lastMonth ?? state.meta?.dateRange?.last });
+  // A stored month whose Synergy file has not arrived yet - Synergy publishes
+  // a few days after Fronius/Wattpilot, so this is routine, not an alarm.
+  const synergyDue = synergyPending({ digests });
   const stale = backupStaleness({
     monthCount: digests.length,
     lastExportedCount: appMeta.lastExportedCount,
@@ -174,6 +177,16 @@ export default function Home({ state, appMeta, onGoTo }) {
           <span className="chore-icon"><AlertIcon /></span>
           <span className="chore-text">{overdue.text}</span>
           <button className="ghost small-btn" onClick={() => onGoTo('Data')}>Upload</button>
+        </div>
+      )}
+
+      {synergyDue && (
+        <div className="chore">
+          <span className="chore-icon"><AlertIcon /></span>
+          <span className="chore-text">{synergyDue.text}</span>
+          <button className="ghost small-btn" onClick={() => onAddSynergy?.(synergyDue.months[0])}>
+            Add
+          </button>
         </div>
       )}
 
